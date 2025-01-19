@@ -1,10 +1,8 @@
-![splash](https://github.com/user-attachments/assets/d80028f1-b359-47b4-a7bf-17910a9c8656)
-
 > [!WARNING]  
 > Sorry, i don't care anymore. Feel free to bring some good programmer and pickup this project.
 > Removed previous git by accident, GitHub was buggy.
 >
-> Thank you by your support, GP2 Framework community
+> Thank you for your support, GP2 Framework community
 
 # About
 
