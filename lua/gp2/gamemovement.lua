@@ -55,7 +55,7 @@ local function TractorBeamMovement(ply, mv)
 end
 
 hook.Add("Move", "GP2::Move", function(ply, mv)
-    TractorBeamMovement(ply, moveData)
+    TractorBeamMovement(ply, mv)
     if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
         PortalMovement.LookForPortalEnvironment(ply, mv)
         if PortalMovement.Move(ply, mv) then
