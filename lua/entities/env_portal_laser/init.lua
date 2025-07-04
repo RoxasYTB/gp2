@@ -348,6 +348,11 @@ function ENT:OnStateChange(name, old, new)
     end
 end
 
+-- S'assurer que l'entité laser est transmise en multijoueur
+function ENT:UpdateTransmitState()
+    return TRANSMIT_ALWAYS
+end
+
 function ENT:SpawnFunction(ply, tr, ClassName)
     if not tr.Hit then return end
 

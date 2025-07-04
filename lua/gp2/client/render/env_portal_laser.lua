@@ -31,6 +31,23 @@ function EnvPortalLaser.AddToRenderList(laser)
     end
 end
 
+-- Fonction pour découvrir automatiquement les lasers existants
+function EnvPortalLaser.RefreshExistingLasers()
+    for _, ent in ents.Iterator() do
+        if IsValid(ent) and ent:GetClass() == "env_portal_laser" then
+            EnvPortalLaser.AddToRenderList(ent)
+        end
+    end
+end
+
+-- Initialiser automatiquement les lasers existants au chargement
+hook.Add("InitPostEntity", "GP2::RefreshExistingLasers", function()
+    timer.Simple(0.1, function()
+        EnvPortalLaser.RefreshExistingLasers()
+        print("[GP2-SDK] Refreshed existing lasers for rendering")
+    end)
+end)
+
 local function RecursionLaserThroughPortals(laser, linkedPortal, data)
     local tr = util_TraceLine(data)
     local inTrace = ents.FindAlongRay(tr.StartPos, tr.HitPos, -RAY_EXTENTS_NEG, RAY_EXTENTS)
@@ -110,9 +127,9 @@ local function RecursionLaserThroughPortals(laser, linkedPortal, data)
         tr.Entity = tracedEntity
 
         break
-    end
-
-    render.DrawBeam(data.start, tr.HitPos, 64, 0, 1)
+    end    -- Dessiner le segment de laser jusqu'au point de collision
+    render.SetMaterial(LASER_MATERIAL)
+    render.DrawBeam(data.start, tr.HitPos, 8, 0, 1, NORMAL_COLOR)
 
     if tr.Entity:IsValid() and tr.Entity:GetClass() == "prop_portal" and IsValid(tr.Entity:GetLinkedPartner()) then
         local hitPortal = tr.Entity
@@ -134,6 +151,7 @@ local function RecursionLaserThroughPortals(laser, linkedPortal, data)
                 end
             end
 
+            -- Continuer récursivement pour dessiner le segment après le portail
             return RecursionLaserThroughPortals(laser, linkedPortal, newData)
         end
     end
@@ -184,12 +202,12 @@ function EnvPortalLaser.Render()
         else
             attachPos = laser:GetPos()
             attachAng = laser:GetAngles()
-            attachForward = attachAng:Forward()
-        end
-
+            attachForward = attachAng:Forward()        end       
+        
         render.SetMaterial(LASER_MATERIAL)
 
-        local tr = RecursionLaserThroughPortals(laser, NULL, {
+        -- Le rendu du laser est maintenant géré par RecursionLaserThroughPortals
+        RecursionLaserThroughPortals(laser, NULL, {
             start = attachPos,
             endpos = attachPos + attachForward * MAX_RAY_LENGTH,
             filter = {

@@ -3,13 +3,41 @@
 -- Render related hooks
 -- ----------------------------------------------------------------------------
 
-include "gp2/client/render/env_portal_laser.lua"
+-- Protected include of env_portal_laser.lua
+local envPortalLaserIncluded = false
+local envPortalLaserFile = "gp2/client/render/env_portal_laser.lua"
 
+if file.Exists(envPortalLaserFile, "LUA") then
+    local success, err = pcall(include, envPortalLaserFile)
+    if success then
+        envPortalLaserIncluded = true
+        print("[GP2-SDK] Successfully loaded env_portal_laser.lua")
+    else
+        print("[GP2-SDK] Error loading env_portal_laser.lua: " .. tostring(err))
+    end
+else
+    print("[GP2-SDK] env_portal_laser.lua not found at: " .. envPortalLaserFile)
+end
+
+-- Initialize all global tables to prevent nil errors in multiplayer
 ProjectedWallEntity = ProjectedWallEntity or {}
 ProjectedWallEntity.Walls = ProjectedWallEntity.Walls or {}
 
 ProjectedTractorBeamEntity = ProjectedTractorBeamEntity or {}
 ProjectedTractorBeamEntity.Beams = ProjectedTractorBeamEntity.Beams or {}
+
+-- Ensure functions are defined
+if not ProjectedTractorBeamEntity.AddToRenderList then
+    function ProjectedTractorBeamEntity.AddToRenderList(ent, mesh)
+        ProjectedTractorBeamEntity.Beams[ent] = mesh
+    end
+end
+
+if not ProjectedTractorBeamEntity.IsAdded then
+    function ProjectedTractorBeamEntity.IsAdded(ent)
+        return ProjectedTractorBeamEntity.Beams[ent] ~= nil and (ProjectedTractorBeamEntity.Beams[ent]:IsValid() or true)
+    end
+end
 
 PropTractorBeam = PropTractorBeam or {}
 PropTractorBeam.Beams = PropTractorBeam.Beams or {}
@@ -19,6 +47,14 @@ NpcPortalTurretFloor.Turrets = NpcPortalTurretFloor.Turrets or {}
 
 PropPortal = PropPortal or {}
 PropPortal.Portals = PropPortal.Portals or {}
+
+-- Initialize EnvPortalLaser with fallback
+EnvPortalLaser = EnvPortalLaser or {}
+if not EnvPortalLaser.Render then
+    EnvPortalLaser.Render = function() 
+        -- Fallback function if env_portal_laser.lua didn't load
+    end
+end
 
 local MAX_RAY_LENGTH = 8192
 
@@ -91,19 +127,13 @@ function ProjectedWallEntity.Render()
     end
 end
 
-function ProjectedTractorBeamEntity.AddToRenderList(ent, wall)
-    ProjectedTractorBeamEntity.Beams[ent] = wall
-end
-
-function ProjectedTractorBeamEntity.IsAdded(ent)
-    return ProjectedTractorBeamEntity.Beams[ent] ~= nil and ProjectedTractorBeamEntity.Beams[ent]:IsValid()
-end
+-- Functions already defined above to prevent nil errors
 
 function ProjectedTractorBeamEntity.Render()
     for entity, beam in pairs(ProjectedTractorBeamEntity.Beams) do
         if not IsValid(entity) then
             ProjectedTractorBeamEntity.Beams[entity] = nil
-            return
+            continue
         end
 
         if beam and beam:IsValid() then
@@ -360,13 +390,13 @@ hook.Add("PreDrawTranslucentRenderables", "GP2::PreDrawTranslucentRenderables", 
     VguiNeurotoxinCountdown.Render()
     PropPortal.Render()
 
-    if PortalRendering.Rendering then
+    if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM and PortalRendering.Rendering then
         return true
     end
 end)
 
 hook.Add("PreDrawOpaqueRenderables", "GP2::PreDrawOpaqueRenderables", function(depth, sky, skybox3d)
-    if PortalRendering.Rendering then
+    if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM and PortalRendering.Rendering then
         return true
     end
 end)
@@ -374,7 +404,14 @@ end)
 hook.Add("PostDrawTranslucentRenderables", "GP2::PostDrawTranslucentRenderables", function(depth, sky, skybox3d)
     if depth or sky then return end
 
-    EnvPortalLaser.Render()
+    -- Protected call to EnvPortalLaser.Render
+    if envPortalLaserIncluded and EnvPortalLaser and type(EnvPortalLaser.Render) == "function" then
+        local success, err = pcall(EnvPortalLaser.Render)
+        if not success then
+            print("[GP2-SDK] Error in EnvPortalLaser.Render: " .. tostring(err))
+        end
+    end
+    
     ProjectedWallEntity.Render()
     ProjectedTractorBeamEntity.Render()
     NpcPortalTurretFloor.Render()

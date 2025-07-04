@@ -4,14 +4,59 @@
 -- ----------------------------------------------------------------------------
 
 if CLIENT then
-    include("gp2/client/hudelements/base.lua")
+    -- Protected include of hudelements/base.lua with better error handling
+    local baseFile = "gp2/client/hudelements/base.lua"
+    if file.Exists(baseFile, "LUA") then
+        local status, result = pcall(function()
+            return include(baseFile)
+        end)
+        if not status then
+            print("[GP2-SDK] Error loading hudelements/base.lua: " .. tostring(result))
+            -- Try alternative loading method
+            local content = file.Read(baseFile, "LUA")
+            if content and #content > 0 then
+                local compiled = CompileString(content, baseFile)
+                if compiled then
+                    pcall(compiled)
+                else
+                    print("[GP2-SDK] Failed to compile base.lua")
+                end
+            else
+                print("[GP2-SDK] base.lua is empty or corrupted")
+            end
+        end
+    else
+        print("[GP2-SDK] hudelements/base.lua not found at: " .. baseFile)
+    end
 else
     AddCSLuaFile("gp2/client/hudelements/base.lua")
 end
 
 for _, element in ipairs(file.Find("gp2/client/hudelements/hud_*.lua", "LUA")) do
     if CLIENT then
-        include(string.format("gp2/client/hudelements/%s", element))
+        local elementPath = string.format("gp2/client/hudelements/%s", element)
+        if file.Exists(elementPath, "LUA") then
+            local status, result = pcall(function()
+                return include(elementPath)
+            end)
+            if not status then
+                print("[GP2-SDK] Error loading " .. element .. ": " .. tostring(result))
+                -- Try alternative loading method for corrupted files
+                local content = file.Read(elementPath, "LUA")
+                if content and #content > 0 then
+                    local compiled = CompileString(content, elementPath)
+                    if compiled then
+                        pcall(compiled)
+                    else
+                        print("[GP2-SDK] Failed to compile " .. element)
+                    end
+                else
+                    print("[GP2-SDK] " .. element .. " is empty or corrupted")
+                end
+            end
+        else
+            print("[GP2-SDK] " .. element .. " not found")
+        end
     else
         AddCSLuaFile(string.format("gp2/client/hudelements/%s", element))
     end
@@ -264,10 +309,12 @@ GP2.Hud.DeclareLegacyElement(function(scrw, scrh)
 end)
 
 GP2.Hud.DeclareLegacyElement(function(scrw, scrh)
-    surface_SetFont("DebugOverlay")
-    surface_SetTextPos(10, scrh - 16)
-    surface_SetTextColor(255, 255, 255, 255)
-    surface_DrawText(GP2_VERSION)
+    if GP2_VERSION then
+        surface_SetFont("DebugOverlay")
+        surface_SetTextPos(10, scrh - 16)
+        surface_SetTextColor(255, 255, 255, 255)
+        surface_DrawText(GP2_VERSION)
+    end
 end)
 
 GP2.Hud.DeclareLegacyElement(PaintManager.LegacyHud)

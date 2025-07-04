@@ -21,7 +21,10 @@ function ENT:OnRemove()
 end
 
 function ENT:Think()
-    EnvPortalLaser.AddToRenderList(self)
+    -- Protection contre les erreurs si EnvPortalLaser n'est pas défini
+    if EnvPortalLaser and EnvPortalLaser.AddToRenderList then
+        EnvPortalLaser.AddToRenderList(self)
+    end
 
     self:ChangeVolumeByDistanceToBeam()
 

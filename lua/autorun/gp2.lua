@@ -3,7 +3,7 @@
 -- Start point for whole framework
 -- ----------------------------------------------------------------------------
 
-require("niknaks")
+
 
 local developer = GetConVar("developer")
 
@@ -64,6 +64,18 @@ PORTAL_WIDTH = 64
 --- Default height for portal
 PORTAL_HEIGHT = 112
 
+-- Use unfinished implementation for better portal movement
+-- internally tries to build local copy of world mesh for physics
+-- with hole
+--
+-- currently unfinished
+-- has noticable lag
+PORTAL_USE_NEW_ENVIRONMENT_SYSTEM = false
+
+if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
+    require("niknaks")
+end
+
 include("gp2/globals.lua")
 include("gp2/utils.lua")
 include("gp2/netmessages.lua")
@@ -72,7 +84,8 @@ include("gp2/particles.lua")
 include("gp2/entityextensions.lua")
 include("gp2/portalmanager.lua")
 include("gp2/portaldetours.lua")
-include("gp2/portalmovement.lua")
+include("gp2/portalmovement" .. (PORTAL_USE_NEW_ENVIRONMENT_SYSTEM and "_new" or "_old") .. ".lua")
+AddCSLuaFile("gp2/portalmovement" .. (PORTAL_USE_NEW_ENVIRONMENT_SYSTEM and "_new" or "_old") .. ".lua")
 AddCSLuaFile("gp2/globals.lua")
 AddCSLuaFile("gp2/utils.lua")
 AddCSLuaFile("gp2/netmessages.lua")
@@ -81,12 +94,138 @@ AddCSLuaFile("gp2/particles.lua")
 AddCSLuaFile("gp2/entityextensions.lua")
 AddCSLuaFile("gp2/portalmanager.lua")
 AddCSLuaFile("gp2/portaldetours.lua")
-AddCSLuaFile("gp2/portalmovement.lua")
 AddCSLuaFile("gp2/paint.lua")
 AddCSLuaFile("gp2/client/hud.lua")
-GP2_VERSION = include("gp2/version.lua")
+-- Additional client files for multiplayer
+AddCSLuaFile("gp2/client/vgui.lua")
+AddCSLuaFile("gp2/client/render.lua")
+AddCSLuaFile("gp2/client/portalrendering.lua")
+AddCSLuaFile("gp2/gamemovement.lua")
+AddCSLuaFile("gp2/version.lua")
+
+-- Add entity files for proper networked loading
+-- Note: Entity files are automatically handled by GMod - don't force AddCSLuaFile
+AddCSLuaFile("gp2/client/render/env_portal_laser.lua")
+
+-- Ensure critical entity files are properly networked
+if SERVER then
+    -- Load base_brush entity first to fix derivation errors
+    include("entities/base_brush.lua")
+    
+    -- Register all entity files for client download
+    local entityFiles = file.Find("entities/*.lua", "LUA")
+    for _, entFile in ipairs(entityFiles) do
+        if string.StartWith(entFile, "prop_") or string.StartWith(entFile, "env_") or string.StartWith(entFile, "npc_") or entFile == "base_brush.lua" then
+            AddCSLuaFile("entities/" .. entFile)
+        end
+    end
+    
+    -- Ensure critical entities are specifically registered
+    AddCSLuaFile("entities/prop_portal.lua")
+    AddCSLuaFile("entities/base_brush.lua")
+    
+    -- Register HUD element files to fix the empty file errors
+    AddCSLuaFile("gp2/client/hudelements/base.lua")
+    AddCSLuaFile("gp2/client/hudelements/hud_message.lua")
+    AddCSLuaFile("gp2/client/hudelements/hud_quickinfo_portal.lua")
+end
+
+local versionFile = "gp2/version.lua"
+local success, result = pcall(include, versionFile)
+if success and result then
+    GP2_VERSION = result
+    GP2.Print("Loaded version: %s", GP2_VERSION)
+else
+    GP2_VERSION = "GP2-SDK v1.0"
+    GP2.Print("Using default version string (file: %s)", versionFile)
+end
 
 list.Set("ContentCategoryIcons", "Portal 2", "games/16/portal2.png")
+
+-- Fix for entity registration issues in multiplayer
+if SERVER then
+    -- Delayed entity registration fix for multiplayer
+    timer.Simple(1, function()
+        -- Force reload critical entities if they failed to register
+        if not scripted_ents.Get("prop_portal") then
+            GP2.Print("prop_portal not registered, attempting manual registration...")
+            
+            -- Try to force reload the entity file
+            local entPath = "entities/prop_portal.lua"
+            if file.Exists(entPath, "LUA") then
+                local entContent = file.Read(entPath, "LUA")
+                if entContent and #entContent > 0 then
+                    -- Create a sandbox environment for the entity
+                    local env = setmetatable({
+                        ENT = {},
+                        SERVER = SERVER,
+                        CLIENT = CLIENT,
+                        AddCSLuaFile = AddCSLuaFile,
+                        include = include,
+                        file = file,
+                        timer = timer,
+                        -- Add other necessary globals
+                        Vector = Vector,
+                        Angle = Angle,
+                        Color = Color,
+                        Material = Material,
+                        print = print,
+                        GP2 = GP2,
+                        MASK_OPAQUE_AND_NPCS = MASK_OPAQUE_AND_NPCS,
+                        PropPortal = PropPortal or {},
+                        PortalRendering = PortalRendering or {},
+                        PORTAL_HEIGHT = PORTAL_HEIGHT,
+                        PORTAL_WIDTH = PORTAL_WIDTH,
+                        PORTAL_USE_NEW_ENVIRONMENT_SYSTEM = PORTAL_USE_NEW_ENVIRONMENT_SYSTEM,
+                        PORTAL_OPEN_DURATION = PORTAL_OPEN_DURATION,
+                        PORTAL_STATIC_DURATION = PORTAL_STATIC_DURATION,
+                        PORTAL1_DEFAULT_COLOR = PORTAL1_DEFAULT_COLOR,
+                        PORTAL2_DEFAULT_COLOR = PORTAL2_DEFAULT_COLOR,
+                        PORTAL_TYPE_FIRST = PORTAL_TYPE_FIRST,
+                        PORTAL_TYPE_SECOND = PORTAL_TYPE_SECOND
+                    }, {__index = _G})
+                    
+                    local compiled = CompileString(entContent, entPath)
+                    if compiled then
+                        setfenv(compiled, env)
+                        local success, err = pcall(compiled)
+                        if success and env.ENT then
+                            -- Manually register the entity
+                            scripted_ents.Register(env.ENT, "prop_portal")
+                            GP2.Print("Successfully registered prop_portal entity")
+                        else
+                            GP2.Error("Failed to execute prop_portal.lua: %s", err or "unknown error")
+                        end
+                    else
+                        GP2.Error("Failed to compile prop_portal.lua")
+                    end
+                else
+                    GP2.Error("prop_portal.lua is empty or corrupted")
+                end
+            else
+                GP2.Error("prop_portal.lua not found")
+            end
+        else
+            GP2.Print("prop_portal entity already registered")
+        end
+    end)
+
+    -- Hook pour actualiser les lasers quand les joueurs se connectent
+    hook.Add("PlayerInitialSpawn", "GP2::RefreshLasersForNewPlayer", function(ply)
+        timer.Simple(1, function()
+            if IsValid(ply) then
+                -- Forcer l'actualisation de tous les lasers pour le nouveau joueur
+                for _, ent in ents.Iterator() do
+                    if IsValid(ent) and ent:GetClass() == "env_portal_laser" then
+                        -- Forcer la mise à jour de l'état du laser
+                        ent:SetState(ent:GetState())
+                    end
+                end
+                GP2.Print("Refreshed lasers for player %s", ply:Nick())
+            end
+        end)
+    end)
+end
 
 -- Cubes
 list.Set("SpawnableEntities", "prop_weighted_cube_clean", {
@@ -119,10 +258,11 @@ list.Set("SpawnableEntities", "prop_weighted_cube_sphere", {
 list.Set("SpawnableEntities", "prop_weighted_cube_antique", {
     PrintName = "Cube (Antique)",
     ClassName = "prop_weighted_cube",
-    Category = "Portal 2",
-    KeyValues = { NewSkins = 1, CubeType = 4 }
+    Category = "Portal 2",    KeyValues = { NewSkins = 1, CubeType = 4 }
 })
 
+-- Note: prop_portal entity is loaded automatically by Garry's Mod from entities/ folder
+-- Don't force include it here as it breaks ENT context
 
 if SERVER then
     -- AcceptInput hooks
@@ -312,19 +452,41 @@ else
     hook.Add("Initialize", "GP2::Initialize", function()
         SoundManager.Initialize()
     end)
-
-    include("gp2/paint.lua")
-    include("gp2/client/vgui.lua")
-    AddCSLuaFile("gp2/client/vgui.lua")
-    include("gp2/client/hud.lua")
-    include("gp2/client/render.lua")
-    include("gp2/client/portalrendering.lua")
-    include("gp2/client/render.lua")
-    include("gp2/gamemovement.lua")
-    AddCSLuaFile("gp2/client/portalrendering.lua")
-    AddCSLuaFile("gp2/gamemovement.lua")
-
-    hook.Add("Think", "GP2::Think", function()
+      -- Protected includes for client-side files with pcall
+    local clientFiles = {
+        "gp2/client/render.lua",  -- Load render system first
+        "gp2/paint.lua",
+        "gp2/client/vgui.lua", 
+        "gp2/client/hud.lua",
+        "gp2/client/portalrendering.lua",
+        "gp2/gamemovement.lua"
+    }
+    
+    -- Add a small delay to ensure networking is ready
+    timer.Simple(0.1, function()
+        for _, filePath in ipairs(clientFiles) do
+            if file.Exists(filePath, "LUA") then
+                local success, err = pcall(include, filePath)
+                if not success then
+                    GP2.Print("Could not load client file %s: %s", filePath, err or "unknown error")
+                else
+                    GP2.Print("Successfully loaded client file: %s", filePath)
+                end
+            else
+                GP2.Print("Client file not found: %s", filePath)
+            end
+        end    end)    hook.Add("Think", "GP2::Think", function()
         SoundManager.Think()
+    end)
+    
+    -- Hook pour s'assurer que les tractor beams sont correctement initialisés
+    hook.Add("InitPostEntity", "GP2::InitTractorBeams", function()
+        timer.Simple(1, function() -- Délai pour s'assurer que tout est chargé
+            for _, ent in ipairs(ents.FindByClass("projected_tractor_beam_entity")) do
+                if IsValid(ent) then
+                    ent:SetUpdated(false) -- Force la mise à jour du beam
+                end
+            end
+        end)
     end)
 end

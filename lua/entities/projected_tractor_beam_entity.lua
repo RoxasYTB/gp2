@@ -36,6 +36,9 @@ function ENT:Initialize()
     if SERVER then
         self.TraceFraction = 0
         self:SetModel("models/props_junk/PopCan01a.mdl")
+    else
+        -- Force update on client spawn
+        self:SetUpdated(false)
     end
     self:AddEffects(EF_NODRAW)
 end
@@ -46,13 +49,17 @@ function ENT:Think()
         self:SetUpdated(true)
     end
     
-if CLIENT then
-    self:SetNextClientThink(CurTime())
+    if CLIENT then
+        self:SetNextClientThink(CurTime())
 
-    if not ProjectedTractorBeamEntity.IsAdded(self) then
-        ProjectedTractorBeamEntity.AddToRenderList(self)
+        -- Protection contre les erreurs si ProjectedTractorBeamEntity n'est pas défini
+        if ProjectedTractorBeamEntity and ProjectedTractorBeamEntity.IsAdded and ProjectedTractorBeamEntity.AddToRenderList then
+            if not ProjectedTractorBeamEntity.IsAdded(self) then
+                ProjectedTractorBeamEntity.AddToRenderList(self)
+            end
+        end
     end
-end
+    
     local startPos = self:GetPos()
     local angles = self:GetAngles()
     local fwd = angles:Forward()
@@ -63,11 +70,12 @@ end
         mask = MASK_SOLID_BRUSHONLY,
     })
 
-
     if self.TraceFraction ~= tr.Fraction then
         self:SetUpdated(false)
         self.TraceFraction = tr.Fraction
-        debugoverlay.Cross(tr.HitPos, 16, 0.1, nil, true)
+        if developer:GetBool() then
+            debugoverlay.Cross(tr.HitPos, 16, 0.1, nil, true)
+        end
     end
 
     self:NextThink(CurTime())
@@ -77,7 +85,16 @@ end
 function ENT:Draw()
 end
 
-function ENT:OnRemove(fd)
+function ENT:OnRemove()
+    if CLIENT then
+        if self.Mesh and self.Mesh:IsValid() then
+            self.Mesh:Destroy()
+        end
+        -- Remove from render list
+        if ProjectedTractorBeamEntity and ProjectedTractorBeamEntity.Beams then
+            ProjectedTractorBeamEntity.Beams[self] = nil
+        end
+    end
 end
 
 function ENT:CreateBeam(distance)
@@ -130,9 +147,7 @@ function ENT:CreateBeam(distance)
             local uv1 = {0, u1}
             local uv2 = {0, u2}
             local uv3 = {v, u2}
-            local uv4 = {v, u1}
-
-            GP2.Utils.AddFace(verts, v1, v2, v3, v4, uv1, uv2, uv3, uv4)
+            local uv4 = {v, u1}            GP2.Utils.AddFace(verts, v1, v2, v3, v4, uv1, uv2, uv3, uv4)
         end
 
         if self.Mesh and self.Mesh:IsValid() then
@@ -141,7 +156,11 @@ function ENT:CreateBeam(distance)
 
         self.Mesh = Mesh()
         self.Mesh:BuildFromTriangles(verts)
-        ProjectedTractorBeamEntity.AddToRenderList(self, self.Mesh)
+        
+        -- Assurez-vous que ProjectedTractorBeamEntity est initialisé
+        if ProjectedTractorBeamEntity and ProjectedTractorBeamEntity.AddToRenderList then
+            ProjectedTractorBeamEntity.AddToRenderList(self, self.Mesh)
+        end
     else
         local radius =  self:GetRadius()
 
