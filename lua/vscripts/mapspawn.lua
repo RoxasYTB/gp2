@@ -73,6 +73,9 @@ function OnPostPlayerSpawn(ply)
             print('Set pos to back')
         end)
     end
+    
+    -- Note: Le système de spawn unifié est maintenant géré dans gp2_unified_spawn.lua
+    -- qui force tous les joueurs à utiliser la même position de spawn que le joueur solo
 end
 
 function OnPostSpawn()
