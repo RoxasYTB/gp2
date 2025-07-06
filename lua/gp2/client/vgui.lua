@@ -330,27 +330,72 @@ end
 local anglesFixup = Angle(0,0,0)
 
 local function scaledText(text, font, x, y, scale)
+    -- Vérifier et créer la police si elle n'existe pas
+    if font == "CoopLevelProgressFont_Small" then
+        -- Force la création de la police si elle n'existe pas
+        local testSuccess = pcall(function()
+            surface.SetFont(font)
+            local w, h = surface.GetTextSize("Test")
+            return w and h and w > 0 and h > 0
+        end)
+        
+        if not testSuccess then
+            -- Créer la police immédiatement
+            surface.CreateFont("CoopLevelProgressFont_Small", {
+                font = "Arial",
+                extended = true,
+                size = 28,
+                weight = 600,
+                antialias = true,
+            })
+        end
+    end
+    
     -- Protection contre les débordements de filtres de rendu
     local hasFilterMag = pcall(render.PushFilterMag, TEXFILTER.ANISOTROPIC)
     local hasFilterMin = pcall(render.PushFilterMin, TEXFILTER.ANISOTROPIC)
 
     local m = Matrix()
     m:Translate(Vector(x, y, 0))
-    m:Scale(Vector(scale, scale, 1))
-
-    -- Vérifier que la police existe avant de l'utiliser
+    m:Scale(Vector(scale, scale, 1))    -- Vérifier que la police existe avant de l'utiliser
     local fontToUse = font
-    if not surface.GetTextSize or not pcall(surface.SetFont, fontToUse) then
+    
+    -- Test plus robuste de l'existence de la police
+    local fontExists = false
+    if surface.SetFont and surface.GetTextSize then
+        local success = pcall(function()
+            surface.SetFont(fontToUse)
+            local w, h = surface.GetTextSize("Test")
+            return w and h and w > 0 and h > 0
+        end)
+        fontExists = success
+    end
+    
+    if not fontExists then
         fontToUse = "DermaDefault" -- Police de fallback
+        -- Vérifier que DermaDefault existe aussi
+        if surface.SetFont and surface.GetTextSize then
+            pcall(function()
+                surface.SetFont(fontToUse)
+                local w, h = surface.GetTextSize("Test")
+                if not w or w <= 0 then
+                    fontToUse = "Default" -- Dernière police de fallback
+                end
+            end)
+        end
     end
     
     surface.SetFont(fontToUse)
     cam.PushModelMatrix(m, true)
-        -- Protection contre les erreurs de DrawText
+        -- Protection contre les erreurs de DrawText avec plusieurs fallbacks
         local success = pcall(draw.DrawText, text, fontToUse, 0, 0, color_black)
         if not success then
-            -- Fallback : utiliser SimpleText directement
-            pcall(draw.SimpleText, text, fontToUse, 0, 0, color_black)
+            -- Premier fallback: essayer avec SimpleText
+            success = pcall(draw.SimpleText, text, fontToUse, 0, 0, color_black)
+        end
+        if not success then
+            -- Dernier fallback: essayer avec la police système par défaut
+            pcall(draw.SimpleText, text, "Default", 0, 0, color_black)
         end
     cam.PopModelMatrix()
 
@@ -457,10 +502,24 @@ function VguiSPProgressSign.Render()
                     digitsTotal[2] = tonumber(string.sub(totalNumbers, 2, 2))
                 else
                     digitsTotal[1] = tonumber(string.sub(totalNumbers, 1, #totalNumbers-1))
-                    digitsTotal[2] = tonumber(string.sub(totalNumbers, #totalNumbers, #totalNumbers))                end
-
-                -- Protected scaledText call to prevent render errors
-                pcall(scaledText, digits[1] .. digits[2] .. '/' .. digitsTotal[1] .. digitsTotal[2], "CoopLevelProgressFont_Small", 19, 99, 0.25)
+                    digitsTotal[2] = tonumber(string.sub(totalNumbers, #totalNumbers, #totalNumbers))                end                -- Safe text rendering without problematic font
+                local textToRender = digits[1] .. digits[2] .. '/' .. digitsTotal[1] .. digitsTotal[2]
+                local success = pcall(function()
+                    -- Try with a simple system font first
+                    surface.SetFont("DermaDefault")
+                    local m = Matrix()
+                    m:Translate(Vector(19, 99, 0))
+                    m:Scale(Vector(0.25, 0.25, 1))
+                    
+                    cam.PushModelMatrix(m, true)
+                        draw.SimpleText(textToRender, "DermaDefault", 0, 0, color_black)
+                    cam.PopModelMatrix()
+                end)
+                
+                -- If that fails, fallback to original scaledText with protection
+                if not success then
+                    pcall(scaledText, textToRender, "DermaDefault", 19, 99, 0.25)
+                end
 
                 local progressBarWidth = 72 * percentage
 

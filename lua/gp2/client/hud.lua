@@ -24,8 +24,7 @@ if CLIENT then
             else
                 print("[GP2-SDK] base.lua is empty or corrupted")
             end
-        end
-    else
+        end    else
         print("[GP2-SDK] hudelements/base.lua not found at: " .. baseFile)
     end
 else
@@ -91,7 +90,7 @@ local function CreateFonts()    surface.CreateFont("VscriptErrorText", {
         extended = true,
         weight = 500
     })    surface.CreateFont("CoopLevelProgressFont_Small", {
-        font = "Univers LT Std 47 Cn Lt",
+        font = "Arial", -- Police système fiable au lieu de "Univers LT Std 47 Cn Lt"
         extended = true,
         size = 28,
         weight = 600,
@@ -102,9 +101,9 @@ local function CreateFonts()    surface.CreateFont("VscriptErrorText", {
     surface.SetFont("CoopLevelProgressFont_Small")
     local textWidth, textHeight = surface.GetTextSize("Test")
     if not textWidth or textWidth <= 0 then
-        -- Si la police n'existe pas, créer une police de fallback
+        -- Si la police n'existe pas, créer une police de fallback avec Roboto
         surface.CreateFont("CoopLevelProgressFont_Small", {
-            font = "Arial",
+            font = "Roboto",
             extended = true,
             size = 28,
             weight = 600,
@@ -299,12 +298,11 @@ local function CreateHudElements()
         if hudElements[i].Remove and isfunction(hudElements[i].Remove) then
             hudElements[i].Remove(hudElements[i])
         end
-    end
-
-    -- Create elements here
+    end    -- Create elements here
     hudElements = {
         vgui.Create("GP2HudMessage"),
         vgui.Create("GP2HudQuickinfoPortal")
+        -- GP2HudWeaponIcon supprimé car AutoIcon s'en occupe automatiquement
     }
 end
 
@@ -329,11 +327,21 @@ GP2.Hud.DeclareLegacyElement(function(scrw, scrh)
         surface_SetFont("DebugOverlay")
         surface_SetTextPos(10, scrh - 16)
         surface_SetTextColor(255, 255, 255, 255)
-        surface_DrawText(GP2_VERSION)
-    end
+        surface_DrawText(GP2_VERSION)    end
 end)
 
-GP2.Hud.DeclareLegacyElement(PaintManager.LegacyHud)
+-- Protection contre l'absence de PaintManager lors du chargement
+if PaintManager and PaintManager.LegacyHud then
+    GP2.Hud.DeclareLegacyElement(PaintManager.LegacyHud)
+else
+    -- Différer la déclaration jusqu'à ce que PaintManager soit disponible
+    hook.Add("Initialize", "GP2::DelayedPaintManagerHud", function()
+        if PaintManager and PaintManager.LegacyHud then
+            GP2.Hud.DeclareLegacyElement(PaintManager.LegacyHud)
+            hook.Remove("Initialize", "GP2::DelayedPaintManagerHud")
+        end
+    end)
+end
 
 local GP2_Hud_Render = GP2.Hud.Render
 
