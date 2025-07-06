@@ -90,15 +90,27 @@ local function CreateFonts()    surface.CreateFont("VscriptErrorText", {
         antialias = true,
         extended = true,
         weight = 500
-    })
-
-    surface.CreateFont("CoopLevelProgressFont_Small", {
+    })    surface.CreateFont("CoopLevelProgressFont_Small", {
         font = "Univers LT Std 47 Cn Lt",
         extended = true,
         size = 28,
         weight = 600,
         antialias = true,
     })
+    
+    -- Vérification que la police a été créée correctement
+    surface.SetFont("CoopLevelProgressFont_Small")
+    local textWidth, textHeight = surface.GetTextSize("Test")
+    if not textWidth or textWidth <= 0 then
+        -- Si la police n'existe pas, créer une police de fallback
+        surface.CreateFont("CoopLevelProgressFont_Small", {
+            font = "Arial",
+            extended = true,
+            size = 28,
+            weight = 600,
+            antialias = true,
+        })
+    end
 
     surface.CreateFont("CenterPrintText0", {
         font = "Univers LT Std 47 Cn Lt",

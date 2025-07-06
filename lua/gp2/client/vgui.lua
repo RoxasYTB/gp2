@@ -330,20 +330,33 @@ end
 local anglesFixup = Angle(0,0,0)
 
 local function scaledText(text, font, x, y, scale)
-    render.PushFilterMag(TEXFILTER.ANISOTROPIC)
-    render.PushFilterMin(TEXFILTER.ANISOTROPIC)
+    -- Protection contre les débordements de filtres de rendu
+    local hasFilterMag = pcall(render.PushFilterMag, TEXFILTER.ANISOTROPIC)
+    local hasFilterMin = pcall(render.PushFilterMin, TEXFILTER.ANISOTROPIC)
 
     local m = Matrix()
     m:Translate(Vector(x, y, 0))
     m:Scale(Vector(scale, scale, 1))
 
-    surface.SetFont(font)
+    -- Vérifier que la police existe avant de l'utiliser
+    local fontToUse = font
+    if not surface.GetTextSize or not pcall(surface.SetFont, fontToUse) then
+        fontToUse = "DermaDefault" -- Police de fallback
+    end
+    
+    surface.SetFont(fontToUse)
     cam.PushModelMatrix(m, true)
-        draw.DrawText(text, "CoopLevelProgressFont_Small", 0, 0, color_black)
+        -- Protection contre les erreurs de DrawText
+        local success = pcall(draw.DrawText, text, fontToUse, 0, 0, color_black)
+        if not success then
+            -- Fallback : utiliser SimpleText directement
+            pcall(draw.SimpleText, text, fontToUse, 0, 0, color_black)
+        end
     cam.PopModelMatrix()
 
-    render.PopFilterMag()
-    render.PopFilterMin()
+    -- Pop seulement si Push a réussi
+    if hasFilterMag then render.PopFilterMag() end
+    if hasFilterMin then render.PopFilterMin() end
 end
 
 net.Receive(GP2.Net.SendProgressSignDisplay, function(len, ply)
@@ -444,10 +457,10 @@ function VguiSPProgressSign.Render()
                     digitsTotal[2] = tonumber(string.sub(totalNumbers, 2, 2))
                 else
                     digitsTotal[1] = tonumber(string.sub(totalNumbers, 1, #totalNumbers-1))
-                    digitsTotal[2] = tonumber(string.sub(totalNumbers, #totalNumbers, #totalNumbers))
-                end
+                    digitsTotal[2] = tonumber(string.sub(totalNumbers, #totalNumbers, #totalNumbers))                end
 
-                scaledText(digits[1] .. digits[2] .. '/' .. digitsTotal[1] .. digitsTotal[2], "CoopLevelProgressFont_Small", 19, 99, 0.25)
+                -- Protected scaledText call to prevent render errors
+                pcall(scaledText, digits[1] .. digits[2] .. '/' .. digitsTotal[1] .. digitsTotal[2], "CoopLevelProgressFont_Small", 19, 99, 0.25)
 
                 local progressBarWidth = 72 * percentage
 
