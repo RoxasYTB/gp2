@@ -8,10 +8,10 @@ if SERVER then
     CreateConVar("gp2_auto_give_portalgun", "1", FCVAR_ARCHIVE + FCVAR_NOTIFY, 
         "Donne automatiquement le Portal Gun au spawn (0 = non, 1 = oui)")
     
-    CreateConVar("gp2_remove_default_weapons", "0", FCVAR_ARCHIVE + FCVAR_NOTIFY,
+    CreateConVar("gp2_remove_default_weapons", "1", FCVAR_ARCHIVE + FCVAR_NOTIFY,
         "Retire les armes par défaut de Garry's Mod (0 = non, 1 = oui)")
     
-    CreateConVar("gp2_portal_gun_only", "0", FCVAR_ARCHIVE + FCVAR_NOTIFY,
+    CreateConVar("gp2_portal_gun_only", "1", FCVAR_ARCHIVE + FCVAR_NOTIFY,
         "Mode Portal Gun uniquement - retire toutes les autres armes (0 = non, 1 = oui)")
 
     -- Hook pour contrôler les armes au spawn
