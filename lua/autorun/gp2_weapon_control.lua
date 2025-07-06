@@ -159,16 +159,19 @@ if CLIENT then
             if suppressedElements[name] then
                 return false
             end
-        end)
-        
-        -- Hook plus spécifique pour les messages d'aide des armes
+        end)        -- Hook plus spécifique pour les messages d'aide des armes
+        local hintsDisabled = false
         hook.Add("Think", "GP2::SuppressWeaponHelpBubbles", function()
             local ply = LocalPlayer()
-            if not IsValid(ply) then return end
+            if not IsValid(ply) or hintsDisabled then return end
             
-            -- Désactiver les bulles d'aide de Garry's Mod
+            -- Désactiver les bulles d'aide de Garry's Mod une seule fois
             if ply:GetInfoNum("gmod_showhints", 1) == 1 then
-                RunConsoleCommand("gmod_showhints", "0")
+                -- Utiliser pcall pour éviter les erreurs si la commande n'existe pas
+                local success = pcall(function()
+                    RunConsoleCommand("gmod_showhints", "0")
+                end)
+                hintsDisabled = true -- Marquer comme fait dans tous les cas
             end
         end)
     end
@@ -176,18 +179,30 @@ if CLIENT then
     -- Attendre que le jeu soit chargé
     hook.Add("InitPostEntity", "GP2::InitWeaponControl", function()
         timer.Simple(1, SuppressWeaponHelpNotifications)
-    end)
-    
-    -- Commande pour désactiver manuellement les bulles d'aide
+    end)    -- Commande pour désactiver manuellement les bulles d'aide
     concommand.Add("gp2_hide_weapon_help", function()
-        RunConsoleCommand("gmod_showhints", "0")
-        chat.AddText(Color(100, 255, 100), "[GP2] ", Color(255, 255, 255), "Bulles d'aide des armes désactivées!")
+        local success = pcall(function()
+            RunConsoleCommand("gmod_showhints", "0")
+        end)
+        
+        if success then
+            chat.AddText(Color(100, 255, 100), "[GP2] ", Color(255, 255, 255), "Bulles d'aide des armes désactivées!")
+        else
+            chat.AddText(Color(255, 100, 100), "[GP2] ", Color(255, 255, 255), "Commande gmod_showhints non disponible")
+        end
     end, nil, "Désactive les bulles d'aide des armes")
     
     -- Commande pour réactiver les bulles d'aide
     concommand.Add("gp2_show_weapon_help", function()
-        RunConsoleCommand("gmod_showhints", "1")
-        chat.AddText(Color(255, 100, 100), "[GP2] ", Color(255, 255, 255), "Bulles d'aide des armes réactivées!")
+        local success = pcall(function()
+            RunConsoleCommand("gmod_showhints", "1")
+        end)
+        
+        if success then
+            chat.AddText(Color(255, 100, 100), "[GP2] ", Color(255, 255, 255), "Bulles d'aide des armes réactivées!")
+        else
+            chat.AddText(Color(255, 100, 100), "[GP2] ", Color(255, 255, 255), "Commande gmod_showhints non disponible")
+        end
     end, nil, "Réactive les bulles d'aide des armes")
     
     -- Message d'information au joueur
