@@ -329,14 +329,12 @@ function ENT:DamageEntsAlongTheRay(startPos, endPos)
             damageInfo:SetDamage(1)
         else
             damageInfo:SetDamage(8)
-        end
-
-        target:TakeDamageInfo(damageInfo)
+        end        target:TakeDamageInfo(damageInfo)
 
         -- Push it
         PushPlayerAwayFromLine(target, startPos, endPos, 400)
-        EmitSoundAtClosestPoint(target, startPos, endPos, "Flesh.LaserBurn")
-        EmitSoundAtClosestPoint(target, startPos, endPos, "Player.PainSmall")
+        EmitSoundAtClosestPoint(target, startPos, endPos, "Flesh.BulletImpact")
+        EmitSoundAtClosestPoint(target, startPos, endPos, "Player.FallDamage")
     end
 end
 

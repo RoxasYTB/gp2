@@ -11,7 +11,7 @@ ENT.Category = "Portal 2"
 ENT.Spawnable = true
 ENT.Editable = true
 
-util.PrecacheSound("Flesh.LaserBurn")
+util.PrecacheSound("Flesh.BulletImpact")
 PrecacheParticleSystem("reflector_start_glow")
 PrecacheParticleSystem("laser_start_glow")
 PrecacheParticleSystem("laser_relay_powered")

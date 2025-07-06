@@ -28,13 +28,19 @@ if SERVER then
 
         self:CreateBoneFollowers()
         self.SequenceDown = self:LookupSequence("down")
-        self.SequenceUp = self:LookupSequence("up")
-
-        self.ButtonTrigger = ents.Create("prop_floor_button_trigger")
+        self.SequenceUp = self:LookupSequence("up")        self.ButtonTrigger = ents.Create("prop_floor_button_trigger")
         self.ButtonTrigger:Spawn()
         self.ButtonTrigger:SetPos(self:GetPos())
         self.ButtonTrigger:SetParent(self)
-        self.ButtonTrigger:SetButton(self)
+        self.ButtonTrigger:SetButton(self)        -- Rayon de détection par défaut
+        self.CheckRadius = 25
+        
+        -- Transmettre le rayon au trigger après sa création
+        timer.Simple(0.1, function()
+            if IsValid(self.ButtonTrigger) then
+                self.ButtonTrigger.CheckRadius = self.CheckRadius
+            end
+        end)
 
         local pos = self:GetPos()
         local angles = self:GetAngles()
@@ -43,12 +49,13 @@ if SERVER then
 
         self.ButtonTrigger:SetCollisionBounds(self:WorldToLocal(mins), self:WorldToLocal(maxs))
     end
-    
-    function ENT:KeyValue(k, v)
+      function ENT:KeyValue(k, v)
         if k == "skin" then
             self:SetSkin(tonumber(v))
         elseif k == "model" then
             self:SetModel(v)
+        elseif k == "CheckRadius" then
+            self.CheckRadius = tonumber(v) or 25
         end
 
         if k:StartsWith("On") then
@@ -72,24 +79,40 @@ if SERVER then
         if func and isfunction(func) then
             func(self, activator, caller, data)
         end
+    end    -- Helper pour s'assurer de la compatibilité des outputs
+    function ENT:TriggerPressedOutput()
+        self:TriggerOutput("OnPressed")
+        self:TriggerOutput("OnButtonPressed") -- Compatibilité alternative
     end
 
-    function ENT:Press()
+    function ENT:TriggerUnpressedOutput()
+        self:TriggerOutput("OnUnPressed")
+        self:TriggerOutput("OnButtonUnPressed") -- Compatibilité alternative
+        self:TriggerOutput("OnReleased") -- Autre nom commun
+    end    function ENT:Press()
         if self.Pressed then return end
 
         self.Pressed = true
         self:SetSkin(1)
         self:ResetSequence(self.SequenceDown)
-        self:TriggerOutput("OnPressed")
-    end
-
-    function ENT:PressOut()
+        self:TriggerPressedOutput()
+        
+        -- Logging de l'activation du bouton au sol via le système centralisé
+        if SERVER and GP2 and GP2.ButtonLogging then
+            GP2.ButtonLogging.LogActivation("BOUTON AU SOL", self:GetName(), self:GetPos(), true)
+        end
+    end    function ENT:PressOut()
         if not self.Pressed then return end
 
         self.Pressed = false
         self:SetSkin(0)
         self:ResetSequence(self.SequenceUp)
-        self:TriggerOutput("OnUnPressed")
+        self:TriggerUnpressedOutput()
+        
+        -- Logging de la désactivation du bouton au sol via le système centralisé
+        if SERVER and GP2 and GP2.ButtonLogging then
+            GP2.ButtonLogging.LogActivation("BOUTON AU SOL", self:GetName(), self:GetPos(), false)
+        end
     end
 
     function ENT:Think()
