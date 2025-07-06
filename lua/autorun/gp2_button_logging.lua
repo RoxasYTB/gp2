@@ -8,6 +8,8 @@ if CLIENT then return end -- Côté serveur uniquement
 -- ConVar pour activer/désactiver les logs de boutons
 local gp2_log_buttons = CreateConVar("gp2_log_buttons", "1", FCVAR_ARCHIVE, "Enable button activation/deactivation logging")
 local gp2_log_buttons_detailed = CreateConVar("gp2_log_buttons_detailed", "0", FCVAR_ARCHIVE, "Enable detailed button logging with position")
+-- ConVar pour le debug des boutons (utilisé par les entités)
+local gp2_debug_buttons = CreateConVar("gp2_debug_buttons", "0", FCVAR_ARCHIVE, "Enable debug logs for floor buttons")
 
 -- Fonction utilitaire pour logger les activations de boutons
 GP2 = GP2 or {}
@@ -133,9 +135,8 @@ concommand.Add("gp2_test_pillar_button_retrigger", function(ply, cmd, args)
     local total = #pillarButtons + #underPillarButtons
     
     print("Boutons piliers détectés: " .. total .. " (" .. #pillarButtons .. " normaux, " .. #underPillarButtons .. " souterrains)")
-    
-    if total > 0 then
-        print("Activez le debug avec 'gp2_debug_buttons 1' puis testez en pressant E sur un bouton pilier.")
+      if total > 0 then
+        print("Activez le debug avec 'gp2_toggle_debug_buttons 1' puis testez en pressant E sur un bouton pilier.")
         print("Les boutons piliers se redéclenchent immédiatement après désactivation (pas de délai).")
         print("Vous devriez voir la séquence ACTIVÉ -> DÉSACTIVÉ -> ACTIVÉ -> DÉSACTIVÉ dans les logs.")
     end
@@ -223,9 +224,8 @@ concommand.Add("gp2_test_floor_button_retrigger", function(ply, cmd, args)
     local total = #floorButtons + #underFloorButtons
     
     print("Boutons au sol détectés: " .. total .. " (" .. #floorButtons .. " normaux, " .. #underFloorButtons .. " souterrains)")
-    
-    if total > 0 then
-        print("Activez le debug avec 'gp2_debug_buttons 1' puis testez en marchant sur un bouton au sol.")
+      if total > 0 then
+        print("Activez le debug avec 'gp2_toggle_debug_buttons 1' puis testez en marchant sur un bouton au sol.")
         print("Vous devriez voir 'Forced retrigger: Press (UNIQUE)' dans les logs après avoir quitté le bouton.")
         print("Le redéclenchement ne se fera qu'UNE SEULE FOIS par cycle d'activation.")
         print("Utilisez 'gp2_reset_floor_button_retrigger' pour réinitialiser les flags si nécessaire.")

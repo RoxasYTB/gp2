@@ -18,14 +18,25 @@ local BUTTON_VALID_ENTS = {
 -- ConVar pour les logs de débogage et le redéclenchement (seulement côté serveur)
 local gp2_debug_buttons, gp2_floor_button_retrigger, gp2_floor_button_retrigger_delay
 if SERVER then
-    gp2_debug_buttons = CreateConVar("gp2_debug_buttons", "0", FCVAR_ARCHIVE, "Enable debug logs for floor buttons")
+    -- Récupérer les ConVars existants (créés dans les fichiers autorun)
+    -- Utiliser timer.Simple pour s'assurer que les autorun se sont chargés en premier
+    timer.Simple(0, function()
+        gp2_debug_buttons = GetConVar("gp2_debug_buttons")
+    end)
     gp2_floor_button_retrigger = CreateConVar("gp2_floor_button_retrigger", "1", FCVAR_ARCHIVE, "Enable forced retrigger for floor buttons when no entity is present")
     gp2_floor_button_retrigger_delay = CreateConVar("gp2_floor_button_retrigger_delay", "0.1", FCVAR_ARCHIVE, "Delay before forced retrigger (seconds)")
 end
 
 local function DebugPrint(msg)
-    if SERVER and gp2_debug_buttons and gp2_debug_buttons:GetBool() then
-        print(msg)
+    if SERVER then
+        -- Récupérer le ConVar à chaque fois si pas encore défini
+        if not gp2_debug_buttons then
+            gp2_debug_buttons = GetConVar("gp2_debug_buttons")
+        end
+        
+        if gp2_debug_buttons and gp2_debug_buttons:GetBool() then
+            print(msg)
+        end
     end
 end
 

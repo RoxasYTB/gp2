@@ -5,13 +5,19 @@
 
 if SERVER then
     -- Commande pour activer/désactiver les logs de débogage des boutons
-    concommand.Add("gp2_debug_buttons", function(ply, cmd, args)
+    concommand.Add("gp2_toggle_debug_buttons", function(ply, cmd, args)
         if not IsValid(ply) or not ply:IsAdmin() then
             return
         end
         
-        local newValue = args[1] and tobool(args[1]) or not GetConVar("gp2_debug_buttons"):GetBool()
-        GetConVar("gp2_debug_buttons"):SetBool(newValue)
+        local debugConVar = GetConVar("gp2_debug_buttons")
+        if not debugConVar then
+            ply:ChatPrint("[GP2] Erreur: ConVar gp2_debug_buttons non trouvé!")
+            return
+        end
+        
+        local newValue = args[1] and tobool(args[1]) or not debugConVar:GetBool()
+        debugConVar:SetBool(newValue)
         
         ply:ChatPrint("[GP2] Debug des boutons: " .. (newValue and "ACTIVÉ" or "DÉSACTIVÉ"))
     end, nil, "Active/désactive les logs de débogage des boutons (Admin uniquement)")
@@ -81,9 +87,8 @@ if SERVER then
         
         ply:ChatPrint("[GP2] " .. count .. " boutons relâchés")
     end, nil, "Force le relâchement de tous les boutons pressés (Admin uniquement)")
-    
-    GP2.Print("Commandes de débogage des boutons chargées:")
-    GP2.Print("  - gp2_debug_buttons [0/1] : Active/désactive les logs")
+      GP2.Print("Commandes de débogage des boutons chargées:")
+    GP2.Print("  - gp2_toggle_debug_buttons [0/1] : Active/désactive les logs")
     GP2.Print("  - gp2_list_buttons : Liste tous les boutons")
     GP2.Print("  - gp2_release_all_buttons : Relâche tous les boutons")
 end
