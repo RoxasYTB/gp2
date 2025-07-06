@@ -36,7 +36,7 @@ function ENT:Think()
 if CLIENT then
     self:SetNextClientThink(CurTime())
 
-    if not ProjectedWallEntity.IsAdded(self) then
+    if ProjectedWallEntity and not ProjectedWallEntity.IsAdded(self) then
         self:CreateWall()
     end
 end
@@ -114,11 +114,11 @@ function ENT:CreateWall()
 
         if self.Mesh and self.Mesh:IsValid() then
             self.Mesh:Destroy()
-        end
-
-        self.Mesh = Mesh()
+        end        self.Mesh = Mesh()
         self.Mesh:BuildFromTriangles(verts)
-        ProjectedWallEntity.AddToRenderList(self, self.Mesh)
+        if ProjectedWallEntity then
+            ProjectedWallEntity.AddToRenderList(self, self.Mesh)
+        end
     end
 
     if SERVER then

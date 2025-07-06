@@ -4,6 +4,7 @@
 -- ----------------------------------------------------------------------------
 
 ENT.Type = "brush"
+ENT.Base = "base_brush"
 
 local math_min = math.min
 

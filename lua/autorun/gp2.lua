@@ -449,6 +449,28 @@ if SERVER then
         end
     end)
 else
+    if CLIENT then
+        -- Initialize global tables early to prevent nil index errors in entities
+        -- These tables are normally defined in client render/vgui files but entities may load first
+        ProjectedWallEntity = ProjectedWallEntity or {}
+        PropTractorBeam = PropTractorBeam or {}
+        VguiMovieDisplay = VguiMovieDisplay or {}
+        VguiSPProgressSign = VguiSPProgressSign or {}
+        
+        -- Basic stub functions to prevent immediate errors
+        ProjectedWallEntity.IsAdded = ProjectedWallEntity.IsAdded or function() return false end
+        ProjectedWallEntity.AddToRenderList = ProjectedWallEntity.AddToRenderList or function() end
+        
+        PropTractorBeam.IsAdded = PropTractorBeam.IsAdded or function() return false end
+        PropTractorBeam.AddToRenderList = PropTractorBeam.AddToRenderList or function() end
+        
+        VguiMovieDisplay.IsAddedDisplay = VguiMovieDisplay.IsAddedDisplay or function() return false end
+        VguiMovieDisplay.AddDisplay = VguiMovieDisplay.AddDisplay or function() end
+        
+        VguiSPProgressSign.IsAddedSign = VguiSPProgressSign.IsAddedSign or function() return false end
+        VguiSPProgressSign.AddSign = VguiSPProgressSign.AddSign or function() end
+    end
+
     hook.Add("Initialize", "GP2::Initialize", function()
         SoundManager.Initialize()
     end)

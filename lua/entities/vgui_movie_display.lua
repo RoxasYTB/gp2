@@ -38,7 +38,7 @@ end
 
 function ENT:Think()
 if CLIENT then
-    if not VguiMovieDisplay.IsAddedDisplay(self) then
+    if VguiMovieDisplay and not VguiMovieDisplay.IsAddedDisplay(self) then
         VguiMovieDisplay.AddDisplay(self)
     end
 end

@@ -84,12 +84,12 @@ local ScrWide, ScrHeight = ScrW(), ScrH()
 
 local hudElements = {}
 
-local function CreateFonts()
-    surface.CreateFont("VscriptErrorText", {
+local function CreateFonts()    surface.CreateFont("VscriptErrorText", {
         font = "Roboto Medium",
         size = ScrH() * 0.0148,
         antialias = true,
-        extended = true
+        extended = true,
+        weight = 500
     })
 
     surface.CreateFont("CoopLevelProgressFont_Small", {
@@ -214,14 +214,18 @@ local function RenderError(err, position)
     local margin = ScrHeight * 0.04
     local padding = ScrHeight * 0.03
 
-    local errortext = err.text
-
-    if err.count then
+    local errortext = err.text    if err.count then
         errortext = errortext .. ' (' .. err.count .. 'x)'
     end
 
     surface_SetFont("VscriptErrorText")
     local textwidth, textheight = surface_GetTextSize(errortext)
+    
+    -- Fallback if font doesn't exist or textwidth is nil
+    if not textwidth or not textheight then
+        surface_SetFont("DermaDefault")
+        textwidth, textheight = surface_GetTextSize(errortext)
+    end
 
     boxwide = boxwide + textwidth + margin
     local boxheight = textheight + padding

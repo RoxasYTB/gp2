@@ -179,14 +179,12 @@ function StartVideo(videoType, width, height)
         videoScaleType = math.random(1, 5)
     else
         videoScaleType = math.random(6, 7)
-    end
-
-    local level = ElevatorVideos[game.GetMap()]
-    if level.typeOverride then
+    end    local level = ElevatorVideos[game.GetMap()]
+    if level and level.typeOverride then
         videoScaleType = level.typeOverride
     end
 
-    if level.destructChance then
+    if level and level.destructChance then
         randomDestructChance = level.destructChance
     end
 

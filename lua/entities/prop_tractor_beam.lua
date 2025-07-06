@@ -177,11 +177,10 @@ if SERVER then
 end
 
 function ENT:Think()
-    if SERVER then
-        self:SetPoseParameter("reversal", self:CalculateArmaturePose())
+    if SERVER then        self:SetPoseParameter("reversal", self:CalculateArmaturePose())
         self:SetPlaybackRate(self:CalculateRotationPose())
     else
-        if not PropTractorBeam.IsAdded(self) then
+        if PropTractorBeam and not PropTractorBeam.IsAdded(self) then
             PropTractorBeam.AddToRenderList(self)
         end
     end

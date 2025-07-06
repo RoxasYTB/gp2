@@ -42,6 +42,17 @@ if not scripted_ents.Get("base_brush") then
                 self:SetAngles(Angle(tonumber(ang[1]) or 0, tonumber(ang[2]) or 0, tonumber(ang[3]) or 0))
             end
         end
+        
+        -- Handle outputs
+        if key:StartsWith("On") then
+            self:StoreOutput(key, value)
+        end
+    end
+    
+    function BASE_BRUSH:StoreOutput(outputName, outputData)
+        -- Basic output storage implementation for compatibility
+        self.m_iOutputs = self.m_iOutputs or {}
+        self.m_iOutputs[outputName] = outputData
     end
     
     function BASE_BRUSH:AcceptInput(inputName, activator, caller, data)
@@ -60,8 +71,17 @@ if not scripted_ents.Get("base_brush") then
     function BASE_BRUSH:EndTouch(entity)
         -- Handle end touch events
     end
-    
+
     -- Register the base_brush entity
     scripted_ents.Register(BASE_BRUSH, "base_brush")
     print("[GP2-SDK] Registered fallback base_brush entity")
+end
+
+-- Ensure StoreOutput is available for all brush entities
+if not ENT.StoreOutput then
+    function ENT:StoreOutput(outputName, outputData)
+        -- Basic output storage implementation for compatibility
+        self.m_iOutputs = self.m_iOutputs or {}
+        self.m_iOutputs[outputName] = outputData
+    end
 end

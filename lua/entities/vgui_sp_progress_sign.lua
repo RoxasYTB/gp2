@@ -74,7 +74,7 @@ end
 
 function ENT:Think()
     if CLIENT then
-        if not VguiSPProgressSign.IsAddedSign(self) then
+        if VguiSPProgressSign and not VguiSPProgressSign.IsAddedSign(self) then
             VguiSPProgressSign.AddSign(self)
         end
     end

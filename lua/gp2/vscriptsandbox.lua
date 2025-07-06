@@ -170,6 +170,13 @@ sandbox.TurnOffPotatos = function()
     SetGlobalBool("GP2::PotatosEnabled", false)
 end
 
+-- Stub function for DLC2_PlayEntryVO to prevent "attempt to call global" errors
+-- This function is called by the game engine but not implemented in the Lua codebase
+sandbox.DLC2_PlayEntryVO = function(...)
+    -- Silent stub - does nothing but prevents errors
+    -- Arguments are ignored as this function is called by the engine
+end
+
 VscriptGlobals = VscriptGlobals or {}
 sandbox.Globals = VscriptGlobals
 
