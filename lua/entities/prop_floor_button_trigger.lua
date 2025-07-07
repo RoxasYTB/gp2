@@ -142,6 +142,11 @@ function ENT:Think()
         -- Gestion du redéclenchement forcé après désactivation (une seule fois)
         if SERVER and gp2_floor_button_retrigger and gp2_floor_button_retrigger:GetBool() and 
            not self.HasRetriggered and not self.RetriggerScheduled then
+            -- Désactiver le retrigger si le bouton cible un prop_dynamic
+            if IsValid(self.Button) and self.Button.NoRetrigger then
+                DebugPrint("[Floor Button] Retrigger désactivé (NoRetrigger sur le bouton)")
+                return
+            end
             
             local retriggerDelay = gp2_floor_button_retrigger_delay and gp2_floor_button_retrigger_delay:GetFloat() or 0.1
             self.RetriggerScheduled = true -- Marquer comme programmé

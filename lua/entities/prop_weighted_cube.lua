@@ -134,30 +134,90 @@ function ENT:Initialize()
         self:SetModel(CUBE_TYPE_TO_INFO[self:GetCubeType()].model)
         self:SetCubeSkin()
 
-        self:PhysicsInit(SOLID_VPHYSICS)
-        if IsValid(self:GetPhysicsObject()) then
-            self:GetPhysicsObject():Wake()
-        end
+        self:SetParent(NULL) -- Force le déparentage
+        self:SetSolid(SOLID_NONE)
+        -- Sauvegarde la position et l'angle de spawn pour le rendu client
+        self._spawnPos = self:GetPos()
+        self._spawnAng = self:GetAngles()
+        self._shakeEndTime = CurTime() + 5 -- Shake fort pendant 5 secondes
+        timer.Simple(0, function()
+            if not IsValid(self) then return end
+            self:PhysicsInit(SOLID_VPHYSICS)
+            local phys = self:GetPhysicsObject()
+            if IsValid(phys) then
+                phys:Wake()
+                -- DEBUG: Appliquer une impulsion aléatoire pour simuler le mouvement du prop_monster_box
+                local randVel = Vector(math.Rand(-50,50), math.Rand(-50,50), math.Rand(80,120))
+                local randAng = VectorRand(-1,1) * math.Rand(10, 40)
+                phys:SetVelocity(randVel)
+                phys:AddAngleVelocity(randAng)
+            end
+            -- Désactiver collisions avec tous les prop_dynamic et leurs enfants
+            for _, ent in ipairs(ents.FindByClass("prop_dynamic")) do
+                constraint.NoCollide(self, ent, 0, 0)
+                -- Désactiver aussi avec les enfants
+                for _, child in ipairs(ent:GetChildren()) do
+                    constraint.NoCollide(self, child, 0, 0)
+                end
+            end
+        end)
     end
 end
 
 function ENT:Think()
     if SERVER then
+        -- Mouvement impulsif régulier pour simuler le comportement de la monster box (uniquement au sol)
+        self._nextImpulse = self._nextImpulse or 0
+        if CurTime() > self._nextImpulse then
+            local phys = self:GetPhysicsObject()
+            if IsValid(phys) and phys:IsMotionEnabled() then
+                local tr = util.TraceLine({
+                    start = self:GetPos(),
+                    endpos = self:GetPos() - Vector(0,0,5),
+                    filter = self
+                })
+                if tr.Hit then
+                    local randVel = Vector(math.Rand(-10,10), math.Rand(-10,10), math.Rand(60,90))
+                    phys:AddVelocity(randVel)
+                end
+            end
+            self._nextImpulse = CurTime() + math.Rand(0.3, 0.5)
+        end
+
+        -- Shake modéré pour garantir la chute du cube du prop_dynamic, mais sans exagération visuelle
+        local shakeActive = false
+        for _, ent in ipairs(ents.FindByClass("prop_dynamic")) do
+            if IsValid(ent) and ent:GetPos():Distance(self:GetPos()) < 32 then
+                shakeActive = true
+                break
+            end
+        end
+        if shakeActive then
+            local phys = self:GetPhysicsObject()
+            if IsValid(phys) then
+                -- Shake plus marqué, pour garantir la chute tout en restant raisonnable
+                local shake = Vector(math.Rand(-28,28), math.Rand(-28,28), math.Rand(24,38))
+                phys:AddVelocity(shake)
+                phys:AddAngleVelocity(VectorRand(-1.5,1.5) * math.Rand(6, 16))
+            end
+        end
+
+        -- Forcer la position et l'angle de rendu pour rendre le cube visuellement immobile
+        if self._visualOrigin and self._visualAngles then
+            self:SetRenderOrigin(self._visualOrigin)
+            self:SetRenderAngles(self._visualAngles)
+        end
+
         local childLaser = self:GetChildLaser()
-
-
         if IsValid(childLaser) then
             local childParentLaser = childLaser:GetParentLaser()
-
             if not (IsValid(childParentLaser) and childParentLaser:GetReflector() == self) then
                 childLaser:Remove()
             end
-
             self:NextThink(CurTime() + 0.01)
             return true
         end
     end
-
     self:NextThink(CurTime() + 0.1)
     return true
 end
@@ -275,6 +335,23 @@ if SERVER then
 
     function ENT:OnGravGunDrop(ply, ent, thrown)
         self:TriggerOutput("OnPhysGunDrop")
+    end
+end
+
+if CLIENT then
+    -- Désactive l'ombre pour éviter les artefacts de mouvement
+    function ENT:Initialize()
+        self:DrawShadow(false)
+    end
+    -- Rendu visuel parfaitement immobile, sans aucun shake visible
+    function ENT:Draw()
+        local pos = self._spawnPos or self:GetPos()
+        local ang = self._spawnAng or self:GetAngles()
+        self:SetRenderOrigin(pos)
+        self:SetRenderAngles(ang)
+        self:DrawModel()
+        self:SetRenderOrigin()
+        self:SetRenderAngles()
     end
 end
 

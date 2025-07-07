@@ -87,6 +87,10 @@ function ENT:KeyValue(k, v)
 
     if k:StartsWith("On") then
         self:StoreOutput(k, v)
+        -- Détection d'activation de prop_dynamic
+        if string.find(v, "prop_dynamic", 1, true) then
+            self.NoRetrigger = true
+        end
     end
 end
 
@@ -170,7 +174,7 @@ function ENT:Release()
         GP2.ButtonLogging.LogActivation("BOUTON PILIER", self:GetName(), self:GetPos(), false)
     end
       -- Système de redéclenchement pour les boutons piliers (quand relâchés par proximité)
-    if SERVER and not self.HasRetriggered and not self.RetriggerScheduled then
+    if SERVER and not self.HasRetriggered and not self.RetriggerScheduled and not self.NoRetrigger then
         local retrigger_enabled = GetConVar("gp2_floor_button_retrigger")
         if retrigger_enabled and retrigger_enabled:GetBool() then
             self.RetriggerScheduled = true -- Marquer comme programmé
@@ -237,7 +241,7 @@ function ENT:CancelPress()
     end
       -- Système de redéclenchement pour les boutons piliers temporisés
     if SERVER and self.DelayBeforeReset and self.DelayBeforeReset > 0 and 
-       not self.HasRetriggered and not self.RetriggerScheduled then
+       not self.HasRetriggered and not self.RetriggerScheduled and not self.NoRetrigger then
         local retrigger_enabled = GetConVar("gp2_floor_button_retrigger")
         if retrigger_enabled and retrigger_enabled:GetBool() then
             self.RetriggerScheduled = true -- Marquer comme programmé

@@ -60,6 +60,10 @@ if SERVER then
 
         if k:StartsWith("On") then
             self:StoreOutput(k, v)
+            -- Détection d'un output vers un prop_dynamic
+            if string.find(v, "prop_dynamic", 1, true) then
+                self.NoRetrigger = true
+            end
         end
     end
 
