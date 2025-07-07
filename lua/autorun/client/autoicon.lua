@@ -1046,3 +1046,66 @@ end
 
 override_killicon_functions()
 timer.Simple(1, override_killicon_functions) -- addon conflict?
+
+-- Commandes de console pour contrôler le réticule
+if CLIENT then
+    -- ConVar pour forcer l'affichage du réticule natif
+    local gp2_force_crosshair = CreateClientConVar("gp2_force_crosshair", "0", true, false, 
+        "Force l'affichage du réticule natif pour toutes les armes (0=auto, 1=force)")
+    
+    -- ConVar pour désactiver complètement tous les réticules
+    local gp2_disable_all_crosshairs = CreateClientConVar("gp2_disable_all_crosshairs", "0", true, false, 
+        "Désactive tous les réticules (0=normal, 1=désactivé)")
+    
+    -- Commande pour basculer le réticule du Portal Gun
+    concommand.Add("gp2_toggle_portalgun_crosshair", function()
+        local enabled = GetConVar("gp2_force_crosshair"):GetBool()
+        RunConsoleCommand("gp2_force_crosshair", enabled and "0" or "1")
+        
+        if enabled then
+            chat.AddText(Color(255, 100, 100), "[GP2] ", Color(255, 255, 255), "Mode réticule automatique activé")
+        else
+            chat.AddText(Color(255, 100, 100), "[GP2] ", Color(255, 255, 255), "Réticule natif forcé pour toutes les armes")
+        end
+    end, nil, "Bascule l'affichage du réticule natif")
+    
+    -- Commande pour afficher l'aide sur les réticules
+    concommand.Add("gp2_crosshair_help", function()
+        chat.AddText(Color(100, 255, 255), "[GP2] ", Color(255, 255, 255), "=== Aide Réticules GP2 ===")
+        chat.AddText(Color(200, 200, 200), "gp2_toggle_portalgun_crosshair - Bascule le réticule natif")
+        chat.AddText(Color(200, 200, 200), "gp2_force_crosshair 0/1 - Force le réticule natif")
+        chat.AddText(Color(200, 200, 200), "gp2_disable_all_crosshairs 0/1 - Désactive tous les réticules")
+    end, nil, "Affiche l'aide sur les commandes de réticule")
+end
+
+-- Hook pour modifier dynamiquement les propriétés de réticule des armes
+if CLIENT then
+    hook.Add("Think", "GP2::DynamicCrosshairControl", function()
+        local forceCrosshair = GetConVar("gp2_force_crosshair")
+        if not forceCrosshair then return end
+        
+        local ply = LocalPlayer()
+        if not IsValid(ply) then return end
+        
+        local weapon = ply:GetActiveWeapon()
+        if not IsValid(weapon) then return end
+        
+        -- Forcer le réticule natif si l'option est activée
+        if forceCrosshair:GetBool() then
+            weapon.DrawCrosshair = true
+        elseif weapon:GetClass() == "weapon_portalgun" then
+            -- Restaurer le comportement par défaut du Portal Gun
+            weapon.DrawCrosshair = false -- Modifié pour avoir le réticule par défaut
+        end
+    end)
+end
+
+-- Message d'information au joueur sur les réticules
+if CLIENT then
+    hook.Add("PlayerInitialSpawn", "GP2::CrosshairInfo", function()
+        timer.Simple(5, function()
+            chat.AddText(Color(100, 255, 255), "[GP2] ", Color(255, 255, 255), "Système de réticule GP2 activé")
+            chat.AddText(Color(200, 200, 200), "Tapez ", Color(100, 255, 100), "gp2_crosshair_help", Color(200, 200, 200), " pour voir les options de réticule")
+        end)
+    end)
+end

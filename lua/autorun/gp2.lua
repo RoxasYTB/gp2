@@ -476,8 +476,7 @@ else
     end)      -- Protected includes for client-side files with pcall
     local clientFiles = {
         "gp2/client/render.lua",  -- Load render system first
-        "gp2/client/hud.lua",     -- Load HUD (includes fonts) before VGUI
-        "gp2/paint.lua",
+        "gp2/client/hud.lua",    -- Load HUD (includes fonts) before VGUI
         "gp2/client/vgui.lua", 
         "gp2/client/portalrendering.lua",
         "gp2/gamemovement.lua"

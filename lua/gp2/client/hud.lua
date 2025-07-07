@@ -4,58 +4,14 @@
 -- ----------------------------------------------------------------------------
 
 if CLIENT then
-    -- Protected include of hudelements/base.lua with better error handling
-    local baseFile = "gp2/client/hudelements/base.lua"
-    if file.Exists(baseFile, "LUA") then
-        local status, result = pcall(function()
-            return include(baseFile)
-        end)
-        if not status then
-            print("[GP2-SDK] Error loading hudelements/base.lua: " .. tostring(result))
-            -- Try alternative loading method
-            local content = file.Read(baseFile, "LUA")
-            if content and #content > 0 then
-                local compiled = CompileString(content, baseFile)
-                if compiled then
-                    pcall(compiled)
-                else
-                    print("[GP2-SDK] Failed to compile base.lua")
-                end
-            else
-                print("[GP2-SDK] base.lua is empty or corrupted")
-            end
-        end    else
-        print("[GP2-SDK] hudelements/base.lua not found at: " .. baseFile)
-    end
+    include("gp2/client/hudelements/base.lua")
 else
     AddCSLuaFile("gp2/client/hudelements/base.lua")
 end
 
 for _, element in ipairs(file.Find("gp2/client/hudelements/hud_*.lua", "LUA")) do
     if CLIENT then
-        local elementPath = string.format("gp2/client/hudelements/%s", element)
-        if file.Exists(elementPath, "LUA") then
-            local status, result = pcall(function()
-                return include(elementPath)
-            end)
-            if not status then
-                print("[GP2-SDK] Error loading " .. element .. ": " .. tostring(result))
-                -- Try alternative loading method for corrupted files
-                local content = file.Read(elementPath, "LUA")
-                if content and #content > 0 then
-                    local compiled = CompileString(content, elementPath)
-                    if compiled then
-                        pcall(compiled)
-                    else
-                        print("[GP2-SDK] Failed to compile " .. element)
-                    end
-                else
-                    print("[GP2-SDK] " .. element .. " is empty or corrupted")
-                end
-            end
-        else
-            print("[GP2-SDK] " .. element .. " not found")
-        end
+        include(string.format("gp2/client/hudelements/%s", element))
     else
         AddCSLuaFile(string.format("gp2/client/hudelements/%s", element))
     end
@@ -83,33 +39,21 @@ local ScrWide, ScrHeight = ScrW(), ScrH()
 
 local hudElements = {}
 
-local function CreateFonts()    surface.CreateFont("VscriptErrorText", {
+local function CreateFonts()
+    surface.CreateFont("VscriptErrorText", {
         font = "Roboto Medium",
         size = ScrH() * 0.0148,
         antialias = true,
-        extended = true,
-        weight = 500
-    })    surface.CreateFont("CoopLevelProgressFont_Small", {
-        font = "Arial", -- Police système fiable au lieu de "Univers LT Std 47 Cn Lt"
+        extended = true
+    })
+
+    surface.CreateFont("CoopLevelProgressFont_Small", {
+        font = "Univers LT Std 47 Cn Lt",
         extended = true,
         size = 28,
         weight = 600,
         antialias = true,
     })
-    
-    -- Vérification que la police a été créée correctement
-    surface.SetFont("CoopLevelProgressFont_Small")
-    local textWidth, textHeight = surface.GetTextSize("Test")
-    if not textWidth or textWidth <= 0 then
-        -- Si la police n'existe pas, créer une police de fallback avec Roboto
-        surface.CreateFont("CoopLevelProgressFont_Small", {
-            font = "Roboto",
-            extended = true,
-            size = 28,
-            weight = 600,
-            antialias = true,
-        })
-    end
 
     surface.CreateFont("CenterPrintText0", {
         font = "Univers LT Std 47 Cn Lt",
@@ -225,18 +169,14 @@ local function RenderError(err, position)
     local margin = ScrHeight * 0.04
     local padding = ScrHeight * 0.03
 
-    local errortext = err.text    if err.count then
+    local errortext = err.text
+
+    if err.count then
         errortext = errortext .. ' (' .. err.count .. 'x)'
     end
 
     surface_SetFont("VscriptErrorText")
     local textwidth, textheight = surface_GetTextSize(errortext)
-    
-    -- Fallback if font doesn't exist or textwidth is nil
-    if not textwidth or not textheight then
-        surface_SetFont("DermaDefault")
-        textwidth, textheight = surface_GetTextSize(errortext)
-    end
 
     boxwide = boxwide + textwidth + margin
     local boxheight = textheight + padding
@@ -298,12 +238,25 @@ local function CreateHudElements()
         if hudElements[i].Remove and isfunction(hudElements[i].Remove) then
             hudElements[i].Remove(hudElements[i])
         end
-    end    -- Create elements here
+    end
+
+    -- Create elements here
     hudElements = {
         vgui.Create("GP2HudMessage"),
         vgui.Create("GP2HudQuickinfoPortal")
-        -- GP2HudWeaponIcon supprimé car AutoIcon s'en occupe automatiquement
     }
+
+    -- Désactive la crosshair native de GMod sauf si ce n'est pas le Portal Gun
+    hook.Add("HUDShouldDraw", "GP2_HideDefaultCrosshair", function(name)
+        if name == "Crosshair" then
+            local ply = LocalPlayer()
+            if not IsValid(ply) then return end
+            local wep = ply:GetActiveWeapon()
+            if IsValid(wep) and wep:GetClass() == "weapon_portalgun" then
+                return false -- cache la croix native si Portal Gun
+            end
+        end
+    end)
 end
 
 GP2.Hud.DeclareLegacyElement(function(scrw, scrh)
@@ -323,25 +276,13 @@ GP2.Hud.DeclareLegacyElement(function(scrw, scrh)
 end)
 
 GP2.Hud.DeclareLegacyElement(function(scrw, scrh)
-    if GP2_VERSION then
-        surface_SetFont("DebugOverlay")
-        surface_SetTextPos(10, scrh - 16)
-        surface_SetTextColor(255, 255, 255, 255)
-        surface_DrawText(GP2_VERSION)    end
+    surface_SetFont("DebugOverlay")
+    surface_SetTextPos(10, scrh - 16)
+    surface_SetTextColor(255, 255, 255, 255)
+    surface_DrawText(GP2_VERSION)
 end)
 
--- Protection contre l'absence de PaintManager lors du chargement
-if PaintManager and PaintManager.LegacyHud then
-    GP2.Hud.DeclareLegacyElement(PaintManager.LegacyHud)
-else
-    -- Différer la déclaration jusqu'à ce que PaintManager soit disponible
-    hook.Add("Initialize", "GP2::DelayedPaintManagerHud", function()
-        if PaintManager and PaintManager.LegacyHud then
-            GP2.Hud.DeclareLegacyElement(PaintManager.LegacyHud)
-            hook.Remove("Initialize", "GP2::DelayedPaintManagerHud")
-        end
-    end)
-end
+-- GP2.Hud.DeclareLegacyElement(PaintManager.LegacyHud)
 
 local GP2_Hud_Render = GP2.Hud.Render
 
@@ -451,3 +392,13 @@ hook.Add("Think", "GP2::HudThink", function()
         end
     end
 end)
+
+-- Ajout de l'élément HUD Quickinfo Portal
+if CLIENT then
+    local function AddQuickinfoPortal()
+        if not IsValid(GP2HudQuickinfoPortal) then
+            GP2HudQuickinfoPortal = vgui.Create("GP2HudQuickinfoPortal")
+        end
+    end
+    hook.Add("InitPostEntity", "GP2_AddQuickinfoPortal", AddQuickinfoPortal)
+end
