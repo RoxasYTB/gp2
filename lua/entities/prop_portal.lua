@@ -749,22 +749,35 @@ end
 function ENT:OnActivated(name, old, new)
 	if SERVER then
 		self:SetOpenTime(CurTime())
-		
 		if new then
 			self:EmitSound(self:GetType() == PORTAL_TYPE_SECOND and "Portal.open_red" or "Portal.open_blue")
 		end
 	end
-	
 	-- Override portal in LinkageGroup after activation change
 	PortalManager.SetPortal(self:GetLinkageGroup(), self)
+
+	-- Force update of all projected_wall_entity when a portal is (re)activated
+	if SERVER then
+		for _, ent in ipairs(ents.FindByClass("projected_wall_entity")) do
+			if IsValid(ent) then
+				ent:SetUpdated(false)
+			end
+		end
+	end
 end
 
 function ENT:SetLinkedPartner(partner)
+	if partner == self then
+		print("[GP2][DEBUG] SetLinkedPartner: tentative de liaison à soi-même ignorée !")
+		return
+	end
 	if partner:GetClass() ~= self:GetClass() then
+		print("[GP2][DEBUG] SetLinkedPartner: partner n'est pas un prop_portal")
 		return
 	end
 
 	if not partner:GetActivated() then 
+		print("[GP2][DEBUG] SetLinkedPartner: partner n'est pas activé")
 		return 
 	end
 	
@@ -774,6 +787,61 @@ function ENT:SetLinkedPartner(partner)
 	partner:SetLinkedPartnerInternal(self)	
 
 	GP2.Print("Setting partner for " .. tostring(partner) .. " on portal " .. tostring(self))
+
+	-- Log du nombre de murs trouvés
+	if SERVER then
+		local murs = ents.FindByClass("projected_wall_entity")
+		print("[GP2][DEBUG] SetLinkedPartner: Nombre de projected_wall_entity trouvés = " .. tostring(#murs))
+		for _, ent in ipairs(murs) do
+			local startPos = ent:GetPos()
+			local angles = ent:GetAngles()
+			local fwd = angles:Forward()
+			local tr = util.TraceLine({
+				start = startPos,
+				endpos = startPos + fwd * 8192,
+				mask = MASK_SOLID_BRUSHONLY,
+				filter = function(e) return e ~= ent end
+			})
+			local dist = self:GetPos():Distance(ent:GetPos())
+			local angleDiff = math.abs(math.AngleDifference(self:GetAngles().y, ent:GetAngles().y))
+			print("[GP2][DEBUG] SetLinkedPartner: Distance entre projected_wall_entity " .. tostring(ent) .. " et portail " .. tostring(self) .. " = " .. tostring(dist))
+			local touche = false
+			if tr.Entity == self and IsValid(partner) then
+				touche = true
+			elseif dist < 4 and angleDiff < 10 then -- tolérance de 4 unités et 10° d'angle
+				print("[GP2][DEBUG] SetLinkedPartner: Distance très faible et angles alignés, on considère que le mur touche le portail.")
+				touche = true
+			end
+			if touche then
+				print("[GP2][DEBUG] SetLinkedPartner: projected_wall_entity " .. tostring(ent) .. " touche ce portail " .. tostring(self))
+				local linked = partner -- le portail de sortie doit toujours être le partenaire
+				local newPos, newAng = PortalManager.TransformPortal(self, linked, tr.HitPos or self:GetPos(), angles)
+				if not ent.PortalClone or not IsValid(ent.PortalClone) or ent.PortalCloneLinked ~= linked then
+					print("[GP2][DEBUG] SetLinkedPartner: Création d'un clone côté sortie du portail partenaire.")
+					local clone = ents.Create("projected_wall_entity")
+					if IsValid(clone) then
+						clone:SetPos(newPos)
+						clone:SetAngles(newAng)
+						clone:Spawn()
+						clone:SetParent(linked)
+						ent.PortalClone = clone
+						ent.PortalCloneLinked = linked
+						clone.IsPortalClone = true
+						print("[GP2][DEBUG] SetLinkedPartner: Clone créé : " .. tostring(clone) .. ", parenté à " .. tostring(linked))
+					else
+						print("[GP2][DEBUG] SetLinkedPartner: ECHEC création clone!")
+					end
+				else
+					print("[GP2][DEBUG] SetLinkedPartner: Mise à jour position/angle du clone existant.")
+					ent.PortalClone:SetPos(newPos)
+					ent.PortalClone:SetAngles(newAng)
+				end
+				ent:SetUpdated(false)
+			else
+				print("[GP2][DEBUG] SetLinkedPartner: projected_wall_entity " .. tostring(ent) .. " ne touche PAS ce portail (tr.Entity=" .. tostring(tr.Entity) .. ")")
+			end
+		end
+	end
 end
 
 function ENT:GetLinkedPartner()
