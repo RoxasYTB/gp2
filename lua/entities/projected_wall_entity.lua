@@ -23,6 +23,7 @@ function ENT:SetupDataTables()
     self:NetworkVar( "Vector", "InitialPosition" )
     self:NetworkVar( "Float", "DistanceToHit" )
     self:NetworkVar( "Float", "FinalOffsetZ" ) -- Pour synchronisation client/serveur
+    self:NetworkVar( "Float", "FinalOffsetX" ) -- Pour synchronisation client/serveur (gauche/droite)
 end
 
 function ENT:Initialize()
@@ -32,6 +33,7 @@ function ENT:Initialize()
         -- Stocke la hauteur d'origine uniquement sur l'entité principale
         if not self.IsPortalClone then
             self.OriginalWallZ = self:GetPos().z
+            self.OriginalWallX = self:GetPos().x
         end
         self.LastLoggedOffsetZ = nil -- Ajout pour limiter le flood
     end
@@ -41,6 +43,25 @@ end
 function ENT:Think()
     if self.IsPortalClone then
         -- Un clone ne doit pas faire de trace ni de clonage
+        -- Décoinceur de joueurs coincés dans le mur projeté (appliqué aussi au clone)
+        if SERVER then
+            local physMins, physMaxs = self:GetCollisionBounds()
+            local wallPos = self:GetPos()
+            local wallAng = self:GetAngles()
+            -- Calculer la bounding box en coordonnées monde
+            local minsWorld = wallPos + wallAng:Forward() * physMins.x + wallAng:Right() * physMins.y + wallAng:Up() * physMins.z
+            local maxsWorld = wallPos + wallAng:Forward() * physMaxs.x + wallAng:Right() * physMaxs.y + wallAng:Up() * physMaxs.z
+            local expand = 0
+            local boxMins = Vector(math.min(minsWorld.x, maxsWorld.x) - expand, math.min(minsWorld.y, maxsWorld.y) - expand, math.min(minsWorld.z, maxsWorld.z))
+            local boxMaxs = Vector(math.max(minsWorld.x, maxsWorld.x) + expand, math.max(minsWorld.y, maxsWorld.y) + expand, math.min(minsWorld.z, maxsWorld.z))
+            for _, ply in ipairs(ents.FindInBox(boxMins, boxMaxs)) do
+                if ply:IsPlayer() and ply:Alive() and not ply:IsFlagSet(FL_GODMODE) then
+                    local plyPos = ply:GetPos()
+                    ply:SetPos(plyPos + Vector(0, 0, 1))
+                    ply:SetVelocity(Vector(0, 0, 0))
+                end
+            end
+        end
         return
     end
 
@@ -58,6 +79,7 @@ function ENT:Think()
     local startPos = self:GetPos()
     -- Utilise la hauteur d'origine stockée, sinon fallback sur la position actuelle
     local originalWallZ = self.OriginalWallZ or startPos.z
+    local originalWallX = self.OriginalWallX or startPos.x
     local angles = self:GetAngles()
     local fwd = angles:Forward()
     local totalDistance = 0
@@ -69,11 +91,14 @@ function ENT:Think()
     local tr
     local bestEntryPortalZDiff = nil
     local bestOffsetZ = nil
+    local bestOffsetX = nil
     local bestExitPortalZ = nil
+    local bestExitPortalX = nil
     local bestPortalClonePos, bestPortalCloneAng, bestPortalCloneLinked = nil, nil, nil
     local finalOffsetZ = nil
     local firstExitPortalZ = nil
     local lastOffsetReceivedZ = self:GetFinalOffsetZ() or 0
+    local lastOffsetReceivedX = self:GetFinalOffsetX() or 0
 
 
     for bounce = 1, maxBounces do
@@ -114,41 +139,72 @@ function ENT:Think()
                 hitPos = entryPortal:GetPos()
             end
             local portalZ = entryPortal:GetPos().z
+            local portalX = entryPortal:GetPos().x
             local exitPortalZ = exitPortal:GetPos().z
-            local entryDiff = math.abs(portalZ - originalWallZ)
+            local exitPortalX = exitPortal:GetPos().x
+            local entryDiffZ = math.abs(portalZ - originalWallZ)
+            -- Décalage local gauche/droite (Right) dans le repère du portail d'entrée
+            local entryRight = entryPortal:GetRight() -- axe local X du portail
+            local offsetVec = startPos - entryPortal:GetPos()
+            local offsetXLocal = offsetVec:Dot(entryRight) -- décalage sur l'axe Right du portail
             local offsetZ = portalZ - originalWallZ
             -- On garde l'offset du portail dont entryPortalZ est le plus proche de originalWallZ
-            if (offsetZ ~= 0) and (bestEntryPortalZDiff == nil or entryDiff < bestEntryPortalZDiff) then
-                bestEntryPortalZDiff = entryDiff
+            if (offsetZ ~= 0 or math.abs(offsetXLocal) > 0.001) and (bestEntryPortalZDiff == nil or entryDiffZ < bestEntryPortalZDiff) then
+                bestEntryPortalZDiff = entryDiffZ
                 bestOffsetZ = offsetZ
-                -- IMPORTANT : ne jamais setter self:SetFinalOffsetZ côté serveur ailleurs que dans le net.Receive ci-dessous !
+                bestOffsetX = offsetXLocal
+                -- IMPORTANT : ne jamais setter self:SetFinalOffsetZ/X côté serveur ailleurs que dans le net.Receive ci-dessous !
                 if SERVER then
                     net.Receive("ProjectedWall_SetOffset", function(len, ply)
                         local ent    = net.ReadEntity()
-                        local offset = net.ReadFloat()
+                        local offsetZ = net.ReadFloat()
+                        local offsetX = net.ReadFloat()
                         if IsValid(ent) then
-                            ent:SetFinalOffsetZ(offset)
-                            print("[GP2][DEBUG][SERVER] Offset reçu du client : ", offset, " (GetFinalOffsetZ()=", ent:GetFinalOffsetZ(), ")")
-                            lastOffsetReceivedZ = offset
+                            ent:SetFinalOffsetZ(offsetZ)
+                            ent:SetFinalOffsetX(offsetX)
+                            print("[GP2][DEBUG][SERVER] Offset reçu du client : Z=", offsetZ, " X=", offsetX, " (GetFinalOffsetZ()=", ent:GetFinalOffsetZ(), ", GetFinalOffsetX()=", ent:GetFinalOffsetX(), ")")
+                            lastOffsetReceivedZ = offsetZ
+                            lastOffsetReceivedX = offsetX
                         end
                     end)
                 end
-                print ("[GP2][DEBUG] lastOffsetReceivedZ : " .. tostring(lastOffsetReceivedZ))
-                print("[GP2][DEBUG] Meilleur offset trouvé : " .. lastOffsetReceivedZ .. " isServeur=" .. tostring(SERVER))
+                print ("[GP2][DEBUG] lastOffsetReceivedZ : " .. tostring(lastOffsetReceivedZ) .. ", lastOffsetReceivedX : " .. tostring(lastOffsetReceivedX))
+                print("[GP2][DEBUG] Meilleur offset trouvé : Z=" .. lastOffsetReceivedZ .. " X=" .. tostring(lastOffsetReceivedX) .. " isServeur=" .. tostring(SERVER))
                 bestExitPortalZ = exitPortalZ
+                bestExitPortalX = exitPortalX
                 if firstExitPortalZ == nil then
                     firstExitPortalZ = exitPortalZ
                 end
                 -- On stocke aussi la position/angle/parent pour ce portail
-               if SERVER then
-                    -- On utilise TransformPortal pour obtenir la position et l'angle corrects
+                if SERVER then
                     local newPos, newAng = PortalManager.TransformPortal(entryPortal, exitPortal, hitPos, currentAng)
+                    print("[GP2][DEBUG] exitPortal:GetAngles().y = " .. tostring(exitPortal:GetAngles().y))
                     bestPortalClonePos = newPos
-                    bestPortalClonePos.z = bestPortalClonePos.z - lastOffsetReceivedZ  -- Force Z à la valeur du portail de sortie
+                    bestPortalClonePos.z = bestPortalClonePos.z    -- Force Z à la valeur du portail de sortie
+                    -- Appliquer un décalage sur Y en fonction de l'orientation du portail de sortie
+                    local exitRight = exitPortal:GetRight()
+                    -- Si l'axe Right pointe vers le haut (z > 0), on ajoute 20, sinon on soustrait 20
+                    local exitAngY = exitPortal:GetAngles().y
+                    if exitAngY == -90 then
+                        bestPortalClonePos.y = bestPortalClonePos.y - 20
+                    end
+                    if exitAngY > 90 and exitAngY < 180 then
+                        bestPortalClonePos.y = bestPortalClonePos.y + 20
+                    end
+                    if exitAngY > -1 and exitAngY < 1 then
+                        bestPortalClonePos.x = bestPortalClonePos.x + 20
+                    end
+                    if exitAngY == -180 then
+                        bestPortalClonePos.x = bestPortalClonePos.x - 20
+                    end
+                    -- Appliquer l'offset X local sur l'axe Right du portail de sortie
+                    bestPortalClonePos = bestPortalClonePos + exitPortal:GetRight() * (-(lastOffsetReceivedX or 0))
+                    -- Correction du gap : coller le mur exactement à la face du portail de sortie
+                    local wallThickness = 1 -- épaisseur du mur projeté (voir PhysicsInitConvex)
+                    bestPortalClonePos = bestPortalClonePos - exitPortal:GetForward() * (wallThickness * 0.51) -- 0.51 pour éviter le z-fighting
                     bestPortalCloneAng = newAng
                     bestPortalCloneLinked = exitPortal
                 end
-
             end
             currentPos, currentAng = PortalManager.TransformPortal(entryPortal, exitPortal, hitPos, currentAng)
             lastEntity = exitPortal
@@ -159,21 +215,27 @@ function ENT:Think()
     end
 
     -- Après avoir parcouru tous les portails, on fixe l’offset final
-    if bestOffsetZ then
+    if bestOffsetZ or bestOffsetX then
         if CLIENT then
             -- Envoi la valeur calculée au serveur
             net.Start("ProjectedWall_SetOffset")
                 net.WriteEntity(self)
-                net.WriteFloat(bestOffsetZ)
+                net.WriteFloat(bestOffsetZ or 0)
+                net.WriteFloat(bestOffsetX or 0)
             net.SendToServer()
             if self.SetFinalOffsetZ then
-                self:SetFinalOffsetZ(bestOffsetZ)
+                self:SetFinalOffsetZ(bestOffsetZ or 0)
+            end
+            if self.SetFinalOffsetX then
+                self:SetFinalOffsetX(bestOffsetX or 0)
             end
         end
         self.LastFinalOffsetZ = bestOffsetZ
-        if self.LastLoggedOffsetZ ~= bestOffsetZ then
+        self.LastFinalOffsetX = bestOffsetX
+        if self.LastLoggedOffsetZ ~= bestOffsetZ or self.LastLoggedOffsetX ~= bestOffsetX then
             self.LastLoggedOffsetZ = bestOffsetZ
-            print("[GP2][DEBUG] finalOffsetZ mis à jour : " .. bestOffsetZ)
+            self.LastLoggedOffsetX = bestOffsetX
+            print("[GP2][DEBUG] finalOffsetZ mis à jour : " .. tostring(bestOffsetZ) .. ", finalOffsetX : " .. tostring(bestOffsetX))
         end
     end
 
@@ -182,21 +244,48 @@ function ENT:Think()
         tr = { Fraction = 1, HitPos = currentPos + currentAng:Forward() * MAX_RAY_LENGTH, Entity = NULL }
     end
 
-    -- création du clone (même logique client et serveur pour LastFinalOffsetZ)
+    -- Décoinceur de joueurs coincés dans le mur projeté
+    if SERVER then
+        local physMins, physMaxs = self:GetCollisionBounds()
+        local wallPos = self:GetPos()
+        local wallAng = self:GetAngles()
+        -- Calculer la bounding box en coordonnées monde
+        local minsWorld = wallPos + wallAng:Forward() * physMins.x + wallAng:Right() * physMins.y + wallAng:Up() * physMins.z
+        local maxsWorld = wallPos + wallAng:Forward() * physMaxs.x + wallAng:Right() * physMaxs.y + wallAng:Up() * physMaxs.z
+        -- On élargit un peu la box pour être sûr
+        local expand = 0
+        local boxMins = Vector(math.min(minsWorld.x, maxsWorld.x) - expand, math.min(minsWorld.y, maxsWorld.y) - expand, math.min(minsWorld.z, maxsWorld.z) - expand)
+        local boxMaxs = Vector(math.max(minsWorld.x, maxsWorld.x) + expand, math.min(minsWorld.y, maxsWorld.y) + expand, math.max(minsWorld.z, maxsWorld.z) - expand)
+        for _, ply in ipairs(ents.FindInBox(boxMins, boxMaxs)) do
+            if ply:IsPlayer() and ply:Alive() and not ply:IsFlagSet(FL_GODMODE) then
+                local plyPos = ply:GetPos()
+                -- On vérifie si le joueur est vraiment dans le mur (optionnel, sinon on le monte toujours)
+                -- On le remonte de 1 unité
+                ply:SetPos(plyPos + Vector(0, 0, 1))
+                ply:SetVelocity(Vector(0, 0, 0))
+            end
+        end
+    end
+
+    -- création du clone (même logique client et serveur pour LastFinalOffsetZ/X)
     if SERVER then
         -- Utiliser uniquement la valeur synchronisée par le client, ne jamais setter ici !
         local finalZ = self:GetFinalOffsetZ()
+        local finalX = self:GetFinalOffsetX()
         local foundPortalEntIndex = self.LastFoundPortalEntity and self.LastFoundPortalEntity:IsValid() and self.LastFoundPortalEntity:EntIndex() or "nil"
         print(string.format(
-            "[GP2][DEBUG] SERVER Think — foundPortal=%s, finalZ=%s, pos=%s, foundPortalEntIndex=%s",
+            "[GP2][DEBUG] SERVER Think — foundPortal=%s, finalZ=%s, finalX=%s, pos=%s, foundPortalEntIndex=%s",
             tostring(foundPortal),
             tostring(finalZ),
+            tostring(finalX),
             tostring(bestPortalClonePos),
             tostring(foundPortalEntIndex)
         ))
         if foundPortal and bestPortalClonePos and bestPortalCloneAng and bestPortalCloneLinked then
             -- On force Z à la valeur du portail de sortie
             bestPortalClonePos.z = bestPortalClonePos.z
+            if finalZ then bestPortalClonePos.z = bestPortalClonePos.z - finalZ end
+            -- L'offset X est déjà appliqué via l'axe Right du portail de sortie plus haut
             -- Création / mise à jour unique du clone
             if not self.PortalClone or not IsValid(self.PortalClone) then
                 print("[GP2][DEBUG] Aucun clone existant, on en crée un nouveau.")
@@ -210,16 +299,17 @@ function ENT:Think()
                     clone:SetParent(bestPortalCloneLinked)
                     clone.IsPortalClone = true
                     clone.OriginalWallZ = self.OriginalWallZ
+                    clone.OriginalWallX = self.OriginalWallX
                     self.PortalClone = clone
                     self.PortalCloneLinked = bestPortalCloneLinked
                     print("[GP2][DEBUG] Clone créé, parent=" .. tostring(bestPortalCloneLinked))
-                    print("[GP2][DEBUG] Hauteur du clone du projected wall : " .. tostring(clone:GetPos().z))
+                    print("[GP2][DEBUG] Hauteur du clone du projected wall : " .. tostring(clone:GetPos().z) .. ", X : " .. tostring(clone:GetPos().x))
                 end
             else
                 print("[GP2][DEBUG] Clone existant, on met à jour sa position.")
                 self.PortalClone:SetPos(bestPortalClonePos)
                 self.PortalClone:SetAngles(bestPortalCloneAng)
-                print("[GP2][DEBUG] Hauteur du clone du projected wall (update) : " .. tostring(self.PortalClone:GetPos().z))
+                print("[GP2][DEBUG] Hauteur du clone du projected wall (update) : " .. tostring(self.PortalClone:GetPos().z) .. ", X : " .. tostring(self.PortalClone:GetPos().x))
             end
         else
             -- Pas de portail valide : suppression du clone s’il existe
