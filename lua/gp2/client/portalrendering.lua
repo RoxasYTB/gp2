@@ -56,12 +56,21 @@ local renderViewTable = {
 }
 
 -- sort the portals by distance since draw functions do not obey the z buffer
-timer.Create("seamless_portal_distance_fix", 0.25, 0, function()
-	if ! PortalManager or PortalManager.PortalIndex < 1 then return end
-	portals = ents.FindByClass("prop_portal")
-	table.sort(portals, function(a, b)
-		return a:GetPos():DistToSqr(EyePos()) < b:GetPos():DistToSqr(EyePos())
-	end)
+local lastPortalCount = 0
+local lastPortalSort = 0
+local PORTAL_SORT_INTERVAL = 0.5
+
+timer.Create("seamless_portal_distance_fix", PORTAL_SORT_INTERVAL, 0, function()
+	if not PortalManager or PortalManager.PortalIndex < 1 then return end
+	local newPortals = ents.FindByClass("prop_portal")
+	if #newPortals ~= lastPortalCount or CurTime() - lastPortalSort > PORTAL_SORT_INTERVAL then
+		portals = newPortals
+		table.sort(portals, function(a, b)
+			return a:GetPos():DistToSqr(EyePos()) < b:GetPos():DistToSqr(EyePos())
+		end)
+		lastPortalCount = #portals
+		lastPortalSort = CurTime()
+	end
 
 	-- update sky material (I guess it can change?)
 	if sky_name != sky_cvar:GetString() then
@@ -89,7 +98,8 @@ local render_EnableClipping = render.EnableClipping
 
 local skip = 0
 hook.Add("RenderScene", "seamless_portal_draw", function(eyePos, eyeAngles, fov)
-	if PortalManager.PortalIndex < 1 then return end
+	if not PortalManager or PortalManager.PortalIndex < 1 then return end
+	if gp2_portal_drawdistance:GetFloat() < 10 then return end -- désactive le rendu si drawdistance trop faible
 
 	skip = (skip + 1) % gp2_portal_refreshrate:GetInt()
 	if skip ~= 0 then return end

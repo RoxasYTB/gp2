@@ -503,6 +503,62 @@ if CLIENT then
 			if bit.band(mask, CONTENTS_GRATE) ~= 0 then return true end
 		end
 	end
+
+    function ENT:Think()
+        -- OPTIMISATION : N'ajoute à la render list que si pas déjà présent
+        if PropPortal and PropPortal.AddToRenderList and not PropPortal.IsAddedToRenderList(self) then
+            PropPortal.AddToRenderList(self)
+        end
+
+        if not IsValid(self.RingParticle) then
+            -- they're lagging
+            self.RingParticle = CreateParticleSystem(self, self:GetType() == PORTAL_TYPE_SECOND and "portal_edge_reverse" or "portal_edge", PATTACH_CUSTOMORIGIN)
+            
+            if IsValid(self.RingParticle) then
+                self.RingParticle:StartEmission()
+                self.RingParticle:SetShouldDraw(false)
+            end
+        else
+            if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
+                self.RingParticle:SetControlPoint(0, self:GetPos())
+            else
+                self.RingParticle:SetControlPoint(0, self:GetPos() - self:GetAngles():Up() * 7)
+            end
+
+            -- Messed up axes in Seamless Portals
+            -- right is forward
+            -- forward is right
+            -- up is same
+            local angles = self:GetAngles()
+            local fwd, right, up = angles:Forward(), angles:Right(), angles:Up()
+            self.RingParticle:SetControlPointOrientation(0, right, fwd, up)
+            
+            if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
+                self.RingParticle:SetControlPoint(7, self:GetColorVector())
+            else
+                self.RingParticle:SetControlPoint(7, self:GetColorVector() * 0.4)
+            end
+        end
+
+        local phys = self:GetPhysicsObject()
+        if phys:IsValid() then
+            phys:EnableMotion(false)
+            phys:SetMaterial("glass")
+            phys:SetPos(self:GetPos())
+            phys:SetAngles(self:GetAngles())
+        elseif self:GetVelocity() == Vector() then
+            self:UpdatePhysmesh()
+        end
+    end
+
+	hook.Add("NetworkEntityCreated", "seamless_portal_init", function(ent)
+		if ent:GetClass() == "prop_portal" then
+			ent.RENDER_MATRIX = Matrix()
+			timer.Simple(0, function()
+				incrementPortal(ent)
+			end)
+		end
+	end)
 end
 
 function ENT:UpdatePhysmesh()
@@ -674,64 +730,6 @@ function ENT:GetStaticAmount()
 	elapsedTime = math.min(elapsedTime, PORTAL_STATIC_DURATION)
 	local progress = elapsedTime / PORTAL_STATIC_DURATION
 	return 1 - progress
-end
-
-if CLIENT then
-	function ENT:Think()
-		-- Ensure PropPortal is initialized
-		if PropPortal and PropPortal.AddToRenderList then
-			PropPortal.AddToRenderList(self)
-		end
-
-		if not IsValid(self.RingParticle) then
-			-- they're lagging
-			self.RingParticle = CreateParticleSystem(self, self:GetType() == PORTAL_TYPE_SECOND and "portal_edge_reverse" or "portal_edge", PATTACH_CUSTOMORIGIN)
-			
-			if IsValid(self.RingParticle) then
-				self.RingParticle:StartEmission()
-				self.RingParticle:SetShouldDraw(false)
-			end
-		else
-			if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
-				self.RingParticle:SetControlPoint(0, self:GetPos())
-			else
-				self.RingParticle:SetControlPoint(0, self:GetPos() - self:GetAngles():Up() * 7)
-			end
-
-			-- Messed up axes in Seamless Portals
-			-- right is forward
-			-- forward is right
-			-- up is same
-			local angles = self:GetAngles()
-			local fwd, right, up = angles:Forward(), angles:Right(), angles:Up()
-			self.RingParticle:SetControlPointOrientation(0, right, fwd, up)
-			
-			if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
-				self.RingParticle:SetControlPoint(7, self:GetColorVector())
-			else
-				self.RingParticle:SetControlPoint(7, self:GetColorVector() * 0.4)
-			end
-		end
-
-		local phys = self:GetPhysicsObject()
-		if phys:IsValid() then
-			phys:EnableMotion(false)
-			phys:SetMaterial("glass")
-			phys:SetPos(self:GetPos())
-			phys:SetAngles(self:GetAngles())
-		elseif self:GetVelocity() == Vector() then
-			self:UpdatePhysmesh()
-		end
-	end
-
-	hook.Add("NetworkEntityCreated", "seamless_portal_init", function(ent)
-		if ent:GetClass() == "prop_portal" then
-			ent.RENDER_MATRIX = Matrix()
-			timer.Simple(0, function()
-				incrementPortal(ent)
-			end)
-		end
-	end)
 end
 
 function ENT:Fizzle()

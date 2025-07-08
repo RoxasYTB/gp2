@@ -28,11 +28,10 @@ function ENT:KeyValue(k, v)
 end
 
 function ENT:Think()
+    -- OPTIMISATION : Early return si déjà dans la render list côté client
     if CLIENT then
-        if not VguiNeurotoxinCountdown.IsAddedToRenderList(self) then
-            VguiNeurotoxinCountdown.AddToRenderList(self)
-        end
-
+        if VguiNeurotoxinCountdown.IsAddedToRenderList(self) then return end
+        VguiNeurotoxinCountdown.AddToRenderList(self)
     end
 end
 

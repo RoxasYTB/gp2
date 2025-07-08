@@ -177,7 +177,10 @@ if SERVER then
 end
 
 function ENT:Think()
-    if SERVER then        self:SetPoseParameter("reversal", self:CalculateArmaturePose())
+    -- OPTIMISATION : Early return côté serveur si le beam n'est pas activé
+    if SERVER then
+        if not self:GetEnabled() then return false end
+        self:SetPoseParameter("reversal", self:CalculateArmaturePose())
         self:SetPlaybackRate(self:CalculateRotationPose())
     else
         if PropTractorBeam and not PropTractorBeam.IsAdded(self) then
