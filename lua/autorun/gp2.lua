@@ -225,6 +225,25 @@ if SERVER then
             end
         end)
     end)
+
+    concommand.Add("gp2_print_collision_entity", function(ply)
+        if not IsValid(ply) then
+            print("Commande à utiliser en tant que joueur.")
+            return
+        end
+        local trace = util.TraceHull({
+            start = ply:GetPos(),
+            endpos = ply:GetPos() - Vector(0,0,5),
+            mins = ply:OBBMins(),
+            maxs = ply:OBBMaxs(),
+            filter = ply
+        })
+        if trace.Hit and IsValid(trace.Entity) then
+            ply:ChatPrint("[GP2] Collision avec : " .. trace.Entity:GetClass() .. " (" .. tostring(trace.Entity) .. ")")
+        else
+            ply:ChatPrint("[GP2] Aucune collision détectée sous le joueur.")
+        end
+    end, nil, "Affiche l'entité en collision sous le joueur.")
 end
 
 -- Cubes
