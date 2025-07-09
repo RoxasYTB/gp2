@@ -36,6 +36,8 @@ function ENT:Initialize()
     if SERVER then
         self.TraceFraction = 0
         self:SetModel("models/props_junk/PopCan01a.mdl")
+        -- mémoriser la hauteur d’origine pour le calcul d’offset Z
+        self.OrigZ = self:GetPos().z
     else
         -- Force update on client spawn
         self:SetUpdated(false)
@@ -44,9 +46,11 @@ function ENT:Initialize()
 end
 
 function ENT:Think()
+    -- Sécurise l'initialisation de self.OrigZ si jamais il est nil (cas rare ou clone mal initialisé)
+    if not self.OrigZ then self.OrigZ = self:GetPos().z end
+
     if self.IsPortalClone then
         -- Un clone ne doit pas faire de trace, ni de trigger, ni de clonage
-        -- Il ne fait que le rendu (et éventuellement un décoinceur minimal)
         if SERVER then
             -- Décoinceur minimal (optionnel, à adapter si besoin)
             local physMins, physMaxs = self:GetCollisionBounds()
@@ -82,66 +86,43 @@ function ENT:Think()
         end
     end
 
-    local startPos = self:GetPos()
-    local angles = self:GetAngles()
-    local fwd = angles:Forward()
-    local maxBounces = 2 -- Permettre 2 portails traversés (ajuster si besoin)
-    local currentPos = startPos
-    local currentAng = angles
-    local lastEntity = self
-    local foundPortal = false
-    local bestPortalClonePos, bestPortalCloneAng, bestPortalCloneLinked = nil, nil, nil
-    local lastOffsetX = 0
-    local lastOffsetZ = 0
-
-    local distanceToPortal = nil
-    local distanceRestante = nil
-    local trToPortal = nil
-    for bounce = 1, maxBounces do
-        local tr = util.TraceLine({
-            start = currentPos,
-            endpos = currentPos + currentAng:Forward() * MAX_RAY_LENGTH,
-            mask = MASK_SOLID_BRUSHONLY,
-        })
-        if IsValid(tr.Entity) and tr.Entity:GetClass() == "prop_portal" and tr.Entity.GetLinkedPartner and IsValid(tr.Entity:GetLinkedPartner()) then
-            foundPortal = true
-            trToPortal = tr
-            local entryPortal = tr.Entity
-            local exitPortal = entryPortal:GetLinkedPartner()
-            -- Calcul offset local (axe Right du portail)
-            local entryRight = entryPortal:GetRight()
-            local offsetVec = currentPos - entryPortal:GetPos()
-            local offsetXLocal = offsetVec:Dot(entryRight)
-            local offsetZ = entryPortal:GetPos().z - startPos.z
-            lastOffsetX = offsetXLocal
-            lastOffsetZ = offsetZ
-            -- Calcul du point d'impact réel sur le portail d'entrée
-            local mins, maxs = entryPortal:GetCollisionBounds()
+    -- Nouvelle logique : détection du premier portail avec FindAlongRay
+    local rayStart = self:GetPos()
+    local rayEnd   = rayStart + self:GetAngles():Forward() * MAX_RAY_LENGTH
+    local extents  = Vector(10,10,10)
+    local hits     = ents.FindAlongRay(rayStart, rayEnd, -extents, extents)
+    local foundPortal, bestPortalClonePos, bestPortalCloneAng, bestPortalCloneLinked, distanceRestante = false
+    for _, ent in ipairs(hits) do
+        if ent:GetClass() == "prop_portal" and IsValid(ent:GetLinkedPartner()) then
+            local entry, exit = ent, ent:GetLinkedPartner()
+            -- Point d'impact exact
+            local mins, maxs = entry:GetCollisionBounds()
             local hitPos = util.IntersectRayWithOBB(
-                currentPos,
-                (tr.HitPos - currentPos):GetNormalized(),
-                entryPortal:GetPos(),
-                entryPortal:GetAngles(),
+                rayStart, (rayEnd-rayStart):GetNormalized(),
+                entry:GetPos(), entry:GetAngles(),
                 mins, maxs
-            )
-            if not hitPos then hitPos = entryPortal:GetPos() end
+            ) or entry:GetPos()
+            -- Calcul des offsets locaux de l’impact dans l’espace du portail d’entrée
+            local localHit = entry:WorldToLocal(hitPos)
             -- Transformation à travers le portail
-            local newPos, newAng = PortalManager.TransformPortal(entryPortal, exitPortal, hitPos, currentAng)
-            -- Appliquer l'offset X local sur l'axe Right du portail de sortie
-            newPos = newPos + exitPortal:GetRight() * (-lastOffsetX)
-            -- Coller le beam à la face du portail de sortie
-            newPos = newPos - exitPortal:GetForward() * 1
+            local newPos, newAng = PortalManager.TransformPortal(entry, exit, hitPos, self:GetAngles())
+            -- Récupérer les axes du portail de sortie
+            local eAng    = exit:GetAngles()
+            local eRight  = eAng:Right()
+            local eUp     = eAng:Up()
+            local eForward= eAng:Forward()
+            -- Appliquer les mêmes offsets relatifs
+            newPos = newPos
+                + eRight   * localHit.y      -- droite/gauche
+                + eUp      * localHit.z      -- haut/bas
+                - eForward * 1               -- coller au mur
+            -- Calcul distance restante
+            local distDone = (hitPos - self:GetPos()):Length()
+            distanceRestante = MAX_RAY_LENGTH - distDone
             bestPortalClonePos = newPos
             bestPortalCloneAng = newAng
-            bestPortalCloneLinked = exitPortal
-            -- Calculer la distance parcourue jusqu'au portail
-            distanceToPortal = (tr.HitPos - startPos):Length()
-            distanceRestante = MAX_RAY_LENGTH - distanceToPortal
-            -- Préparer pour rebond suivant
-            currentPos = newPos
-            currentAng = newAng
-            lastEntity = exitPortal
-        else
+            bestPortalCloneLinked = exit
+            foundPortal = true
             break
         end
     end
@@ -156,6 +137,7 @@ function ENT:Think()
                 local clone = ents.Create("projected_tractor_beam_entity")
                 if IsValid(clone) then
                     clone.IsPortalClone = true
+                    clone.OrigZ = self.OrigZ -- Copie la hauteur d'origine pour le calcul d'offset Z
                     clone:SetPos(bestPortalClonePos)
                     clone:SetAngles(bestPortalCloneAng)
                     clone:SetRadius(self:GetRadius())
@@ -182,10 +164,11 @@ function ENT:Think()
         end
     end
 
-    -- Mise à jour du beam principal
+    -- Mise à jour du beam principal (pour le rendu, debug, etc)
+    local fwd = self:GetAngles():Forward()
     local tr = util.TraceLine({
-        start = startPos,
-        endpos = startPos + fwd * MAX_RAY_LENGTH,
+        start = rayStart,
+        endpos = rayStart + fwd * MAX_RAY_LENGTH,
         mask = MASK_SOLID_BRUSHONLY,
     })
     if self.TraceFraction ~= tr.Fraction then
@@ -324,8 +307,6 @@ function ENT:CreateBeam(distance)
             ProjectedTractorBeamEntity.AddToRenderList(self, self.Mesh)
         end
     end
-
-    if self.IsPortalClone then return end -- Jamais de trigger côté clone !
 
     local radius =  self:GetRadius()    if SERVER then
         if self.Trigger and IsValid(self.Trigger) then
