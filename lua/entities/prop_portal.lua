@@ -203,6 +203,268 @@ local function incrementPortal(ent)
 	PortalManager.PortalIndex = PortalManager.PortalIndex + 1
 end
 
+if SERVER then
+    -- Object tracking for portal transmission
+    ENT.TrackedObjects = {}
+    ENT.TransmissionQueue = {}
+    
+    -- Object transmission configuration
+    ENT.ObjectTransmissionSettings = {
+        MaxObjectsPerFrame = 5,
+        VelocityThreshold = 50,
+        SizeMultiplier = 2.0,
+        DistanceThreshold = 128,
+        UpdateInterval = 0.02
+    }
+    
+    -- Enhanced entity filtering using Portal's transformed collideable concept
+    function ENT:FindObjectsForTransmission()
+        if not self:GetActivated() or not IsValid(self:GetLinkedPartner()) then return end
+        
+        local portalPos = self:GetPos()
+        local portalUp = self:GetUp()
+        local portalSize = self:GetSize()
+        local linkedPartner = self:GetLinkedPartner()
+        
+        -- Use FindAlongRay similar to Portal's UTIL_Portal_FirstAlongRay
+        local rayStart = portalPos - portalUp * portalSize.z
+        local rayEnd = portalPos + portalUp * portalSize.z * 2
+        local rayExtents = Vector(portalSize.x, portalSize.y, portalSize.z)
+        
+        local entitiesInRay = ents.FindAlongRay(rayStart, rayEnd, -rayExtents, rayExtents)
+        
+        for _, ent in ipairs(entitiesInRay) do
+            if self:ShouldTransmitEntity(ent) then
+                self:ProcessEntityForTransmission(ent)
+            end
+        end
+    end
+    
+    -- Enhanced entity filtering with configuration support
+    function ENT:ShouldTransmitEntity(ent)
+        if not IsValid(ent) then return false end
+        if ent == self or ent == self:GetLinkedPartner() then return false end
+        if ent:IsPlayer() then return false end
+        if ent:IsPlayerHolding() then return false end
+        
+        if not GP2.ObjectTransmission or not GP2.ObjectTransmission.IsEnabled() then
+            return false
+        end
+        
+        -- Configuration-based entity class filtering
+        local className = ent:GetClass()
+        local allowed = false
+        
+        if className == "prop_physics" and GP2.ObjectTransmission.GetEntityTypeAllowed("physics") then
+            allowed = true
+        elseif className == "prop_weighted_cube" and GP2.ObjectTransmission.GetEntityTypeAllowed("cubes") then
+            allowed = true
+        elseif className == "simple_physics_prop" and GP2.ObjectTransmission.GetEntityTypeAllowed("physics") then
+            allowed = true
+        elseif className == "prop_ragdoll" and GP2.ObjectTransmission.GetEntityTypeAllowed("ragdolls") then
+            allowed = true
+        elseif className == "npc_portal_turret_floor" and GP2.ObjectTransmission.GetEntityTypeAllowed("turrets") then
+            allowed = true
+        elseif className == "prop_energy_ball" and GP2.ObjectTransmission.GetEntityTypeAllowed("energy_balls") then
+            allowed = true
+        end
+        
+        if not allowed then return false end
+        
+        -- Velocity and movement checks
+        local velocity = ent:GetVelocity()
+        if velocity:Length() < self.ObjectTransmissionSettings.VelocityThreshold then return false end
+        
+        -- Direction check - entity must be moving towards portal
+        local dirToPortal = (self:GetPos() - ent:GetPos()):GetNormalized()
+        if velocity:GetNormalized():Dot(dirToPortal) < 0.3 then return false end
+        
+        -- Size check - entity must fit through portal
+        local entSize = ent:OBBMaxs() - ent:OBBMins()
+        local portalSize = self:GetSize()
+        if entSize.x > portalSize.x * self.ObjectTransmissionSettings.SizeMultiplier or
+           entSize.y > portalSize.y * self.ObjectTransmissionSettings.SizeMultiplier then
+            return false
+        end
+        
+        return true
+    end
+    
+    -- Process entity for transmission using Portal's transformation logic
+    function ENT:ProcessEntityForTransmission(ent)
+        local entPos = ent:GetPos()
+        local entAng = ent:GetAngles()
+        local entVel = ent:GetVelocity()
+        local linkedPartner = self:GetLinkedPartner()
+        
+        -- Calculate intersection with portal plane (similar to UTIL_IntersectRayWithPortal)
+        local portalPos = self:GetPos()
+        local portalUp = self:GetUp()
+        local portalPlane = portalUp
+        
+        -- Check if entity crossed portal plane
+        local distToPlane = portalPlane:Dot(entPos - portalPos)
+        local velDotNormal = entVel:Dot(portalUp)
+        
+        -- Entity must be moving through portal (negative dot product)
+        if velDotNormal >= -0.1 then return end
+        
+        -- Check if entity is close enough to portal plane
+        if math.abs(distToPlane) > self.ObjectTransmissionSettings.DistanceThreshold then return end
+        
+        -- Perform the transformation (similar to Portal's transformation matrix)
+        local transformedPos, transformedAng = PortalManager.TransformPortal(
+            self, linkedPartner, entPos, entAng
+        )
+        
+        local _, transformedVel = PortalManager.TransformPortal(
+            self, linkedPartner, nil, entVel:Angle()
+        )
+        
+        -- Calculate proper velocity magnitude preservation
+        local velocityMagnitude = entVel:Length()
+        local transformedVelocity = transformedVel:Forward() * velocityMagnitude
+        
+        -- Add gravity component from linked portal
+        local gravityInfluence = linkedPartner:GetUp():Dot(-physenv.GetGravity() / 3)
+        local finalVelocity = transformedVelocity + Vector(0, 0, math.max(gravityInfluence, 0))
+        
+        -- Queue entity for transmission
+        table.insert(self.TransmissionQueue, {
+            entity = ent,
+            transformedPos = transformedPos,
+            transformedAng = transformedAng,
+            transformedVel = finalVelocity,
+            timestamp = CurTime()
+        })
+    end
+    
+    -- Enhanced position setting function (inspired by Portal's unfucked_setpos)
+    function ENT:TransformEntityPosition(ent, newPos, newAng, newVel)
+        local phys = ent:GetPhysicsObject()
+        if not IsValid(phys) then return end
+        
+        -- Force player to drop the entity
+        ent:ForcePlayerDrop()
+        
+        -- Handle ragdolls specially
+        if ent:IsRagdoll() then
+            ent:SetAngles(newAng)
+            ent:SetPos(newPos)
+            
+            for i = 0, ent:GetPhysicsObjectCount() - 1 do
+                local ragdollPhys = ent:GetPhysicsObjectNum(i)
+                if IsValid(ragdollPhys) then
+                    ragdollPhys:SetPos(newPos, true)
+                    ragdollPhys:SetVelocityInstantaneous(newVel)
+                end
+            end
+        else
+            -- Standard physics object handling
+            phys:SetPos(newPos, true)
+            phys:SetAngles(newAng)
+            phys:SetVelocity(newVel)
+            phys:Wake() -- Ensure physics object is active
+        end
+        
+        -- Handle constrained entities (like those connected by ropes, etc.)
+        local constrained = constraint.GetAllConstrainedEntities(ent)
+        if constrained then
+            for _, constrainedEnt in pairs(constrained) do
+                if constrainedEnt ~= ent and IsValid(constrainedEnt) then
+                    local constrainedPos, constrainedAng = PortalManager.TransformPortal(
+                        self, self:GetLinkedPartner(),
+                        constrainedEnt:GetPos(), constrainedEnt:GetAngles()
+                    )
+                    
+                    local constrainedPhys = constrainedEnt:GetPhysicsObject()
+                    if IsValid(constrainedPhys) then
+                        constrainedPhys:SetPos(constrainedPos, true)
+                        constrainedPhys:SetAngles(constrainedAng)
+                        constrainedPhys:SetVelocity(newVel)
+                    end
+                end
+            end
+        end
+        
+        -- Trigger portal output events
+        self:TriggerOutput("OnEntityTeleportFromMe", ent)
+        if IsValid(self:GetLinkedPartner()) then
+            self:GetLinkedPartner():TriggerOutput("OnEntityTeleportToMe", ent)
+        end
+    end
+    
+    -- Process transmission queue (similar to Portal's per-frame processing)
+    function ENT:ProcessTransmissionQueue()
+        local processedCount = 0
+        local maxPerFrame = self.ObjectTransmissionSettings.MaxObjectsPerFrame
+        
+        for i = #self.TransmissionQueue, 1, -1 do
+            if processedCount >= maxPerFrame then break end
+            
+            local transmissionData = self.TransmissionQueue[i]
+            
+            -- Check if transmission data is still valid
+            if not IsValid(transmissionData.entity) then
+                table.remove(self.TransmissionQueue, i)
+                continue
+            end
+            
+            -- Check timeout
+            if CurTime() - transmissionData.timestamp > 0.5 then
+                table.remove(self.TransmissionQueue, i)
+                continue
+            end
+            
+            -- Perform the actual transmission
+            self:TransformEntityPosition(
+                transmissionData.entity,
+                transmissionData.transformedPos,
+                transmissionData.transformedAng,
+                transmissionData.transformedVel
+            )
+            
+            table.remove(self.TransmissionQueue, i)
+            processedCount = processedCount + 1
+        end
+    end
+    
+    -- Hook into configuration changes
+    local function onConfigChanged()
+        for _, portal in ipairs(ents.FindByClass("prop_portal")) do
+            if IsValid(portal) and portal.UpdateTransmissionSettings then
+                portal:UpdateTransmissionSettings()
+            end
+        end
+    end
+    
+    cvars.AddChangeCallback("gp2_object_transmission_enabled", onConfigChanged)
+    cvars.AddChangeCallback("gp2_object_transmission_max_per_frame", onConfigChanged)
+    cvars.AddChangeCallback("gp2_object_transmission_velocity_threshold", onConfigChanged)
+    
+    -- Enhanced Think function with object transmission
+    local originalThink = ENT.Think
+    function ENT:Think()
+        -- Call original Think function
+        if originalThink then
+            originalThink(self)
+        end
+        
+        -- Object transmission processing
+        if self:GetActivated() and IsValid(self:GetLinkedPartner()) then
+            -- Find objects for transmission
+            self:FindObjectsForTransmission()
+            
+            -- Process transmission queue
+            self:ProcessTransmissionQueue()
+        end
+        
+        -- Set next think
+        self:NextThink(CurTime() + self.ObjectTransmissionSettings.UpdateInterval)
+        return true
+    end
+end
+
 function ENT:Initialize()
 	if SERVER then
 		self:SetModel("models/hunter/plates/plate2x2.mdl")
@@ -234,10 +496,14 @@ function ENT:Initialize()
 			self:BuildPortalEnvironment()
 		end
 	end
-	
-	-- Override portal in LinkageGroup
+		-- Override portal in LinkageGroup
 	PortalManager.SetPortal(self:GetLinkageGroup(), self)
 	PortalManager.Portals[self] = true
+
+	-- Initialize transmission settings from configuration (if available)
+	if self.UpdateTransmissionSettings then
+		self:UpdateTransmissionSettings()
+	end
 end
 
 if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then

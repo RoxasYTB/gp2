@@ -48,30 +48,44 @@ hook.Add("InitPostEntity", "GP2::RefreshExistingLasers", function()
     end)
 end)
 
-local function RecursionLaserThroughPortals(laser, linkedPortal, data)
-    local tr = util_TraceLine(data)
+-- Enhanced object detection system inspired by Portal's CTransformedCollideable
+local function portal_enhanced_object_detection(laser, tr, linkedPortal)
+    -- Similar to Portal's ents.FindAlongRay but with enhanced filtering
     local inTrace = ents.FindAlongRay(tr.StartPos, tr.HitPos, -RAY_EXTENTS_NEG, RAY_EXTENTS)
     local candidates = {}
 
+    -- Enhanced filter system based on Portal's entity classification
     local filter = {
         prop_weighted_cube = true,
-        prop_portal = true
+        prop_portal = true,
+        prop_physics = true,
+        simple_physics_prop = true,
+        npc_portal_turret_floor = true,
+        prop_energy_ball = true
     }
 
     for e = 1, #inTrace do
         local tracedEntity = inTrace[e]
 
-        if not filter[tracedEntity:GetClass()]
-            or tracedEntity == laser
-            or tracedEntity == laser:GetParent()
-            or tracedEntity:IsNPC()
-            or tracedEntity:IsNextBot()
-            or tracedEntity == linkedPortal then
-            continue
+        -- Enhanced filtering logic
+        if not IsValid(tracedEntity) then continue end
+        if not filter[tracedEntity:GetClass()] then continue end
+        if tracedEntity == laser or tracedEntity == laser:GetParent() then continue end
+        if tracedEntity:IsNPC() or tracedEntity:IsNextBot() then continue end
+        if tracedEntity == linkedPortal then continue end
+
+        -- Special handling for cubes (similar to Portal's cube type checking)
+        if tracedEntity:GetClass() == "prop_weighted_cube" then
+            if not tracedEntity.GetCubeType then continue end
+            local cubeType = tracedEntity:GetCubeType()
+            -- Only reflective cubes (type 2) interact with lasers
+            if cubeType ~= 2 then continue end
         end
 
+        -- Enhanced collision bounds calculation
         local mins, maxs = tracedEntity:GetCollisionBounds()
-
+        
+        -- Use Portal-style ray-OBB intersection
         local intersect = util.IntersectRayWithOBB(
             tr.StartPos,
             tr.Normal * MAX_RAY_LENGTH,
@@ -90,26 +104,27 @@ local function RecursionLaserThroughPortals(laser, linkedPortal, data)
         end
     end
 
+    -- Sort by distance (closest first) - Portal does this for deterministic results
     table.sort(candidates, function(a, b)
         return a.DistanceSqr < b.DistanceSqr
     end)
 
+    -- Enhanced hit validation using Portal's approach
     local rayHit = nil
     for _, candidate in ipairs(candidates) do
         local tracedEntity = candidate.Entity
         local intersect = candidate.HitPos
 
-        -- Use small traceline to check if ray actually hits cube :/
-        -- ray is thick than traceline
+        -- Portal-style hit validation with small traceline
         local preEndPos = intersect - tr.Normal * 16
-
         local preEndTrace = util_TraceLine({
             start = preEndPos,
             endpos = intersect + tr.Normal * 16,
             filter = { game.GetWorld() }
         })
 
-        if not preEndTrace.Hit or not IsValid(preEndTrace.Entity) or not filter[preEndTrace.Entity:GetClass()] then
+        if not preEndTrace.Hit or not IsValid(preEndTrace.Entity) or 
+           not filter[preEndTrace.Entity:GetClass()] then
             continue
         end
 
@@ -118,16 +133,28 @@ local function RecursionLaserThroughPortals(laser, linkedPortal, data)
             Entity = tracedEntity,
             Distance = math.sqrt(candidate.DistanceSqr)
         }
-
-        if tracedEntity:GetClass() == "prop_portal" then
-            tr.HitPos = intersect + tr.Normal * tracedEntity:GetSize().z
-        else
-            tr.HitPos = intersect + tr.Normal
-        end
-        tr.Entity = tracedEntity
-
         break
-    end    -- Dessiner le segment de laser jusqu'au point de collision
+    end
+
+    return rayHit
+end
+
+local function RecursionLaserThroughPortals(laser, linkedPortal, data)
+    local tr = util_TraceLine(data)
+    local rayHit = portal_enhanced_object_detection(laser, tr, linkedPortal)
+
+    if rayHit then
+        tr.HitPos = rayHit.HitPos
+        tr.Entity = rayHit.Entity
+
+        if rayHit.Entity:GetClass() == "prop_portal" then
+            tr.HitPos = rayHit.HitPos + tr.Normal * rayHit.Entity:GetSize().z
+        else
+            tr.HitPos = rayHit.HitPos + tr.Normal
+        end
+    end
+
+    -- Dessiner le segment de laser jusqu'au point de collision
     render.SetMaterial(LASER_MATERIAL)
     render.DrawBeam(data.start, tr.HitPos, 8, 0, 1, NORMAL_COLOR)
 

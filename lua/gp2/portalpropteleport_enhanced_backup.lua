@@ -35,44 +35,44 @@ local BLOCKED_CLASSES = {
 -- Enhanced entity collection with Portal-style filtering
 timer.Create("portals_ent_update", ENTS_UPDATE_INTERVAL, 0, function()
     if not PortalManager or PortalManager.PortalIndex < 1 then return end
-      allEnts = {}
+    
+    allEnts = {}
     local processedCount = 0
+    
     for _, ent in ipairs(ents.GetAll()) do
         -- Skip invalid entities
-        if IsValid(ent) then
-            -- Class filtering based on Portal's entity classification
-            local className = ent:GetClass()
-            if not BLOCKED_CLASSES[className] and TRANSMISSIBLE_CLASSES[className] then
-                -- Physics validation
-                if ent.GetPhysicsObject and IsValid(ent:GetPhysicsObject()) then                    -- Velocity threshold check (Portal entities must be moving)
-                    local velocity = ent:GetVelocity()
-                    if velocity:Length() >= MIN_VELOCITY_THRESHOLD then
-                        -- Skip entities being held by players
-                        if not ent:IsPlayerHolding() then
-                            local shouldAdd = true
-                            
-                            -- Additional checks for specific entity types
-                            if className == "prop_weighted_cube" and ent:GetCubeType() then
-                                -- Special handling for different cube types if needed
-                            elseif className == "npc_portal_turret_floor" then
-                                -- Only teleport active turrets
-                                if not ent:GetEnabled() then 
-                                    shouldAdd = false
-                                end
-                            end
-                            
-                            if shouldAdd then
-                                table.insert(allEnts, ent)
-                                processedCount = processedCount + 1
-                                
-                                -- Limit entities per frame to prevent performance issues
-                                if processedCount >= MAX_OBJECTS_PER_FRAME * 4 then break end
-                            end
-                        end
-                    end
-                end
-            end
+        if not IsValid(ent) then goto continue end
+        
+        -- Class filtering based on Portal's entity classification
+        local className = ent:GetClass()
+        if BLOCKED_CLASSES[className] then goto continue end
+        if not TRANSMISSIBLE_CLASSES[className] then goto continue end
+        
+        -- Physics validation
+        if not ent.GetPhysicsObject or not IsValid(ent:GetPhysicsObject()) then goto continue end
+        
+        -- Velocity threshold check (Portal entities must be moving)
+        local velocity = ent:GetVelocity()
+        if velocity:Length() < MIN_VELOCITY_THRESHOLD then goto continue end
+        
+        -- Skip entities being held by players
+        if ent:IsPlayerHolding() then goto continue end
+        
+        -- Additional checks for specific entity types
+        if className == "prop_weighted_cube" and ent:GetCubeType() then
+            -- Special handling for different cube types if needed
+        elseif className == "npc_portal_turret_floor" then
+            -- Only teleport active turrets
+            if not ent:GetEnabled() then goto continue end
         end
+        
+        table.insert(allEnts, ent)
+        processedCount = processedCount + 1
+        
+        -- Limit entities per frame to prevent performance issues
+        if processedCount >= MAX_OBJECTS_PER_FRAME * 4 then break end
+        
+        ::continue::
     end
     
     lastEntsUpdate = CurTime()
@@ -181,21 +181,22 @@ local function find_portal_along_ray(rayStart, rayEnd, excludePortal)
     local bestPortal = nil
     local bestFraction = 1.0
     local bestIntersection = Vector()
-      for _, portal in ipairs(ents.FindByClass("prop_portal")) do
-        if IsValid(portal) and portal ~= excludePortal then
-            if portal:GetActivated() and IsValid(portal:GetLinkedPartner()) then
-                local intersects, intersection, fraction = intersect_ray_with_portal(rayStart, rayEnd, portal)
-                if intersects and fraction < bestFraction then
-                    -- Check if ray is going into the front of the portal
-                    local rayDir = (rayEnd - rayStart):GetNormalized()
-                    local portalForward = portal:GetUp()
-                    
-                    if rayDir:Dot(portalForward) < -0.1 then -- Going into portal
-                        bestPortal = portal
-                        bestFraction = fraction
-                        bestIntersection = intersection
-                    end
-                end
+    
+    for _, portal in ipairs(ents.FindByClass("prop_portal")) do
+        if not IsValid(portal) then continue end
+        if portal == excludePortal then continue end
+        if not portal:GetActivated() or not IsValid(portal:GetLinkedPartner()) then continue end
+        
+        local intersects, intersection, fraction = intersect_ray_with_portal(rayStart, rayEnd, portal)
+        if intersects and fraction < bestFraction then
+            -- Check if ray is going into the front of the portal
+            local rayDir = (rayEnd - rayStart):GetNormalized()
+            local portalForward = portal:GetUp()
+            
+            if rayDir:Dot(portalForward) < -0.1 then -- Going into portal
+                bestPortal = portal
+                bestFraction = fraction
+                bestIntersection = intersection
             end
         end
     end
@@ -215,53 +216,61 @@ hook.Add("Tick", "enhanced_portal_teleport", function()
     if not lastEntsUpdate or CurTime() - lastEntsUpdate > ENTS_UPDATE_INTERVAL * 2 then return end
     
     local processedThisFrame = 0
-      for _, prop in ipairs(allEnts) do
-        if IsValid(prop) and not prop:IsPlayerHolding() then
-            -- Limit processing per frame for performance
-            if processedThisFrame >= MAX_OBJECTS_PER_FRAME then break end
-            
-            local propPos = prop:GetPos()
-            local propVel = prop:GetVelocity()
-            local propOBBMin = prop:OBBMins()
-            local propOBBMax = prop:OBBMaxs()
-            
-            -- Calculate trace ahead distance based on velocity and frame time
-            local traceAheadDist = propVel * TRACE_AHEAD_MULTIPLIER
-            
-            -- Enhanced trace using Portal's approach
-            local traceStart = propPos - traceAheadDist
-            local traceEnd = propPos + traceAheadDist
-            
-            -- First, do a hull trace to detect portal collision
-            local tr = util.TraceHull({
-                start = traceStart,
-                endpos = traceEnd,
-                mins = propOBBMin,
-                maxs = propOBBMax,
-                filter = seamless_check,
-                ignoreworld = true,
-            })
-            
-            if tr.Hit then
-                local hitPortal = tr.Entity
-                if IsValid(hitPortal) and hitPortal:GetClass() == "prop_portal" then
-                    local linkedPortal = hitPortal:GetLinkedPartner()
-                    if IsValid(linkedPortal) then
-                        -- Enhanced size and velocity checks
-                        local portalSize = hitPortal:GetSize()
-                        local maxOBBDimension = math.max(propOBBMax.x - propOBBMin.x, propOBBMax.y - propOBBMin.y)
-                        local maxPortalDimension = math.min(portalSize.x * 2, portalSize.y * 2)
-                        
-                        -- Object must fit through portal
-                        if maxOBBDimension <= maxPortalDimension then
-                            -- Check velocity direction (must be moving toward portal)
-                            local velocityDotNormal = propVel:Dot(hitPortal:GetUp())
-                            if velocityDotNormal < -0.5 then
+    
+    for _, prop in ipairs(allEnts) do
+        if not IsValid(prop) then goto continue end
+        if prop:IsPlayerHolding() then goto continue end
+        
+        -- Limit processing per frame for performance
+        if processedThisFrame >= MAX_OBJECTS_PER_FRAME then break end
+        
+        local propPos = prop:GetPos()
+        local propVel = prop:GetVelocity()
+        local propOBBMin = prop:OBBMins()
+        local propOBBMax = prop:OBBMaxs()
+        
+        -- Calculate trace ahead distance based on velocity and frame time
+        local traceAheadDist = propVel * TRACE_AHEAD_MULTIPLIER
+        
+        -- Enhanced trace using Portal's approach
+        local traceStart = propPos - traceAheadDist
+        local traceEnd = propPos + traceAheadDist
+        
+        -- First, do a hull trace to detect portal collision
+        local tr = util.TraceHull({
+            start = traceStart,
+            endpos = traceEnd,
+            mins = propOBBMin,
+            maxs = propOBBMax,
+            filter = seamless_check,
+            ignoreworld = true,
+        })
+        
+        if not tr.Hit then goto continue end
+        
+        local hitPortal = tr.Entity
+        if not IsValid(hitPortal) or hitPortal:GetClass() ~= "prop_portal" then goto continue end
+        
+        local linkedPortal = hitPortal:GetLinkedPartner()
+        if not IsValid(linkedPortal) then goto continue end
+        
+        -- Enhanced size and velocity checks
+        local portalSize = hitPortal:GetSize()
+        local maxOBBDimension = math.max(propOBBMax.x - propOBBMin.x, propOBBMax.y - propOBBMin.y)
+        local maxPortalDimension = math.min(portalSize.x * 2, portalSize.y * 2)
+        
+        -- Object must fit through portal
+        if maxOBBDimension > maxPortalDimension then goto continue end
+        
+        -- Check velocity direction (must be moving toward portal)
+        local velocityDotNormal = propVel:Dot(hitPortal:GetUp())
+        if velocityDotNormal >= -0.5 then goto continue end
         
         -- Process all constrained entities (ropes, welds, etc.)
         local constrainedEntities = constraint.GetAllConstrainedEntities(prop)
-          for _, constrainedProp in pairs(constrainedEntities) do
-            if IsValid(constrainedProp) then
+        
+        for _, constrainedProp in pairs(constrainedEntities) do
+            if not IsValid(constrainedProp) then continue end
             
             -- Transform position and angles through portal
             local transformedPos, transformedAng = PortalManager.TransformPortal(
@@ -281,7 +290,8 @@ hook.Add("Tick", "enhanced_portal_teleport", function()
             local finalVelMagnitude = math.max(originalVelMagnitude, gravityComponent)
             
             local finalVelocity = transformedVelAngle:Forward() * finalVelMagnitude
-              -- Apply the transformation
+            
+            -- Apply the transformation
             portal_transform_entity(constrainedProp, transformedPos, transformedAng, finalVelocity)
             
             -- Trigger portal events if the entity supports them
@@ -291,14 +301,9 @@ hook.Add("Tick", "enhanced_portal_teleport", function()
             if linkedPortal.TriggerOutput then
                 linkedPortal:TriggerOutput("OnEntityTeleportToMe", constrainedProp)
             end
-            end -- end if IsValid(constrainedProp)
         end
-          processedThisFrame = processedThisFrame + 1
-                            end
-                        end
-                    end
-                end
-            end
-        end
+        
+        processedThisFrame = processedThisFrame + 1
+        ::continue::
     end
 end)

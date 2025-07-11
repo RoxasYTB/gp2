@@ -64,11 +64,11 @@ function PortalManager.SetPortal(linkageGroup, entity)
 			portal:Fizzle()
 		end
 	end
-
 	-- If opposite portal exists
 	-- link with it
 	if IsValid(oppositePortal) then
 		entity:SetLinkedPartner(oppositePortal)
+		oppositePortal:SetLinkedPartner(entity)  -- Liaison bidirectionnelle
 	end
 
 	-- If portal is activated then add it to group
