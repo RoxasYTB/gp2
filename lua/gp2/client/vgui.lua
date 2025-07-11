@@ -1,55 +1,41 @@
--- ----------------------------------------------------------------------------
+﻿-- ----------------------------------------------------------------------------
 -- GP2 Framework
 -- VGuiPanels
 -- ----------------------------------------------------------------------------
-
 -------------------------------
 -- indicator_panel
 -------------------------------
-
 PropIndicatorPanel = PropIndicatorPanel or {}
 PropIndicatorPanel.Panels = PropIndicatorPanel.Panels or {}
 PropIndicatorPanel.Panelslookup = PropIndicatorPanel.Panelslookup or {}
-
 local vgui_indicator_checked = Material("vgui/signage/vgui_indicator_checked")
 local vgui_indicator_unchecked = Material("vgui/signage/vgui_indicator_unchecked")
-
-local anglesFixup = Angle(0,90,90)
+local anglesFixup = Angle(0, 90, 90)
 local PANEL_SIZE = 32
-
 local floor = math.floor
 local min = math.min
 local rand = math.Rand
-
 function PropIndicatorPanel.AddPanel(panel)
-    if panel:GetClass() ~= "prop_indicator_panel" then
-        return
-    end
-
+    if panel:GetClass() ~= "prop_indicator_panel" then return end
     PropIndicatorPanel.Panels[#PropIndicatorPanel.Panels + 1] = panel
     PropIndicatorPanel.Panelslookup[panel] = #PropIndicatorPanel.Panels -- save index
 end
 
 function PropIndicatorPanel.RemovePanel(panel)
     local paneltoremove = PropIndicatorPanel.Panels[PropIndicatorPanel.Panelslookup[panel]]
-
-    if paneltoremove and IsValid(paneltoremove) then
-        PropIndicatorPanel.Panels[PropIndicatorPanel.Panelslookup[panel]] = nil 
-    end
+    if paneltoremove and IsValid(paneltoremove) then PropIndicatorPanel.Panels[PropIndicatorPanel.Panelslookup[panel]] = nil end
 end
 
 function PropIndicatorPanel.Render()
     for i = 1, #PropIndicatorPanel.Panels do
         local panel = PropIndicatorPanel.Panels[i]
         if not IsValid(panel) then continue end
-
         local pos = panel:GetPos() + panel:GetAngles():Up() * PANEL_SIZE * 0.5 + panel:GetAngles():Right() * PANEL_SIZE * 0.5 - panel:GetAngles():Forward() * 1
         local ang = panel:GetAngles() + anglesFixup
-
         cam.Start3D2D(pos, ang, 1)
-            surface.SetDrawColor(255,255,255)
-            surface.SetMaterial(panel:GetIsChecked() and vgui_indicator_checked or vgui_indicator_unchecked)
-            surface.DrawTexturedRect(0,0,PANEL_SIZE,PANEL_SIZE)
+        surface.SetDrawColor(255, 255, 255)
+        surface.SetMaterial(panel:GetIsChecked() and vgui_indicator_checked or vgui_indicator_unchecked)
+        surface.DrawTexturedRect(0, 0, PANEL_SIZE, PANEL_SIZE)
         cam.End3D2D()
     end
 end
@@ -57,58 +43,37 @@ end
 -------------------------------
 -- movie_display
 -------------------------------
-
 VguiMovieDisplay = VguiMovieDisplay or {}
-
 VguiMovieDisplay.PrecachedMovies = VguiMovieDisplay.PrecachedMovies or {}
 VguiMovieDisplay.MovieGroups = VguiMovieDisplay.MovieGroups or {}
 VguiMovieDisplay.MasterSlavesInGroup = VguiMovieDisplay.MasterSlavesInGroup or {}
 VguiMovieDisplay.Movies = VguiMovieDisplay.Movies or {}
-
 local elevator_video_lines = Material("vgui/elevator_video_lines.vmt")
-
-net.Receive(GP2.Net.SendMovieDisplay, function(len, ply)
-    VguiMovieDisplay.AddDisplay(net.ReadEntity())
-end)
-
-net.Receive(GP2.Net.SendRemoveMovieDisplay, function(len, ply)
-    VguiMovieDisplay.RemoveDisplay(net.ReadEntity())
-end)
-
+net.Receive(GP2.Net.SendMovieDisplay, function(len, ply) VguiMovieDisplay.AddDisplay(net.ReadEntity()) end)
+net.Receive(GP2.Net.SendRemoveMovieDisplay, function(len, ply) VguiMovieDisplay.RemoveDisplay(net.ReadEntity()) end)
 net.Receive(GP2.Net.SendPrecacheMovie, function(len, ply)
     local movieName = net.ReadString()
-
-    if not VguiMovieDisplay.PrecachedMovies[movieName] and file.Exists("materials/" .. movieName .. ".vmt", "GAME") then
-        VguiMovieDisplay.PrecachedMovies[movieName] = Material(movieName .. ".vmt")
-    end
+    if not VguiMovieDisplay.PrecachedMovies[movieName] and file.Exists("materials/" .. movieName .. ".vmt", "GAME") then VguiMovieDisplay.PrecachedMovies[movieName] = Material(movieName .. ".vmt") end
 end)
 
 function VguiMovieDisplay.AddDisplay(display)
     VguiMovieDisplay.Movies[display] = true -- add it anyway even if we have something wrong
-
     if display:GetClass() ~= "vgui_movie_display" then return end
     if not display:GetActive() then return end
-
     local size = display:GetSize()
     local width = size.x
     local height = size.y
-
     local movieName = display:GetMovie()
     VguiMovieDisplay.PrecachedMovies[movieName] = VguiMovieDisplay.PrecachedMovies[movieName] or nil
-
     if not VguiMovieDisplay.PrecachedMovies[movieName] and file.Exists("materials/" .. movieName .. ".vmt", "GAME") then
         VguiMovieDisplay.PrecachedMovies[movieName] = Material(movieName .. ".vmt")
     else
         return
     end
 
-    if not VguiMovieDisplay.PrecachedMovies[movieName] then
-        return
-    end
-    
+    if not VguiMovieDisplay.PrecachedMovies[movieName] then return end
     local textureWidth = VguiMovieDisplay.PrecachedMovies[movieName]:GetTexture("$basetexture"):GetMappingWidth()
     local textureHeight = VguiMovieDisplay.PrecachedMovies[movieName]:GetTexture("$basetexture"):GetMappingHeight()
-
     local groupName = display:GetGroupName()
     VguiMovieDisplay.MovieGroups[groupName] = VguiMovieDisplay.MovieGroups[groupName] or {
         movieName = movieName,
@@ -132,20 +97,16 @@ function VguiMovieDisplay.CaptureVideos()
         local looping = data.looping
         local width = data.width
         local height = data.height
-
         --GP2.Print("Rendering movie " .. data.movieName)
-
         render.PushRenderTarget(data.rt)
-            cam.Start2D()
-                surface.SetDrawColor(255,255,255)
-                surface.SetMaterial(movie)
-                surface.DrawTexturedRect(0,0,width,height)
-
-                surface.SetDrawColor(0,0,0,196) -- darken it a bit
-                surface.DrawRect(0,0,width,height)
-            cam.End2D()
-
-        render.PopRenderTarget()        
+        cam.Start2D()
+        surface.SetDrawColor(255, 255, 255)
+        surface.SetMaterial(movie)
+        surface.DrawTexturedRect(0, 0, width, height)
+        surface.SetDrawColor(0, 0, 0, 196) -- darken it a bit
+        surface.DrawRect(0, 0, width, height)
+        cam.End2D()
+        render.PopRenderTarget()
     end
 end
 
@@ -155,29 +116,22 @@ function VguiMovieDisplay.Render()
             VguiMovieDisplay.Movies[display] = nil
             continue
         end
-        if not display:GetActive() then continue end
 
+        if not display:GetActive() then continue end
         local pos = display:GetPos()
         local ang = display:GetAngles()
-
         local size = display:GetSize()
         local width, height = size.x, size.y
-
-        if not VguiMovieDisplay.MovieGroups[display:GetGroupName()] then
-            continue
-        end
-
+        if not VguiMovieDisplay.MovieGroups[display:GetGroupName()] then continue end
         local mat = VguiMovieDisplay.MovieGroups[display:GetGroupName()].mat
-
         cam.Start3D2D(pos + ang:Up() * height, ang + anglesFixup, 1)
-            --render.ClearDepth(true)
-            surface.SetDrawColor(255,255,255,255)
-            surface.SetMaterial(mat)
-            surface.DrawTexturedRectUV(0, 0, width, height, display:GetUMin(), display:GetVMin(), display:GetUMax(), display:GetVMax())
-
-            surface.SetDrawColor(100,100,100,255)
-            surface.SetMaterial(elevator_video_lines)
-            surface.DrawTexturedRect(0,0, width, height)
+        --render.ClearDepth(true)
+        surface.SetDrawColor(255, 255, 255, 255)
+        surface.SetMaterial(mat)
+        surface.DrawTexturedRectUV(0, 0, width, height, display:GetUMin(), display:GetVMin(), display:GetUMax(), display:GetVMax())
+        surface.SetDrawColor(100, 100, 100, 255)
+        surface.SetMaterial(elevator_video_lines)
+        surface.DrawTexturedRect(0, 0, width, height)
         cam.End3D2D()
     end
 end
@@ -193,26 +147,21 @@ end)
 -------------------------------
 -- sp_progress_sign
 -------------------------------
-
 VguiSPProgressSign = VguiSPProgressSign or {}
 VguiSPProgressSign.Signs = VguiSPProgressSign.Signs or {}
-
 local vgui_coop_progress_board = Material("vgui/screens/vgui_coop_progress_board.vmt")
 local vgui_coop_progress_board_numbers = Material("vgui/screens/vgui_coop_progress_board_numbers.vmt")
 local vgui_coop_progress_board_bar = Material("vgui/screens/vgui_coop_progress_board_bar.vmt")
 local p2_lightboard_vgui = Material("vgui/screens/p2_lightboard_vgui.vmt")
-
 local elevatorVideoOverlays = {
-    [1] = Material("vgui/elevator_video_overlay1.vmt"), 
-    [2] = Material("vgui/elevator_video_overlay2.vmt"), 
-    [3] = Material("vgui/elevator_video_overlay3.vmt"), 
+    [1] = Material("vgui/elevator_video_overlay1.vmt"),
+    [2] = Material("vgui/elevator_video_overlay2.vmt"),
+    [3] = Material("vgui/elevator_video_overlay3.vmt"),
 }
 
 local SIGN_WIDTH = 94
 local SIGN_HEIGHT = 190
-
-local color_black = Color(0,0,0,255)
-
+local color_black = Color(0, 0, 0, 255)
 local startupSequences = {
     ["normal_flicker"] = {
         flicker_rate_min = 0.2,
@@ -289,17 +238,13 @@ local ICON_TO_NUMBER = {
 local function DrawNumber(number, x, y, rW, rH)
     local partWidth = 171
     local partHeight = 512
-
     local uvWidth = partWidth / 1024
     local uvHeight = partHeight / 1024
-
     local numberData = numbersSheet[number]
-
     local u0 = numberData[1] / 1024
     local v0 = numberData[2] / 1024
     local u1 = u0 + uvWidth
     local v1 = v0 + uvHeight
-
     surface.SetMaterial(vgui_coop_progress_board_numbers)
     surface.DrawTexturedRectUV(x, y, rW, rH, u0, v0, u1, v1)
 end
@@ -307,28 +252,22 @@ end
 local function DrawIcon(icon, x, y, w, h, state)
     local iconWidth = 204
     local iconHeight = 204
-
     local uvWidth = iconWidth / 1024
     local uvHeight = iconHeight / 1024
-
     local adjustedIndex = icon - 1
-
     local column = adjustedIndex % 5
     local row = floor(adjustedIndex / 5)
-
     local u0 = column * uvWidth + 2 / 1024
     local v0 = row * uvHeight + 2 / 1024
     local u1 = u0 + uvWidth
     local v1 = v0 + uvHeight
-
     local clr = state and 255 or 128
-    surface.SetDrawColor(0,0,0,clr)
+    surface.SetDrawColor(0, 0, 0, clr)
     surface.SetMaterial(p2_lightboard_vgui)
     surface.DrawTexturedRectUV(x, y, w, h, u0, v0, u1, v1)
 end
 
-local anglesFixup = Angle(0,0,0)
-
+local anglesFixup = Angle(0, 0, 0)
 local function scaledText(text, font, x, y, scale)
     -- Vérifier et créer la police si elle n'existe pas
     if font == "CoopLevelProgressFont_Small" then
@@ -338,7 +277,7 @@ local function scaledText(text, font, x, y, scale)
             local w, h = surface.GetTextSize("Test")
             return w and h and w > 0 and h > 0
         end)
-        
+
         if not testSuccess then
             -- Créer la police immédiatement
             surface.CreateFont("CoopLevelProgressFont_Small", {
@@ -350,16 +289,14 @@ local function scaledText(text, font, x, y, scale)
             })
         end
     end
-    
+
     -- Protection contre les débordements de filtres de rendu
     local hasFilterMag = pcall(render.PushFilterMag, TEXFILTER.ANISOTROPIC)
     local hasFilterMin = pcall(render.PushFilterMin, TEXFILTER.ANISOTROPIC)
-
     local m = Matrix()
     m:Translate(Vector(x, y, 0))
-    m:Scale(Vector(scale, scale, 1))    -- Vérifier que la police existe avant de l'utiliser
+    m:Scale(Vector(scale, scale, 1)) -- Vérifier que la police existe avant de l'utiliser
     local fontToUse = font
-    
     -- Test plus robuste de l'existence de la police
     local fontExists = false
     if surface.SetFont and surface.GetTextSize then
@@ -368,9 +305,10 @@ local function scaledText(text, font, x, y, scale)
             local w, h = surface.GetTextSize("Test")
             return w and h and w > 0 and h > 0
         end)
+
         fontExists = success
     end
-    
+
     if not fontExists then
         fontToUse = "DermaDefault" -- Police de fallback
         -- Vérifier que DermaDefault existe aussi
@@ -384,38 +322,32 @@ local function scaledText(text, font, x, y, scale)
             end)
         end
     end
-    
+
     surface.SetFont(fontToUse)
     cam.PushModelMatrix(m, true)
-        -- Protection contre les erreurs de DrawText avec plusieurs fallbacks
-        local success = pcall(draw.DrawText, text, fontToUse, 0, 0, color_black)
-        if not success then
-            -- Premier fallback: essayer avec SimpleText
-            success = pcall(draw.SimpleText, text, fontToUse, 0, 0, color_black)
-        end
-        if not success then
-            -- Dernier fallback: essayer avec la police système par défaut
-            pcall(draw.SimpleText, text, "Default", 0, 0, color_black)
-        end
-    cam.PopModelMatrix()
+    -- Protection contre les erreurs de DrawText avec plusieurs fallbacks
+    local success = pcall(draw.DrawText, text, fontToUse, 0, 0, color_black)
+    if not success then
+        -- Premier fallback: essayer avec SimpleText
+        success = pcall(draw.SimpleText, text, fontToUse, 0, 0, color_black)
+    end
 
+    if not success then
+        -- Dernier fallback: essayer avec la police système par défaut
+        pcall(draw.SimpleText, text, "Default", 0, 0, color_black)
+    end
+
+    cam.PopModelMatrix()
     -- Pop seulement si Push a réussi
     if hasFilterMag then render.PopFilterMag() end
     if hasFilterMin then render.PopFilterMin() end
 end
 
-net.Receive(GP2.Net.SendProgressSignDisplay, function(len, ply)
-    VguiSPProgressSign.AddSign(net.ReadEntity())
-end)
-
-net.Receive(GP2.Net.SendRemoveProgressSignDisplay, function(len, ply)
-    VguiSPProgressSign.AddSign(net.ReadEntity())
-end)
-
+net.Receive(GP2.Net.SendProgressSignDisplay, function(len, ply) VguiSPProgressSign.AddSign(net.ReadEntity()) end)
+net.Receive(GP2.Net.SendRemoveProgressSignDisplay, function(len, ply) VguiSPProgressSign.AddSign(net.ReadEntity()) end)
 function VguiSPProgressSign.AddSign(sign)
     if not IsValid(sign) then return end
     if sign:GetClass() ~= "vgui_sp_progress_sign" then return end
-
     VguiSPProgressSign.Signs[sign] = true
 end
 
@@ -430,19 +362,13 @@ function VguiSPProgressSign.Render()
             continue
         end
 
-        if not sign:GetActive() then
-            return
-        end
-
+        if not sign:GetActive() then return end
         local pos = sign:GetPos()
         local ang = sign:GetAngles() + anglesFixup
-
         local activeTime = CurTime() - sign:GetStartupTime()
         local sequence = startupSequences[sign:GetStartupSequence()]
-
         sign.nextFlickerTime = sign.nextFlickerTime or CurTime()
         sign.isDarkened = sign.isDarkened or false
-
         -- it's definitely not same as P2 
         if activeTime < sequence.bg_flicker_length then
             if CurTime() >= sign.nextFlickerTime then
@@ -458,108 +384,98 @@ function VguiSPProgressSign.Render()
         end
 
         cam.Start3D2D(pos - ang:Right() * SIGN_HEIGHT, ang, 1)
-            surface.SetMaterial(vgui_coop_progress_board)
-            local clr = sign.isDarkened and 32 or (activeTime < sequence.bg_flicker_length and 96 or 114)
-            surface.SetDrawColor(clr, clr, clr, 255)
+        surface.SetMaterial(vgui_coop_progress_board)
+        local clr = sign.isDarkened and 32 or (activeTime < sequence.bg_flicker_length and 96 or 114)
+        surface.SetDrawColor(clr, clr, clr, 255)
+        surface.DrawTexturedRect(0, 0, SIGN_WIDTH, SIGN_HEIGHT)
+        local levelNumber = min(sign:GetLevelNumber(), 99)
+        local totalLevels = min(sign:GetTotalLevels(), 99)
+        local percentage = levelNumber / totalLevels
+        local numbers = tostring(levelNumber)
+        local totalNumbers = tostring(totalLevels)
+        local digits = {}
+        local digitsTotal = {}
+        -- Show big numbers
+        if activeTime > sequence.level_number_delay then
+            surface.SetMaterial(vgui_coop_progress_board_numbers)
+            if #numbers == 1 then
+                digits[1] = 0
+                digits[2] = tonumber(numbers)
+            elseif #numbers == 2 then
+                digits[1] = tonumber(string.sub(numbers, 1, 1))
+                digits[2] = tonumber(string.sub(numbers, 2, 2))
+            else
+                digits[1] = tonumber(string.sub(numbers, 1, #numbers - 1))
+                digits[2] = tonumber(string.sub(numbers, #numbers, #numbers))
+            end
+
+            DrawNumber(digits[1], 18, 20, 25, 75)
+            DrawNumber(digits[2], 45, 20, 25, 75)
+        end
+
+        -- Show progress bar
+        if activeTime > sequence.progress_delay then
+            if #totalNumbers == 1 then
+                digitsTotal[1] = 0
+                digitsTotal[2] = tonumber(totalNumbers)
+            elseif #totalNumbers == 2 then
+                digitsTotal[1] = tonumber(string.sub(totalNumbers, 1, 1))
+                digitsTotal[2] = tonumber(string.sub(totalNumbers, 2, 2))
+            else
+                digitsTotal[1] = tonumber(string.sub(totalNumbers, 1, #totalNumbers - 1))
+                digitsTotal[2] = tonumber(string.sub(totalNumbers, #totalNumbers, #totalNumbers)) -- Safe text rendering without problematic font
+            end
+
+            local textToRender = digits[1] .. digits[2] .. '/' .. digitsTotal[1] .. digitsTotal[2]
+            local success = pcall(function()
+                -- Try with a simple system font first
+                surface.SetFont("DermaDefault")
+                local m = Matrix()
+                m:Translate(Vector(19, 99, 0))
+                m:Scale(Vector(0.25, 0.25, 1))
+                cam.PushModelMatrix(m, true)
+                draw.SimpleText(textToRender, "DermaDefault", 0, 0, color_black)
+                cam.PopModelMatrix()
+            end)
+
+            -- If that fails, fallback to original scaledText with protection
+            if not success then pcall(scaledText, textToRender, "DermaDefault", 19, 99, 0.25) end
+            local progressBarWidth = 72 * percentage
+            surface.SetMaterial(vgui_coop_progress_board_bar)
+            surface.DrawTexturedRectUV(19, 109, progressBarWidth, 8, 0, 0, progressBarWidth / 10, 1)
+        end
+
+        if not sign.Icons then
+            local icons = sign:GetIcons():Split(",")
+            table.remove(icons, 1)
+            sign.Icons = {}
+            for _, icon in ipairs(icons) do
+                local data = icon:Split("|")
+                sign.Icons[#sign.Icons + 1] = {data[1], tobool(data[2])}
+            end
+        end
+
+        -- Show icons
+        if activeTime > sequence.icon_delay then
+            local i = 1
+            for _, icon in pairs(sign.Icons) do
+                local iconName = icon[1]
+                local state = icon[2]
+                local icon2integer = ICON_TO_NUMBER[iconName]
+                local x = 19 + 15 * ((i - 1) % 5)
+                local y = i <= 5 and 136 or 150
+                DrawIcon(icon2integer, x, y, 12, 12, state)
+                i = i + 1
+            end
+        end
+
+        local dirt = sign:GetDirt()
+        if dirt > 0 and dirt < 4 then
+            surface.SetDrawColor(255, 255, 255, 255)
+            surface.SetMaterial(elevatorVideoOverlays[dirt + 1])
             surface.DrawTexturedRect(0, 0, SIGN_WIDTH, SIGN_HEIGHT)
+        end
 
-            local levelNumber = min(sign:GetLevelNumber(), 99)
-            local totalLevels = min(sign:GetTotalLevels(), 99)
-
-            local percentage = levelNumber / totalLevels
-
-            local numbers = tostring(levelNumber)
-            local totalNumbers = tostring(totalLevels)
-            local digits = {}
-            local digitsTotal = {}
-
-            -- Show big numbers
-            if activeTime > sequence.level_number_delay then
-                surface.SetMaterial(vgui_coop_progress_board_numbers)
-                
-                if #numbers == 1 then
-                    digits[1] = 0
-                    digits[2] = tonumber(numbers)
-                elseif #numbers == 2 then
-                    digits[1] = tonumber(string.sub(numbers, 1, 1))
-                    digits[2] = tonumber(string.sub(numbers, 2, 2))
-                else
-                    digits[1] = tonumber(string.sub(numbers, 1, #numbers-1))
-                    digits[2] = tonumber(string.sub(numbers, #numbers, #numbers))
-                end
-
-                DrawNumber(digits[1], 18, 20, 25, 75)
-                DrawNumber(digits[2], 45, 20, 25, 75)
-            end
-
-            -- Show progress bar
-            if activeTime > sequence.progress_delay then
-                if #totalNumbers == 1 then
-                    digitsTotal[1] = 0
-                    digitsTotal[2] = tonumber(totalNumbers)
-                elseif #totalNumbers == 2 then
-                    digitsTotal[1] = tonumber(string.sub(totalNumbers, 1, 1))
-                    digitsTotal[2] = tonumber(string.sub(totalNumbers, 2, 2))
-                else
-                    digitsTotal[1] = tonumber(string.sub(totalNumbers, 1, #totalNumbers-1))
-                    digitsTotal[2] = tonumber(string.sub(totalNumbers, #totalNumbers, #totalNumbers))                end                -- Safe text rendering without problematic font
-                local textToRender = digits[1] .. digits[2] .. '/' .. digitsTotal[1] .. digitsTotal[2]
-                local success = pcall(function()
-                    -- Try with a simple system font first
-                    surface.SetFont("DermaDefault")
-                    local m = Matrix()
-                    m:Translate(Vector(19, 99, 0))
-                    m:Scale(Vector(0.25, 0.25, 1))
-                    
-                    cam.PushModelMatrix(m, true)
-                        draw.SimpleText(textToRender, "DermaDefault", 0, 0, color_black)
-                    cam.PopModelMatrix()
-                end)
-                
-                -- If that fails, fallback to original scaledText with protection
-                if not success then
-                    pcall(scaledText, textToRender, "DermaDefault", 19, 99, 0.25)
-                end
-
-                local progressBarWidth = 72 * percentage
-
-                surface.SetMaterial(vgui_coop_progress_board_bar)
-                surface.DrawTexturedRectUV(19, 109, progressBarWidth, 8, 0, 0, progressBarWidth / 10, 1)
-            end
-
-            if not sign.Icons then
-                local icons = sign:GetIcons():Split(",")
-                table.remove(icons, 1)
-                sign.Icons = {}
-
-                for _, icon in ipairs(icons) do
-                    local data = icon:Split("|")
-
-                    sign.Icons[#sign.Icons + 1] = {data[1], tobool(data[2])}
-                end
-            end
-
-            -- Show icons
-            if activeTime > sequence.icon_delay then
-                local i = 1
-                for _, icon in pairs(sign.Icons) do
-                    local iconName = icon[1]
-                    local state = icon[2]
-                    local icon2integer = ICON_TO_NUMBER[iconName]
-
-                    local x = 19 + 15 * ((i - 1) % 5)
-                    local y = i <= 5 and 136 or 150 
-                    DrawIcon(icon2integer, x, y, 12, 12, state)
-                    i = i + 1
-                end
-            end
-
-            local dirt = sign:GetDirt()
-            if dirt > 0 and dirt < 4 then
-                surface.SetDrawColor(255,255,255,255)
-                surface.SetMaterial(elevatorVideoOverlays[dirt + 1])
-                surface.DrawTexturedRect(0, 0, SIGN_WIDTH, SIGN_HEIGHT)
-            end
         cam.End3D2D()
     end
 end
@@ -571,12 +487,9 @@ end
 -------------------------------
 -- vgui_neurotoxin_countdown
 -------------------------------
-
 VguiNeurotoxinCountdown = VguiNeurotoxinCountdown or {}
 VguiNeurotoxinCountdown.Panels = VguiNeurotoxinCountdown.Panels or {}
-
 local toxinCountdownBackgound = Material("vgui/screens/screen")
-
 function VguiNeurotoxinCountdown.IsAddedToRenderList(panel)
     return VguiNeurotoxinCountdown.Panels[panel] ~= nil
 end
@@ -593,50 +506,39 @@ function VguiNeurotoxinCountdown.Render()
         end
 
         if not panel:GetEnabled() then continue end
-
         local pos = panel:GetPos()
         local ang = panel:GetAngles()
-
         local angRotated = panel:GetAngles()
         angRotated:RotateAroundAxis(ang:Up(), 90)
         angRotated:RotateAroundAxis(ang:Right(), -90)
-
         local width = panel:GetWidth()
         local height = panel:GetHeight()
-
         width = width * 2
-        height = height * 2 
-
+        height = height * 2
         cam.Start3D2D(pos + ang:Up() * height * 0.5, angRotated, 0.5)
+        surface.SetDrawColor(255, 255, 255, 255)
+        surface.SetMaterial(toxinCountdownBackgound)
+        surface.DrawTexturedRect(0, 0, width, height)
+        local remaining = math.max(0, panel:GetTimeUntil() - CurTime())
+        panel.Blinked = panel.Blinked or false
+        panel.BlinkTime = panel.BlinkTime or 0
+        if not panel.Blinked then
+            local minutes = math.floor(remaining / 60)
+            local seconds = math.floor(remaining % 60)
+            local milliseconds = math.floor((remaining % 1) * 100)
+            local text = string.format("%02d:%02d:%02d", minutes, seconds, milliseconds)
+            surface.SetFont("NeurotoxinCountdown")
+            local twidth, theight = surface.GetTextSize(text)
+            surface.SetTextPos(width / 2 - twidth / 1.9, height / 2 - theight / 2)
+            surface.SetTextColor(0, 0, 0, 255)
+            surface.DrawText(text)
+        end
 
-            surface.SetDrawColor(255, 255, 255, 255)
-            surface.SetMaterial(toxinCountdownBackgound)
-            surface.DrawTexturedRect(0, 0, width, height)
-        
-            local remaining = math.max(0, panel:GetTimeUntil() - CurTime())
+        if remaining < 0.01 and CurTime() > panel.BlinkTime then
+            panel.Blinked = not panel.Blinked
+            panel.BlinkTime = CurTime() + 0.15
+        end
 
-            panel.Blinked = panel.Blinked or false
-            panel.BlinkTime = panel.BlinkTime or 0
-
-            if not panel.Blinked then
-                local minutes = math.floor(remaining / 60)
-                local seconds = math.floor(remaining % 60)
-                local milliseconds = math.floor((remaining % 1) * 100)
-            
-                local text = string.format("%02d:%02d:%02d", minutes, seconds, milliseconds)
-            
-                surface.SetFont("NeurotoxinCountdown")
-                local twidth, theight = surface.GetTextSize(text)
-            
-                surface.SetTextPos(width / 2 - twidth / 1.9, height / 2 - theight / 2)
-                surface.SetTextColor(0, 0, 0, 255)
-                surface.DrawText(text)
-            end
-
-            if remaining < 0.01 and CurTime() > panel.BlinkTime then
-                panel.Blinked = not panel.Blinked
-                panel.BlinkTime = CurTime() + 0.15
-            end
         cam.End3D2D()
     end
 end

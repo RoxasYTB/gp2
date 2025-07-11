@@ -1,10 +1,8 @@
--- ----------------------------------------------------------------------------
+﻿-- ----------------------------------------------------------------------------
 -- GP2 Framework
 -- Sentry turret with 3 legs and fancy laser
 -- ----------------------------------------------------------------------------
-
-include "shared.lua"
-
+include"shared.lua"
 function ENT:Initialize()
     -- Protection contre les erreurs si NpcPortalTurretFloor n'est pas défini
     if NpcPortalTurretFloor and NpcPortalTurretFloor.AddToRenderList then

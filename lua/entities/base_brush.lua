@@ -1,16 +1,12 @@
--- Base entity for brush-based entities (GP2-SDK)
+﻿-- Base entity for brush-based entities (GP2-SDK)
 -- This provides a fallback for entities that derive from base_brush
-
 AddCSLuaFile()
-
 -- Ensure ENT table exists
 ENT = ENT or {}
-
 ENT.Type = "brush"
-ENT.Base = "brush"  -- Use standard GMod brush base
+ENT.Base = "brush" -- Use standard GMod brush base
 ENT.Spawnable = false
 ENT.AdminOnly = false
-
 -- If base_brush doesn't exist in GMod, create a minimal implementation
 if not scripted_ents.Get("base_brush") then
     -- Create a minimal base_brush entity
@@ -18,7 +14,6 @@ if not scripted_ents.Get("base_brush") then
     BASE_BRUSH.Type = "brush"
     BASE_BRUSH.Base = "base_entity"
     BASE_BRUSH.Spawnable = false
-    
     function BASE_BRUSH:Initialize()
         if SERVER then
             self:SetSolid(SOLID_BSP)
@@ -26,48 +21,42 @@ if not scripted_ents.Get("base_brush") then
             self:DrawShadow(false)
         end
     end
-    
+
     function BASE_BRUSH:KeyValue(key, value)
         -- Handle brush entity key values
         if key == "model" then
             self:SetModel(value)
         elseif key == "origin" then
             local pos = string.Explode(" ", value)
-            if #pos >= 3 then
-                self:SetPos(Vector(tonumber(pos[1]) or 0, tonumber(pos[2]) or 0, tonumber(pos[3]) or 0))
-            end
+            if #pos >= 3 then self:SetPos(Vector(tonumber(pos[1]) or 0, tonumber(pos[2]) or 0, tonumber(pos[3]) or 0)) end
         elseif key == "angles" then
             local ang = string.Explode(" ", value)
-            if #ang >= 3 then
-                self:SetAngles(Angle(tonumber(ang[1]) or 0, tonumber(ang[2]) or 0, tonumber(ang[3]) or 0))
-            end
+            if #ang >= 3 then self:SetAngles(Angle(tonumber(ang[1]) or 0, tonumber(ang[2]) or 0, tonumber(ang[3]) or 0)) end
         end
-        
+
         -- Handle outputs
-        if key:StartsWith("On") then
-            self:StoreOutput(key, value)
-        end
+        if key:StartsWith("On") then self:StoreOutput(key, value) end
     end
-    
+
     function BASE_BRUSH:StoreOutput(outputName, outputData)
         -- Basic output storage implementation for compatibility
         self.m_iOutputs = self.m_iOutputs or {}
         self.m_iOutputs[outputName] = outputData
     end
-    
+
     function BASE_BRUSH:AcceptInput(inputName, activator, caller, data)
         -- Handle input/output system
         return false
     end
-    
+
     function BASE_BRUSH:Touch(entity)
         -- Handle touch events
     end
-    
+
     function BASE_BRUSH:StartTouch(entity)
         -- Handle start touch events
     end
-    
+
     function BASE_BRUSH:EndTouch(entity)
         -- Handle end touch events
     end

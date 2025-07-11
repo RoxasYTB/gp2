@@ -1,14 +1,11 @@
--- ----------------------------------------------------------------------------
+﻿-- ----------------------------------------------------------------------------
 -- GP2 Framework
 -- Thermal Discouragement Beam
 -- ----------------------------------------------------------------------------
-
 AddCSLuaFile()
 ENT.Type = "anim"
-
 local MAX_RAY_LENGTH = 8192
 local RAY_EXTENTS = Vector(8, 8, 8)
-
 local TARGETABLE_ENTS = {
     ["prop_physics"] = true,
     ["point_laser_target"] = true,
@@ -23,14 +20,11 @@ local ENT_ATTACHMENTS = {
 }
 
 function ENT:SetupDataTables()
-    self:NetworkVar( "Bool", "Enabled" )
-    self:NetworkVar( "Bool", "LethalDamage" )
-    self:NetworkVar( "Bool", "AutoAim" )
-    self:NetworkVar( "Entity", "HitEntity" )
-
-    if SERVER then
-        self:SetEnabled(true)
-    end
+    self:NetworkVar("Bool", "Enabled")
+    self:NetworkVar("Bool", "LethalDamage")
+    self:NetworkVar("Bool", "AutoAim")
+    self:NetworkVar("Entity", "HitEntity")
+    if SERVER then self:SetEnabled(true) end
 end
 
 function ENT:KeyValue(k, v)
@@ -46,38 +40,26 @@ function ENT:KeyValue(k, v)
         self:SetSkin(tonumber(v))
     end
 
-    if k:StartsWith("On") then
-        self:StoreOutput(k, v)
-    end
+    if k:StartsWith("On") then self:StoreOutput(k, v) end
 end
 
 ENT.__input2func = {
-    ["toggle"] = function(self, activator, caller, data)
-        self:TurnOn()
-    end,
-    ["turnon"] = function(self, activator, caller, data)
-        self:TurnOn()
-    end,
-    ["turnoff"] = function(self, activator, caller, data)
-        self:TurnOff()
-    end,    
+    ["toggle"] = function(self, activator, caller, data) self:TurnOn() end,
+    ["turnon"] = function(self, activator, caller, data) self:TurnOn() end,
+    ["turnoff"] = function(self, activator, caller, data) self:TurnOff() end,
 }
 
 function ENT:AcceptInput(name, activator, caller, data)
     name = name:lower()
     local func = self.__input2func[name]
-
-    if func and isfunction(func) then
-        func(self, activator, caller, data)
-    end
+    if func and isfunction(func) then func(self, activator, caller, data) end
 end
-
 
 function ENT:Initialize()
     if SERVER then
         self:PhysicsInitStatic(SOLID_VPHYSICS)
     else
-        EnvPortalLaser.AddToRenderList(self) 
+        EnvPortalLaser.AddToRenderList(self)
     end
 end
 
@@ -85,7 +67,6 @@ local function CalcClosestPointOnLineSegment(point, lineStart, lineEnd)
     local toPoint = point - lineStart
     local lineDirection = (lineEnd - lineStart):GetNormalized()
     local dotProduct = math.Clamp(lineDirection:Dot(toPoint), 0, (lineEnd - lineStart):Length())
-
     return lineStart + lineDirection * dotProduct
 end
 
@@ -100,15 +81,10 @@ function ENT:Think()
         end
     end
 
-    if self:GetEnabled() then
-        self:DoLaser(self)
-    end
-
+    if self:GetEnabled() then self:DoLaser(self) end
     if CLIENT then
         if not self:GetEnabled() and self.BeamSound then
-            if self.BeamSound:IsPlaying() then
-                self.BeamSound:Stop()
-            end
+            if self.BeamSound:IsPlaying() then self.BeamSound:Stop() end
             return
         end
     end
@@ -128,40 +104,27 @@ end
 
 local function PushPlayerAwayFromLine(player, sourcePos, targetPos, force)
     -- Ensure the player is valid and capable of being moved
-    if not IsValid(player) or not player:IsPlayer() or player:GetMoveType() == MOVETYPE_NOCLIP then
-        return
-    end
-    
+    if not IsValid(player) or not player:IsPlayer() or player:GetMoveType() == MOVETYPE_NOCLIP then return end
     -- Calculate the nearest point on the line segment to the player
     local playerPos = player:GetPos()
     local nearestPoint = CalcClosestPointOnLineSegment(playerPos, sourcePos, targetPos)
-    
     -- Calculate the direction from the line segment to the player
     local pushDirection = (playerPos - nearestPoint):GetNormalized()
-    pushDirection.z = 0  -- Keep the push direction horizontal
-    
+    pushDirection.z = 0 -- Keep the push direction horizontal
     -- Double the force if the player is crouching
-    if player:Crouching() then
-        force = force * 2
-    end
-    
+    if player:Crouching() then force = force * 2 end
     -- Calculate the push velocity vector
     local pushVelocity = pushDirection * force
-    
     -- Apply the calculated push velocity to the player
     player:SetVelocity(pushVelocity)
 end
 
 local function EmitSoundAtClosestPoint(player, sourcePos, targetPos, soundPath)
     -- Ensure the player is valid
-    if not IsValid(player) or not player:IsPlayer() or not player:Alive() then
-        return
-    end
-
+    if not IsValid(player) or not player:IsPlayer() or not player:Alive() then return end
     -- Calculate the nearest point on the line segment to the player
     local playerPos = player:GetPos()
     local nearestPoint = CalcClosestPointOnLineSegment(playerPos, sourcePos, targetPos)
-
     -- Emit the sound at the nearest point
     sound.Play(soundPath, nearestPoint)
 end
@@ -170,43 +133,35 @@ function ENT:DoLaser(child)
     local ang = IsValid(child) and child:GetAngles() or self:GetAngles()
     local lookupAttachment = child:LookupAttachment(ENT_ATTACHMENTS[child:GetClass()])
     local attach = child:GetAttachment(lookupAttachment)
-
     if not attach then
-        attach = { Pos = child:GetPos() }
+        attach = {
+            Pos = child:GetPos()
+        }
     end
 
     local start = attach.Pos
     local fwd = ang:Forward()
-
     local tr = util.TraceLine({
         start = start,
         endpos = start + fwd * MAX_RAY_LENGTH,
-        filter = function(ent)
-            return not (ent == self or ent == child or ent:IsPlayer() or ent == self:GetParent() or ent.IsLaserCatcher or ent.IsLaserTarget)
-        end,
+        filter = function(ent) return not (ent == self or ent == child or ent:IsPlayer() or ent == self:GetParent() or ent.IsLaserCatcher or ent.IsLaserTarget) end,
         mask = MASK_OPAQUE_AND_NPCS
     })
-    
+
     local hitent = tr.Entity
     if TARGETABLE_ENTS[hitent:GetClass()] then
-        self:SetHitEntity(hitent) 
+        self:SetHitEntity(hitent)
     else
-        self:SetHitEntity(NULL) 
-    end
-
-    if hitent:GetClass() == "prop_weighted_cube" and hitent:GetCubeType() ~= 2 then
         self:SetHitEntity(NULL)
     end
 
+    if hitent:GetClass() == "prop_weighted_cube" and hitent:GetCubeType() ~= 2 then self:SetHitEntity(NULL) end
     local rayEndPos = tr.HitPos + fwd * 16
-
     if SERVER then
         --debugoverlay.Line(start, rayEndPos, 0.12, Color(255, 10, 10), true)
-    
         local lst = ents.FindAlongRay(start, rayEndPos, -RAY_EXTENTS, RAY_EXTENTS)
         for _, entity in ipairs(lst) do
             if not IsValid(entity) then continue end
-    
             -- Check if the entity is damagable
             if entity:IsPlayer() then
                 if entity:IsOnGround() then
@@ -218,11 +173,10 @@ function ENT:DoLaser(child)
                 entity:Ignite(5)
             else
                 entity:TakeDamage(8, self)
-            end      
+            end
         end
     else
         --debugoverlay.Line(start, rayEndPos, 0.12, Color(10, 218, 255), true)
-
         if not child.EmitParticle then
             if child ~= self or not self:GetModel() then
                 child.EmitParticle = CreateParticleSystem(child, "reflector_start_glow", PATTACH_ABSORIGIN_FOLLOW)
@@ -236,25 +190,19 @@ function ENT:DoLaser(child)
             child.BeamSound:SetSoundLevel(0)
             child.BeamSound:PlayEx(0, 100)
         else
-            
             local pos = LocalPlayer():GetPos()
             local nearest = CalcClosestPointOnLineSegment(pos, start, rayEndPos)
             local distance = (pos - nearest):Length()
-        
             local maxDistance = 355
             local minVolume = 0
             local maxVolume = 0.25
-        
             -- Volume based on the distance
             local volume = math.Clamp((maxDistance - distance) / maxDistance * (maxVolume - minVolume) + minVolume, minVolume, maxVolume)
-        
             if not child.BeamSound:IsPlaying() then
                 child.BeamSound:PlayEx(volume, 100)
             else
                 child.BeamSound:ChangeVolume(volume)
             end
-
-
         end
     end
 
@@ -279,7 +227,6 @@ end
 if SERVER then
     ENT.laserList = {}
     ENT.reflectionCubes = {}
-
     function ENT:TurnOn()
         self:SetEnabled(true)
     end

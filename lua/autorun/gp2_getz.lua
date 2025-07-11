@@ -1,9 +1,7 @@
--- gp2_getz.lua
+﻿-- gp2_getz.lua
 -- Permet d'obtenir la hauteur Z du props regardé via la commande chat !getz
-
 if SERVER then
     util.AddNetworkString("gp2_getz_result")
-
     hook.Add("PlayerSay", "GP2_GetZCommand", function(ply, text)
         if string.lower(text) == "!getz" then
             local tr = ply:GetEyeTrace()
@@ -24,6 +22,6 @@ else
     net.Receive("gp2_getz_result", function()
         local ent = net.ReadEntity()
         local z = net.ReadFloat()
-        chat.AddText(Color(0,200,255), "[GP2] Hauteur Z du props ", tostring(ent), ": ", Color(255,255,0), math.Round(z,2))
+        chat.AddText(Color(0, 200, 255), "[GP2] Hauteur Z du props ", tostring(ent), ": ", Color(255, 255, 0), math.Round(z, 2))
     end)
 end

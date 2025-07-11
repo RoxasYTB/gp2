@@ -1,8 +1,7 @@
--- ----------------------------------------------------------------------------
+﻿-- ----------------------------------------------------------------------------
 -- GP2 Framework
 -- Head-up-Display
 -- ----------------------------------------------------------------------------
-
 if CLIENT then
     include("gp2/client/hudelements/base.lua")
 else
@@ -18,9 +17,7 @@ for _, element in ipairs(file.Find("gp2/client/hudelements/hud_*.lua", "LUA")) d
 end
 
 if SERVER then return end
-
 local renderlists = {}
-
 local surface_SetMaterial = surface.SetMaterial
 local surface_SetDrawColor = surface.SetDrawColor
 local surface_SetTextColor = surface.SetTextColor
@@ -31,14 +28,10 @@ local surface_DrawOutlinedRect = surface.DrawOutlinedRect
 local surface_GetTextSize = surface.GetTextSize
 local surface_SetFont = surface.SetFont
 local max = math.max
-
 local matGradientError = Material("hud/devui-gradient-error.png")
 local matWarningIcon = Material("hud/warning.png", "smooth")
-
 local ScrWide, ScrHeight = ScrW(), ScrH()
-
 local hudElements = {}
-
 local function CreateFonts()
     surface.CreateFont("VscriptErrorText", {
         font = "Roboto Medium",
@@ -122,30 +115,21 @@ local function CreateFonts()
 end
 
 GP2.Hud = {
-    DeclareLegacyElement = function(func)
-        renderlists[#renderlists + 1] = func
-    end,
+    DeclareLegacyElement = function(func) renderlists[#renderlists + 1] = func end,
     Render = function(w, h)
         for i = 1, #renderlists do
             local func = renderlists[i]
-
-            if func and isfunction(func) then
-                func(w, h)
-            end
+            if func and isfunction(func) then func(w, h) end
         end
     end
 }
 
 -- Some basic GP2 elements (legacy)
-
 local vscriptErrors = {}
 local norepeat = {}
-
 -- Vscript Errors
-
 net.Receive(GP2.Net.SendVscriptError, function(len, ply)
     local text = net.ReadString()
-
     if norepeat[text] then
         norepeat[text].animAttention = 0
         norepeat[text].spawntime = CurTime()
@@ -159,8 +143,8 @@ net.Receive(GP2.Net.SendVscriptError, function(len, ply)
         alpha = 0,
         spawntime = CurTime()
     }
-    table.insert(vscriptErrors, 1, err)
 
+    table.insert(vscriptErrors, 1, err)
     norepeat[text] = err
 end)
 
@@ -168,25 +152,17 @@ local function RenderError(err, position)
     local boxwide = ScrHeight * 0.055
     local margin = ScrHeight * 0.04
     local padding = ScrHeight * 0.03
-
     local errortext = err.text
-
-    if err.count then
-        errortext = errortext .. ' (' .. err.count .. 'x)'
-    end
-
+    if err.count then errortext = errortext .. ' (' .. err.count .. 'x)' end
     surface_SetFont("VscriptErrorText")
     local textwidth, textheight = surface_GetTextSize(errortext)
-
     boxwide = boxwide + textwidth + margin
     local boxheight = textheight + padding
     local iconwidth = boxheight * 0.8
-
     err.animOffset = err.animOffset or 0
     err.animAttention = err.animAttention or 0
     err.baseY = err.baseY or boxheight * position - ScrHeight * 0.05
     err.baseY = math.Approach(err.baseY, boxheight * position, FrameTime() * ScrHeight * 0.5)
-
     if CurTime() > err.spawntime + 5 then
         err.alpha = math.Approach(err.alpha, 0, FrameTime() * 0.5)
         err.animOffset = math.Approach(err.animOffset, ScrHeight * 0.0138, FrameTime() * ScrHeight * 0.002)
@@ -196,56 +172,33 @@ local function RenderError(err, position)
     end
 
     err.baseY = err.baseY + err.animOffset
-
     surface_SetMaterial(matGradientError)
     surface_SetDrawColor(255, 255 * err.animAttention, 255 * err.animAttention, 255 * err.alpha)
     surface_DrawTexturedRect(ScrWide - boxwide - margin, err.baseY + margin, boxwide, boxheight)
-
     surface_SetDrawColor(32, 32, 32, 255 * err.alpha)
-    surface_DrawOutlinedRect(ScrWide - boxwide - margin, err.baseY + margin, boxwide, boxheight,
-        max(ScrHeight * 0.002, 1))
-
+    surface_DrawOutlinedRect(ScrWide - boxwide - margin, err.baseY + margin, boxwide, boxheight, max(ScrHeight * 0.002, 1))
     surface_SetMaterial(matWarningIcon)
-
     surface_SetDrawColor(0, 0, 0, 255 * err.alpha)
-    surface_DrawTexturedRect(ScrWide - boxwide - margin + iconwidth / 2 + ScrHeight * 0.002,
-        err.baseY + margin + boxheight / 2 - iconwidth / 2 + ScrHeight * 0.002, iconwidth, iconwidth)
-
+    surface_DrawTexturedRect(ScrWide - boxwide - margin + iconwidth / 2 + ScrHeight * 0.002, err.baseY + margin + boxheight / 2 - iconwidth / 2 + ScrHeight * 0.002, iconwidth, iconwidth)
     surface_SetDrawColor(255, 100, 100, 255 * err.alpha)
-    surface_DrawTexturedRect(ScrWide - boxwide - margin + iconwidth / 2,
-        err.baseY + margin + boxheight / 2 - iconwidth / 2, iconwidth, iconwidth)
-
+    surface_DrawTexturedRect(ScrWide - boxwide - margin + iconwidth / 2, err.baseY + margin + boxheight / 2 - iconwidth / 2, iconwidth, iconwidth)
     surface_SetTextColor(0, 0, 0, 255 * err.alpha)
-    surface_SetTextPos(ScrWide - boxwide + iconwidth / 2 + ScrHeight * 0.002,
-        err.baseY + margin + boxheight / 2 - textheight / 2 + ScrHeight * 0.002)
+    surface_SetTextPos(ScrWide - boxwide + iconwidth / 2 + ScrHeight * 0.002, err.baseY + margin + boxheight / 2 - textheight / 2 + ScrHeight * 0.002)
     surface_DrawText(errortext)
-
     surface_SetTextColor(255, 100, 100, 255 * err.alpha)
     surface_SetTextPos(ScrWide - boxwide + iconwidth / 2, err.baseY + margin + boxheight / 2 - textheight / 2)
     surface_DrawText(errortext)
-
     surface_SetDrawColor(255, 100, 100, 255 * (1 - err.animAttention))
-    surface_DrawOutlinedRect(
-        ScrWide - boxwide - margin - (ScrHeight * 0.02 * err.animAttention) / 2,
-        err.baseY + margin - (ScrHeight * 0.02 * err.animAttention) / 2,
-        boxwide + (ScrHeight * 0.02 * err.animAttention),
-        boxheight + (ScrHeight * 0.02 * err.animAttention),
-        max(ScrHeight * 0.002, 1))
+    surface_DrawOutlinedRect(ScrWide - boxwide - margin - (ScrHeight * 0.02 * err.animAttention) / 2, err.baseY + margin - (ScrHeight * 0.02 * err.animAttention) / 2, boxwide + (ScrHeight * 0.02 * err.animAttention), boxheight + (ScrHeight * 0.02 * err.animAttention), max(ScrHeight * 0.002, 1))
 end
 
 local function CreateHudElements()
     for i = 1, #hudElements do
-        if hudElements[i].Remove and isfunction(hudElements[i].Remove) then
-            hudElements[i].Remove(hudElements[i])
-        end
+        if hudElements[i].Remove and isfunction(hudElements[i].Remove) then hudElements[i].Remove(hudElements[i]) end
     end
 
     -- Create elements here
-    hudElements = {
-        vgui.Create("GP2HudMessage"),
-        vgui.Create("GP2HudQuickinfoPortal")
-    }
-
+    hudElements = {vgui.Create("GP2HudMessage"), vgui.Create("GP2HudQuickinfoPortal")}
     -- Désactive la crosshair native de GMod sauf si ce n'est pas le Portal Gun
     hook.Add("HUDShouldDraw", "GP2_HideDefaultCrosshair", function(name)
         if name == "Crosshair" then
@@ -262,9 +215,7 @@ end
 GP2.Hud.DeclareLegacyElement(function(scrw, scrh)
     for i = 1, #vscriptErrors do
         local err = vscriptErrors[i]
-
         if not err then continue end
-
         if CurTime() > err.spawntime + 5 and err.alpha <= 0.01 then
             err.animAttention = 1
             norepeat[err.text] = nil
@@ -283,9 +234,7 @@ GP2.Hud.DeclareLegacyElement(function(scrw, scrh)
 end)
 
 -- GP2.Hud.DeclareLegacyElement(PaintManager.LegacyHud)
-
 local GP2_Hud_Render = GP2.Hud.Render
-
 local RING_FALL_BACK_MATERIAL = CreateMaterial("portalstaticoverlayfallback", "PortalRefract", {
     ["$Stage"] = "2",
     ["$PortalOpenAmount"] = "0.0",
@@ -296,19 +245,16 @@ local RING_FALL_BACK_MATERIAL = CreateMaterial("portalstaticoverlayfallback", "P
 })
 
 local RING_GRADIENT_MAT = Material("vgui/gradient-r")
-
 PortalRingTintColor = {}
 PortalRingTintColor.BuiltMaterials = {}
 PortalRingTintColor.BuildList = {}
 PortalRingTintColor.BuiltRTs = {}
-
 function PortalRingTintColor.PutToBuildListOrReturn(colorHash, color)
-    if PortalRingTintColor.BuiltMaterials[colorHash] then
-        return PortalRingTintColor.BuiltMaterials[colorHash]
-    end
-
-    table.insert(PortalRingTintColor.BuildList, {colorHash = colorHash, color = color})
-
+    if PortalRingTintColor.BuiltMaterials[colorHash] then return PortalRingTintColor.BuiltMaterials[colorHash] end
+    table.insert(PortalRingTintColor.BuildList, {
+        colorHash = colorHash,
+        color = color
+    })
     -- Return invalid material this frame
     -- We'll catch proper material on next frame
     return RING_FALL_BACK_MATERIAL
@@ -317,34 +263,25 @@ end
 function PortalRingTintColor.BuildPortalRingTintedTextures()
     for i = 1, #PortalRingTintColor.BuildList do
         local data = PortalRingTintColor.BuildList[i]
-
         if not data then continue end
-
         local colorHash = data.colorHash
         local color = data.color
-
         -- Build up gradient texture
         -- and precache it
         if not PortalRingTintColor.BuiltRTs[colorHash] or not PortalRingTintColor.BuiltMaterials[colorHash] then
-            PortalRingTintColor.BuiltRTs[colorHash] = GetRenderTargetEx("_rt_portal_tinted_ring_" .. colorHash,
-                256, 1, RT_SIZE_DEFAULT, MATERIAL_RT_DEPTH_NONE, 4 + 8 + 256 + 512, CREATERENDERTARGETFLAGS_HDR,
-                IMAGE_FORMAT_BGR888)
-
+            PortalRingTintColor.BuiltRTs[colorHash] = GetRenderTargetEx("_rt_portal_tinted_ring_" .. colorHash, 256, 1, RT_SIZE_DEFAULT, MATERIAL_RT_DEPTH_NONE, 4 + 8 + 256 + 512, CREATERENDERTARGETFLAGS_HDR, IMAGE_FORMAT_BGR888)
             -- Draw gradient texture
             -- dark -> bright
             render.PushRenderTarget(PortalRingTintColor.BuiltRTs[colorHash])
             render.Clear(0, 0, 0, 255)
-
             cam.Start2D()
             surface.SetDrawColor(0, 0, 0, 255)
             surface.DrawRect(0, 0, 0, 255)
-
             surface.SetDrawColor(color.x, color.y, color.z, 255)
             surface.SetMaterial(RING_GRADIENT_MAT)
             surface.DrawTexturedRect(0, 0, 256, 1)
             cam.End2D()
             render.PopRenderTarget()
-
             PortalRingTintColor.BuiltMaterials[colorHash] = CreateMaterial("portalstaticoverlay" .. colorHash, "PortalRefract", {
                 ["$Stage"] = "2",
                 ["$PortalOpenAmount"] = "0.0",
@@ -362,14 +299,12 @@ end
 
 hook.Add("HUDPaint", "GP2::HUDPaint", function()
     GP2_Hud_Render(ScrWide, ScrHeight)
-
     PortalRingTintColor.BuildPortalRingTintedTextures()
 end)
 
 hook.Add("OnScreenSizeChanged", "GP2::OnScreenSizeChanged", function(oW, oH, w, h)
     ScrWide = w
     ScrHeight = h
-
     CreateFonts()
     CreateHudElements()
 end)
@@ -382,7 +317,6 @@ end)
 hook.Add("Think", "GP2::HudThink", function()
     for i = 1, #hudElements do
         local element = hudElements[i]
-
         if IsValid(element) then
             if not element:ShouldDraw() and element:IsVisible() then
                 element:SetVisible(false)
@@ -396,9 +330,8 @@ end)
 -- Ajout de l'élément HUD Quickinfo Portal
 if CLIENT then
     local function AddQuickinfoPortal()
-        if not IsValid(GP2HudQuickinfoPortal) then
-            GP2HudQuickinfoPortal = vgui.Create("GP2HudQuickinfoPortal")
-        end
+        if not IsValid(GP2HudQuickinfoPortal) then GP2HudQuickinfoPortal = vgui.Create("GP2HudQuickinfoPortal") end
     end
+
     hook.Add("InitPostEntity", "GP2_AddQuickinfoPortal", AddQuickinfoPortal)
 end

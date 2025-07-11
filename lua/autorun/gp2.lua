@@ -1,14 +1,9 @@
--- ----------------------------------------------------------------------------
+﻿-- ----------------------------------------------------------------------------
 -- GP2 Framework
 -- Start point for whole framework
 -- ----------------------------------------------------------------------------
-
-
-
 local developer = GetConVar("developer")
-
 local fmt = string.format
-
 GP2_PROJECT_COLOR_THEME = Color(180, 155, 255)
 if SERVER then
     GP2_PROJECT_COLOR_THEME_LIGHT = Color(238, 232, 255)
@@ -19,7 +14,6 @@ end
 GP2_PROJECT_COLOR_THEME_ERROR = Color(255, 90, 90)
 GP2_PROJECT_COLOR_THEME_ERROR_LIGHT = Color(255, 155, 155)
 GP2_PROJECT_NAME = '[GP2] '
-
 GP2 = GP2 or {
     --- Print message to console
     --- @param msg string Message
@@ -29,7 +23,6 @@ GP2 = GP2 or {
         MsgC(GP2_PROJECT_COLOR_THEME_LIGHT, fmt(msg, ...))
         print()
     end,
-
     --- Print error message to console (color differs depending on realm)
     --- @param msg string Message
     --- @vararg any Optional params from format string
@@ -44,26 +37,20 @@ GP2 = GP2 or {
 PORTAL_TYPE_FIRST = 0
 -- Orange (second) portal
 PORTAL_TYPE_SECOND = 1
-
 --- Default open duration (size)
 PORTAL_OPEN_DURATION = 0.5
 --- Default static duration (fill effect)
 PORTAL_STATIC_DURATION = 1
-
 --- Default color for first portal
 --- @return number, number, number: red, green, blue
 PORTAL1_DEFAULT_COLOR = {0, 115, 210}
-
 --- Default color for second portal
 --- @return number, number, number: red, green, blue
 PORTAL2_DEFAULT_COLOR = {210, 115, 0}
-
 --- Default width for portal
 PORTAL_WIDTH = 64
-
 --- Default height for portal
 PORTAL_HEIGHT = 112
-
 -- Use unfinished implementation for better portal movement
 -- internally tries to build local copy of world mesh for physics
 -- with hole
@@ -71,11 +58,7 @@ PORTAL_HEIGHT = 112
 -- currently unfinished
 -- has noticable lag
 PORTAL_USE_NEW_ENVIRONMENT_SYSTEM = false
-
-if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
-    require("niknaks")
-end
-
+if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then require("niknaks") end
 include("gp2/globals.lua")
 include("gp2/utils.lua")
 include("gp2/netmessages.lua")
@@ -102,28 +85,22 @@ AddCSLuaFile("gp2/client/render.lua")
 AddCSLuaFile("gp2/client/portalrendering.lua")
 AddCSLuaFile("gp2/gamemovement.lua")
 AddCSLuaFile("gp2/version.lua")
-
 -- Add entity files for proper networked loading
 -- Note: Entity files are automatically handled by GMod - don't force AddCSLuaFile
 AddCSLuaFile("gp2/client/render/env_portal_laser.lua")
-
 -- Ensure critical entity files are properly networked
 if SERVER then
     -- Load base_brush entity first to fix derivation errors
     include("entities/base_brush.lua")
-    
     -- Register all entity files for client download
     local entityFiles = file.Find("entities/*.lua", "LUA")
     for _, entFile in ipairs(entityFiles) do
-        if string.StartWith(entFile, "prop_") or string.StartWith(entFile, "env_") or string.StartWith(entFile, "npc_") or entFile == "base_brush.lua" then
-            AddCSLuaFile("entities/" .. entFile)
-        end
+        if string.StartWith(entFile, "prop_") or string.StartWith(entFile, "env_") or string.StartWith(entFile, "npc_") or entFile == "base_brush.lua" then AddCSLuaFile("entities/" .. entFile) end
     end
-    
+
     -- Ensure critical entities are specifically registered
     AddCSLuaFile("entities/prop_portal.lua")
     AddCSLuaFile("entities/base_brush.lua")
-    
     -- Register HUD element files to fix the empty file errors
     AddCSLuaFile("gp2/client/hudelements/base.lua")
     AddCSLuaFile("gp2/client/hudelements/hud_message.lua")
@@ -141,7 +118,6 @@ else
 end
 
 list.Set("ContentCategoryIcons", "Portal 2", "games/16/portal2.png")
-
 -- Fix for entity registration issues in multiplayer
 if SERVER then
     -- Delayed entity registration fix for multiplayer
@@ -149,7 +125,6 @@ if SERVER then
         -- Force reload critical entities if they failed to register
         if not scripted_ents.Get("prop_portal") then
             GP2.Print("prop_portal not registered, attempting manual registration...")
-            
             -- Try to force reload the entity file
             local entPath = "entities/prop_portal.lua"
             if file.Exists(entPath, "LUA") then
@@ -183,8 +158,10 @@ if SERVER then
                         PORTAL2_DEFAULT_COLOR = PORTAL2_DEFAULT_COLOR,
                         PORTAL_TYPE_FIRST = PORTAL_TYPE_FIRST,
                         PORTAL_TYPE_SECOND = PORTAL_TYPE_SECOND
-                    }, {__index = _G})
-                    
+                    }, {
+                        __index = _G
+                    })
+
                     local compiled = CompileString(entContent, entPath)
                     if compiled then
                         setfenv(compiled, env)
@@ -221,6 +198,7 @@ if SERVER then
                         ent:SetState(ent:GetState())
                     end
                 end
+
                 GP2.Print("Refreshed lasers for player %s", ply:Nick())
             end
         end)
@@ -231,13 +209,15 @@ if SERVER then
             print("Commande à utiliser en tant que joueur.")
             return
         end
+
         local trace = util.TraceHull({
             start = ply:GetPos(),
-            endpos = ply:GetPos() - Vector(0,0,5),
+            endpos = ply:GetPos() - Vector(0, 0, 5),
             mins = ply:OBBMins(),
             maxs = ply:OBBMaxs(),
             filter = ply
         })
+
         if trace.Hit and IsValid(trace.Entity) then
             ply:ChatPrint("[GP2] Collision avec : " .. trace.Entity:GetClass() .. " (" .. tostring(trace.Entity) .. ")")
         else
@@ -257,32 +237,44 @@ list.Set("SpawnableEntities", "prop_weighted_cube_companion", {
     PrintName = "Cube (Companion)",
     ClassName = "prop_weighted_cube",
     Category = "Portal 2",
-    KeyValues = { NewSkins = 1, CubeType = 1 }
+    KeyValues = {
+        NewSkins = 1,
+        CubeType = 1
+    }
 })
 
 list.Set("SpawnableEntities", "prop_weighted_cube_reflective", {
     PrintName = "Cube (Reflective)",
     ClassName = "prop_weighted_cube",
     Category = "Portal 2",
-    KeyValues = { NewSkins = 1, CubeType = 2 }
+    KeyValues = {
+        NewSkins = 1,
+        CubeType = 2
+    }
 })
 
 list.Set("SpawnableEntities", "prop_weighted_cube_sphere", {
     PrintName = "Cube (Sphere)",
     ClassName = "prop_weighted_cube",
     Category = "Portal 2",
-    KeyValues = { NewSkins = 1, CubeType = 3 }
+    KeyValues = {
+        NewSkins = 1,
+        CubeType = 3
+    }
 })
 
 list.Set("SpawnableEntities", "prop_weighted_cube_antique", {
     PrintName = "Cube (Antique)",
     ClassName = "prop_weighted_cube",
-    Category = "Portal 2",    KeyValues = { NewSkins = 1, CubeType = 4 }
+    Category = "Portal 2",
+    KeyValues = {
+        NewSkins = 1,
+        CubeType = 4
+    }
 })
 
 -- Note: prop_portal entity is loaded automatically by Garry's Mod from entities/ folder
 -- Don't force include it here as it breaks ENT context
-
 if SERVER then
     -- AcceptInput hooks
     include("gp2/inputsmanager.lua")
@@ -297,7 +289,6 @@ if SERVER then
     include("gp2/portalpropteleport.lua")
     include("gp2/paint.lua")
     include("gp2/client/hud.lua")
-
     hook.Add("Initialize", "GP2::Initialize", function()
         SoundManager.Initialize()
         MouthManager.Initialize()
@@ -307,17 +298,13 @@ if SERVER then
         -- Try to call OnPostPlayerSpawn on all Vscripted entities
         -- and siltently fail if there's no OnPostPlayerSpawn function in script
         -- pass player to scripts to handle logic per player
-
         GP2.VScriptMgr.CallHookFunction("OnPostPlayerSpawn", true, ply)
     end)
 
-    hook.Add("PlayerInitialSpawn", "GP2::PlayerInitialSpawn", function(ply, transition)
-    end)
-
+    hook.Add("PlayerInitialSpawn", "GP2::PlayerInitialSpawn", function(ply, transition) end)
     local function fixTonemaps()
         timer.Simple(0, function()
             local tonemapCtrls = ents.FindByClass("env_tonemap_controller")
-
             if #tonemapCtrls == 0 then
                 local ctrl = ents.Create("env_tonemap_controller")
                 ctrl:Spawn()
@@ -336,11 +323,10 @@ if SERVER then
         timer.Simple(2, function()
             for _, portal in ipairs(ents.FindByClass("prop_portal")) do
                 if portal:GetPlacedByMap() then
-                    local firstPlayer = Entity(1)				
+                    local firstPlayer = Entity(1)
                     if IsValid(firstPlayer) then
                         local info = firstPlayer:GetInfo("gp2_portal_color" .. portal:GetType() + 1)
                         local r, g, b = unpack((info or "255 255 255"):Split(" "))
-        
                         portal:SetPortalColor(r, g, b)
                     end
                 end
@@ -351,9 +337,7 @@ if SERVER then
     hook.Add("PostCleanupMap", "GP2::PostCleanupMap", function()
         GP2.VScriptMgr.InitializeScriptForEntity(game.GetWorld(), "mapspawn")
         GP2.VScriptMgr.CallHookFunction("OnPostSpawn", true)
-
         PaintManager.Initialize()
-
         fixTonemaps()
         fixPortalColors()
     end)
@@ -361,9 +345,7 @@ if SERVER then
     hook.Add("InitPostEntity", "GP2::InitPostEntity", function()
         GP2.VScriptMgr.InitializeScriptForEntity(game.GetWorld(), "mapspawn")
         GP2.VScriptMgr.CallHookFunction("OnPostSpawn", true)
-
         PaintManager.Initialize()
-
         fixTonemaps()
         fixPortalColors()
     end)
@@ -376,7 +358,6 @@ if SERVER then
 
     hook.Add("PlayerTick", "GP2::PlayerTick", function(ply, mv)
         if not ply:Alive() then return end
-
         if IsValid(ply:GetViewEntity()) and ply:GetViewEntity():GetClass() == "point_viewcontrol" then
             ply:SetMoveType(MOVETYPE_NONE)
             ply:AddEffects(EF_NODRAW)
@@ -394,53 +375,15 @@ if SERVER then
         end
     end)
 
-    hook.Add("PhysgunPickup", "GP2::PhysgunPickup", function(ply, ent)
-        if ent.OnPhysgunPickup and isfunction(ent.OnPhysgunPickup) then
-            return ent:OnPhysgunPickup(ply)
-        end
-    end)
-
-    hook.Add("PhysgunDrop", "GP2::PhysgunDrop", function(ply, ent)
-        if ent.OnPhysgunDrop and isfunction(ent.OnPhysGunDrop) then
-            ent:OnPhysGunDrop(ply)
-        end
-    end)
-
-    hook.Add("OnPlayerPhysicsPickup", "GP2::OnPlayerPhysicsPickup", function(ply, ent)
-        if ent.OnPlayerPickup and isfunction(ent.OnPlayerPickup) then
-            ent:OnPlayerPickup(ply)
-        end
-    end)
-
-    hook.Add("OnPlayerPhysicsDrop", "GP2::OnPlayerPhysicsDrop", function(ply, ent, thrown)
-        if ent.OnPlayerDrop and isfunction(ent.OnPlayerDrop) then
-            ent:OnPlayerDrop(ply, thrown)
-        end
-    end)
-
-    hook.Add("GravGunOnPickedUp", "GP2::GravGunOnPickedUp", function(ply, ent)
-        if ent.OnGravGunPickup and isfunction(ent.OnGravGunPickup) then
-            ent:OnGravGunPickup(ply)
-        end
-    end)
-
-    hook.Add("GravGunOnDropped", "GP2::GravGunOnDropped", function(ply, ent)
-        if ent.OnGravGunDrop and isfunction(ent.OnGravGunDrop) then
-            ent:OnGravGunDrop(ply)
-        end
-    end)
-
-    hook.Add("GravGunPunt", "GP2::GravGunPunt", function(ply, ent)
-        if ent.OnGravGunPunt and isfunction(ent.OnGravGunPunt) then
-            return ent:OnGravGunPunt(ply)
-        end
-    end)
-
+    hook.Add("PhysgunPickup", "GP2::PhysgunPickup", function(ply, ent) if ent.OnPhysgunPickup and isfunction(ent.OnPhysgunPickup) then return ent:OnPhysgunPickup(ply) end end)
+    hook.Add("PhysgunDrop", "GP2::PhysgunDrop", function(ply, ent) if ent.OnPhysgunDrop and isfunction(ent.OnPhysGunDrop) then ent:OnPhysGunDrop(ply) end end)
+    hook.Add("OnPlayerPhysicsPickup", "GP2::OnPlayerPhysicsPickup", function(ply, ent) if ent.OnPlayerPickup and isfunction(ent.OnPlayerPickup) then ent:OnPlayerPickup(ply) end end)
+    hook.Add("OnPlayerPhysicsDrop", "GP2::OnPlayerPhysicsDrop", function(ply, ent, thrown) if ent.OnPlayerDrop and isfunction(ent.OnPlayerDrop) then ent:OnPlayerDrop(ply, thrown) end end)
+    hook.Add("GravGunOnPickedUp", "GP2::GravGunOnPickedUp", function(ply, ent) if ent.OnGravGunPickup and isfunction(ent.OnGravGunPickup) then ent:OnGravGunPickup(ply) end end)
+    hook.Add("GravGunOnDropped", "GP2::GravGunOnDropped", function(ply, ent) if ent.OnGravGunDrop and isfunction(ent.OnGravGunDrop) then ent:OnGravGunDrop(ply) end end)
+    hook.Add("GravGunPunt", "GP2::GravGunPunt", function(ply, ent) if ent.OnGravGunPunt and isfunction(ent.OnGravGunPunt) then return ent:OnGravGunPunt(ply) end end)
     hook.Add("PlayerFootstep", "GP2::PlayerFootsteps", function(ply, pos, foot, sound, volume, rf)
-        if ply:GetGroundEntity() ~= NULL then
-            ply._PreviousGroundEnt = ply:GetGroundEntity()
-        end
-
+        if ply:GetGroundEntity() ~= NULL then ply._PreviousGroundEnt = ply:GetGroundEntity() end
         if ply._PreviousGroundEnt and IsValid(ply._PreviousGroundEnt) and ply._PreviousGroundEnt:GetClass() == "projected_wall_entity" then
             ply:EmitSound("Lightbridge.Step" .. (foot and "Right" or "Left"))
             return true
@@ -454,7 +397,6 @@ if SERVER then
         local ent = data.Entity
         local pos = data.Pos
         local duration = SoundDuration(data.SoundName)
-
         SoundManager.EntityEmitSound(name, ent, level, pos, duration)
         MouthManager.EmitSound(ent, file_path)
     end)
@@ -462,10 +404,7 @@ if SERVER then
     net.Receive(GP2.Net.SendLoadedToServer, function(len, ply)
         local whom = net.ReadEntity()
         --GP2.Print("Player " .. tostring(whom) .. " loaded on server!")
-
-        if whom == Entity(1) then
-            GP2.VScriptMgr.CallHookFunction("OnPostSpawn", true)
-        end
+        if whom == Entity(1) then GP2.VScriptMgr.CallHookFunction("OnPostSpawn", true) end
     end)
 else
     if CLIENT then
@@ -475,32 +414,27 @@ else
         PropTractorBeam = PropTractorBeam or {}
         VguiMovieDisplay = VguiMovieDisplay or {}
         VguiSPProgressSign = VguiSPProgressSign or {}
-        
         -- Basic stub functions to prevent immediate errors
         ProjectedWallEntity.IsAdded = ProjectedWallEntity.IsAdded or function() return false end
         ProjectedWallEntity.AddToRenderList = ProjectedWallEntity.AddToRenderList or function() end
-        
         PropTractorBeam.IsAdded = PropTractorBeam.IsAdded or function() return false end
         PropTractorBeam.AddToRenderList = PropTractorBeam.AddToRenderList or function() end
-        
         VguiMovieDisplay.IsAddedDisplay = VguiMovieDisplay.IsAddedDisplay or function() return false end
         VguiMovieDisplay.AddDisplay = VguiMovieDisplay.AddDisplay or function() end
-        
         VguiSPProgressSign.IsAddedSign = VguiSPProgressSign.IsAddedSign or function() return false end
         VguiSPProgressSign.AddSign = VguiSPProgressSign.AddSign or function() end
     end
 
-    hook.Add("Initialize", "GP2::Initialize", function()
-        SoundManager.Initialize()
-    end)      -- Protected includes for client-side files with pcall
+    hook.Add("Initialize", "GP2::Initialize", function() SoundManager.Initialize() end)
+    -- Protected includes for client-side files with pcall
     local clientFiles = {
-        "gp2/client/render.lua",  -- Load render system first
-        "gp2/client/hud.lua",    -- Load HUD (includes fonts) before VGUI
-        "gp2/client/vgui.lua", 
+        "gp2/client/render.lua", -- Load render system first
+        "gp2/client/hud.lua", -- Load HUD (includes fonts) before VGUI
+        "gp2/client/vgui.lua",
         "gp2/client/portalrendering.lua",
         "gp2/gamemovement.lua"
     }
-    
+
     -- Add a small delay to ensure networking is ready
     timer.Simple(0.1, function()
         for _, filePath in ipairs(clientFiles) do
@@ -514,13 +448,14 @@ else
             else
                 GP2.Print("Client file not found: %s", filePath)
             end
-        end    end)    hook.Add("Think", "GP2::Think", function()
-        SoundManager.Think()
+        end
     end)
-    
+
+    hook.Add("Think", "GP2::Think", function() SoundManager.Think() end)
     -- Hook pour s'assurer que les tractor beams sont correctement initialisés
     hook.Add("InitPostEntity", "GP2::InitTractorBeams", function()
-        timer.Simple(1, function() -- Délai pour s'assurer que tout est chargé
+        timer.Simple(1, function()
+            -- Délai pour s'assurer que tout est chargé
             for _, ent in ipairs(ents.FindByClass("projected_tractor_beam_entity")) do
                 if IsValid(ent) then
                     ent:SetUpdated(false) -- Force la mise à jour du beam

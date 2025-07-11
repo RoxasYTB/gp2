@@ -1,13 +1,10 @@
--- ----------------------------------------------------------------------------
+﻿-- ----------------------------------------------------------------------------
 -- GP2 Framework
 -- Thermal Discouragement Beam
 -- ----------------------------------------------------------------------------
-
-include "shared.lua"
-
+include"shared.lua"
 local CalcClosestPointOnLineSegment = GP2.Utils.CalcClosestPointOnLineSegment
 local clamp = math.Clamp
-
 function ENT:Initialize()
     if self:GetState() then
         self:StartParticles()
@@ -22,15 +19,10 @@ end
 
 function ENT:Think()
     -- Protection contre les erreurs si EnvPortalLaser n'est pas défini
-    if EnvPortalLaser and EnvPortalLaser.AddToRenderList then
-        EnvPortalLaser.AddToRenderList(self)
-    end
-
+    if EnvPortalLaser and EnvPortalLaser.AddToRenderList then EnvPortalLaser.AddToRenderList(self) end
     self:ChangeVolumeByDistanceToBeam()
-
     if self:GetShouldSpark() then
         self:StartSparkParticle()
-
         if IsValid(self.SparksParticle) then
             self.SparksParticle:SetControlPointOrientation(0, self:GetHitNormal():Angle())
             self.SparksParticle:SetControlPoint(0, self:GetHitPos())
@@ -44,30 +36,22 @@ function ENT:Think()
 end
 
 function ENT:StartSparkParticle()
-    if not IsValid(self.SparksParticle) then
-        self.SparksParticle = CreateParticleSystem(self, "discouragement_beam_sparks", PATTACH_CUSTOMORIGIN)
-    end
+    if not IsValid(self.SparksParticle) then self.SparksParticle = CreateParticleSystem(self, "discouragement_beam_sparks", PATTACH_CUSTOMORIGIN) end
 end
 
 function ENT:StartParticles()
     if IsValid(self:GetParentLaser()) then
         self.Particle = CreateParticleSystem(self, "reflector_start_glow", PATTACH_ABSORIGIN_FOLLOW)
     else
-        self.Particle = CreateParticleSystem(self, "laser_start_glow", PATTACH_POINT_FOLLOW,
-            self:LookupAttachment("laser_attachment"))
+        self.Particle = CreateParticleSystem(self, "laser_start_glow", PATTACH_POINT_FOLLOW, self:LookupAttachment("laser_attachment"))
     end
 
     self:StartSparkParticle()
 end
 
 function ENT:StopParticles()
-    if IsValid(self.Particle) then
-        self.Particle:StopEmission()
-    end
-
-    if IsValid(self.SparksParticle) then
-        self.SparksParticle:StopEmission()
-    end
+    if IsValid(self.Particle) then self.Particle:StopEmission() end
+    if IsValid(self.SparksParticle) then self.SparksParticle:StopEmission() end
 end
 
 function ENT:StartLoopingSounds()
@@ -89,14 +73,11 @@ function ENT:ChangeVolumeByDistanceToBeam()
     local pos = EyePos()
     local nearest = CalcClosestPointOnLineSegment(pos, self:GetPos(), self:GetHitPos())
     local distance = (pos - nearest):Length()
-
     local maxDistance = 355
     local minVolume = 0
     local maxVolume = 0.25
-
     -- Volume based on the distance
     local volume = clamp((maxDistance - distance) / maxDistance * (maxVolume - minVolume) + minVolume, minVolume, maxVolume)
-
     if self.BeamSound then
         if not self.BeamSound:IsPlaying() then
             self.BeamSound:PlayEx(volume, 100)

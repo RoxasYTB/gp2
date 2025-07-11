@@ -1,10 +1,8 @@
 ﻿-- AutoIcons: Automatically generates/renders weapon select icons and killicons for SWEPs not containing them.
 -- Made by Joker Gaming (STEAM_0:0:38422842)
 -- https://steamcommunity.com/sharedfiles/filedetails/?id=2495300496
-
 module("autoicon", package.seeall)
 ReplaceAllConvar = CreateClientConVar("autoicons_replaceall", "1", true, false, "Replace all select/kill icons (otherwise, only create icons for SWEPS/Ents that would use the default)", 0, 1)
-
 -- API to override the convar
 function OverrideReplaceAll(state)
     ReplaceAllOverrideState = state
@@ -12,7 +10,6 @@ function OverrideReplaceAll(state)
 end
 
 local replace_all
-
 function UpdateReplaceAll()
     replace_all = ReplaceAllOverrideState or ReplaceAllConvar:GetBool()
 end
@@ -21,7 +18,6 @@ cvars.AddChangeCallback("autoicons_replaceall", UpdateReplaceAll)
 UpdateReplaceAll()
 local placeholder_model = "models/maxofs2d/logo_gmod_b.mdl"
 local error_model = "models/error.mdl"
-
 local model_angle_override = {
     ["models/weapons/w_toolgun.mdl"] = Angle(0, 0, 0),
     ["models/MaxOfS2D/camera.mdl"] = Angle(0, 90, 0),
@@ -34,17 +30,13 @@ local killiconsize = 96
 local killiconcolor = Vector(1, 80 / 255, 0)
 MODE_HL2WEAPONSELECT = 1
 MODE_HL2KILLICON = 2
-
 -- cache[mode][cachekey] = Material
 local cache = {{}, {}}
-
 local name_prefix = "autoicon" .. tostring(ReloadIndex or "") .. "_"
 ReloadIndex = (ReloadIndex or 0) + 1
 local unique_name_index = 0
-
 local function unique_name()
     unique_name_index = unique_name_index + 1
-
     return name_prefix .. tostring(unique_name_index)
 end
 
@@ -75,14 +67,8 @@ MAT_DESATURATE = CreateMaterial(unique_name(), "g_colourmodify", {
 })
 
 local function render_context(params, callback)
-    if params.rt then
-        render.PushRenderTarget(params.rt)
-    end
-
-    if params.clear then
-        render.Clear(unpack(params.clear))
-    end
-
+    if params.rt then render.PushRenderTarget(params.rt) end
+    if params.clear then render.Clear(unpack(params.clear)) end
     if params.cam then
         if params.cam == "2D" then
             cam.Start2D()
@@ -91,18 +77,9 @@ local function render_context(params, callback)
         end
     end
 
-    if params.material then
-        render.MaterialOverride(params.material)
-    end
-
-    if callback then
-        ProtectedCall(callback)
-    end
-
-    if params.material then
-        render.MaterialOverride()
-    end
-
+    if params.material then render.MaterialOverride(params.material) end
+    if callback then ProtectedCall(callback) end
+    if params.material then render.MaterialOverride() end
     if params.cam then
         if params.cam == "2D" then
             cam.End2D()
@@ -111,9 +88,7 @@ local function render_context(params, callback)
         end
     end
 
-    if params.rt then
-        render.PopRenderTarget()
-    end
+    if params.rt then render.PopRenderTarget() end
 end
 
 local read_pixel = render.ReadPixel
@@ -121,18 +96,15 @@ local read_pixel = render.ReadPixel
 -- Make a little 1x1 square that is white when the textures still exist, so if the game blacks it out we'll know, without having to capture an entire large texture.
 -- Still takes about 0.5ms to check it though.
 INDICATOR_TEXTURE = GetRenderTargetEx(unique_name(), 1, 1, 0, 2, 1, 0, IMAGE_FORMAT_RGB888)
-
 INDICATOR_MATERIAL = CreateMaterial(unique_name(), "VertexLitGeneric", {
     ["$basetexture"] = "lights/white",
 })
 
 local textures_valid_check_time = 0
-
 local function check_textures_valid()
     if SysTime() - textures_valid_check_time < 5 then return end
     textures_valid_check_time = SysTime()
     local r
-
     render_context({
         rt = INDICATOR_TEXTURE
     }, function()
@@ -141,7 +113,6 @@ local function check_textures_valid()
     end)
 
     local curtex = INDICATOR_MATERIAL:GetTexture("$basetexture")
-
     if r == 0 or not curtex or curtex:GetName() == "lights/white" then
         render_context({
             rt = INDICATOR_TEXTURE,
@@ -149,7 +120,6 @@ local function check_textures_valid()
         })
 
         INDICATOR_MATERIAL:SetTexture("$basetexture", INDICATOR_TEXTURE)
-
         for mode, subcache in pairs(cache) do
             table.Empty(subcache)
         end
@@ -160,10 +130,8 @@ local function get_bitmap()
     render.CapturePixels()
     local xs, ys = ScrW(), ScrH()
     local bitmask, bitcount = {}, 0
-
     for x = 0, xs - 1 do
         bitmask[x] = {}
-
         for y = 0, ys - 1 do
             -- Only checks red
             if read_pixel(x, y) > 0 then
@@ -172,7 +140,6 @@ local function get_bitmap()
             end
         end
     end
-
     return bitmask, bitcount
 end
 
@@ -180,7 +147,6 @@ end
 local function get_bbox(bitmask)
     local xs, ys = ScrW(), ScrH()
     local px1, py1, px2, py2 = 0, 0, 1, 1
-
     for x = 0, xs - 1 do
         for y = 0, ys - 1 do
             if bitmask[x][y] then
@@ -191,7 +157,6 @@ local function get_bbox(bitmask)
     end
 
     ::found_px1::
-
     for y = 0, ys - 1 do
         for x = 0, xs - 1 do
             if bitmask[x][y] then
@@ -202,7 +167,6 @@ local function get_bbox(bitmask)
     end
 
     ::found_py1::
-
     for x = xs - 1, 0, -1 do
         for y = 0, ys - 1 do
             if bitmask[x][y] then
@@ -213,7 +177,6 @@ local function get_bbox(bitmask)
     end
 
     ::found_px2::
-
     for y = ys - 1, 0, -1 do
         for x = 0, xs - 1 do
             if bitmask[x][y] then
@@ -224,7 +187,6 @@ local function get_bbox(bitmask)
     end
 
     ::found_py2::
-
     return px1, py1, px2, py2
 end
 
@@ -235,7 +197,6 @@ local function estimate_bitmask_angle(bitmask, x1, x2)
     local xs, ys = ScrW(), ScrH()
     local linesused = {}
     local slopeweight = {}
-
     for x = 0, xs - 1 do
         linesused[x] = {}
     end
@@ -245,7 +206,6 @@ local function estimate_bitmask_angle(bitmask, x1, x2)
             if bitmask[x][y] and not linesused[x][y] then
                 local passed = 0
                 local sx = x
-
                 while (bitmask[sx] or {})[y] do
                     linesused[sx][y] = true
                     passed = passed + 1
@@ -253,21 +213,14 @@ local function estimate_bitmask_angle(bitmask, x1, x2)
                 end
 
                 local slope = 0
-
                 if (bitmask[sx] or {})[y + 1] then
                     slope = passed
                 elseif (bitmask[sx] or {})[y - 1] then
                     slope = -passed
                 end
 
-                if math.abs(slope) > 40 then
-                    slope = 0
-                end
-
-                if slope == 0 and passed < 3 then
-                    passed = 0
-                end
-
+                if math.abs(slope) > 40 then slope = 0 end
+                if slope == 0 and passed < 3 then passed = 0 end
                 slopeweight[slope] = (slopeweight[slope] or 0) + passed
             end
         end
@@ -276,18 +229,15 @@ local function estimate_bitmask_angle(bitmask, x1, x2)
     local highestsl = 0
     local highestslw = slopeweight[0] or 1
     local highestsla = 0
-
     for k, v in pairs(slopeweight) do
         if math.abs(k) > 2 then
             local uw = slopeweight[k - 1] or 0
             local dw = slopeweight[k + 1] or 0
             local slw = v + math.max(uw, dw)
-
             if slw > highestslw then
                 highestsl = k
                 highestslw = slw
                 local isl
-
                 if uw > dw then
                     isl = (v * k + uw * (k - 1)) / (v + uw)
                 else
@@ -298,7 +248,6 @@ local function estimate_bitmask_angle(bitmask, x1, x2)
             end
         end
     end
-
     return highestsla
 end
 
@@ -317,13 +266,7 @@ end
 -- This won't work for entities outside of PVS, but it's the best we can do without server code
 -- This won't override models for non-SENTs (prop_physics etc)
 local classname_default_model = {}
-
-hook.Add("NetworkEntityCreated", "AutoIconsNetworkEntityCreated", function(ent)
-    if not classname_default_model[ent:GetClass()] and (ent:GetModel() or "") ~= "" then
-        classname_default_model[ent:GetClass()] = ent:GetModel()
-    end
-end)
-
+hook.Add("NetworkEntityCreated", "AutoIconsNetworkEntityCreated", function(ent) if not classname_default_model[ent:GetClass()] and (ent:GetModel() or "") ~= "" then classname_default_model[ent:GetClass()] = ent:GetModel() end end)
 local function class_default_model(data)
     return (data.IronSightStruct and data.ViewModel or data.WorldModel) or data.Model or classname_default_model[data.ClassName]
 end
@@ -331,11 +274,7 @@ end
 -- IronSightStruct indicates ARCCW. data.Model is an attempt to get something from an ENT table
 local function autoicon_params(data)
     local p = {}
-
-    if isstring(data) and not data:EndsWith(".mdl") then
-        data = get_stored(data) or placeholder_model
-    end
-
+    if isstring(data) and not data:EndsWith(".mdl") then data = get_stored(data) or placeholder_model end
     if isentity(data) then
         local mdl = translate_model(data:GetModel())
         -- If the current model is not the default model, or it isn't a SWEP/SENT, draw that instead
@@ -349,7 +288,6 @@ local function autoicon_params(data)
     elseif istable(data) then
         p.mainmodel = translate_model(class_default_model(data))
         p.cachekey = data.ClassName
-
         -- TFA
         if data.Offset and data.Offset.Ang then
             local a = data.Offset.Ang
@@ -361,10 +299,7 @@ local function autoicon_params(data)
         end
 
         -- SCK, scifi sweps
-        if data.ShowWorldModel == false or data.SciFiWorld == "dev/hide" or data.SciFiWorld == "vgui/white" then
-            p.hide_mainmodel = true
-        end
-
+        if data.ShowWorldModel == false or data.SciFiWorld == "dev/hide" or data.SciFiWorld == "vgui/white" then p.hide_mainmodel = true end
         -- SCK
         p.welements = data.WElements
         p.force_angle = data.AutoIconAngle or model_angle_override[p.mainmodel] or p.force_angle
@@ -375,7 +310,6 @@ local function autoicon_params(data)
     assert(isstring(p.mainmodel) and p.mainmodel ~= "")
     assert(isstring(p.cachekey) and p.cachekey ~= "")
     p.legit = p.mainmodel ~= placeholder_model and p.mainmodel ~= error_model
-
     return p
 end
 
@@ -385,7 +319,6 @@ local function sck_local_to_world(ipos, iang, pos, ang)
     ang:RotateAroundAxis(ang:Up(), iang.y)
     ang:RotateAroundAxis(ang:Right(), iang.p)
     ang:RotateAroundAxis(ang:Forward(), iang.r)
-
     return pos, ang
 end
 
@@ -398,12 +331,10 @@ function GetIcon(p, mode)
     mainent:SetPos(Vector(0, 0, 0))
     mainent:SetAngles(Angle(0, 0, 0))
     mainent:SetupBones()
-
     for k, v in pairs(p.welements or {}) do
         if not v.model then continue end
         if v.color and v.color.a == 0 then continue end
         local mat
-
         if (v.material or "") ~= "" then
             mat = Material(v.material)
             if mat:GetShader() ~= "VertexLitGeneric" and mat:GetShader() ~= "UnlitGeneric" then continue end
@@ -415,7 +346,6 @@ function GetIcon(p, mode)
         local lpos, lang = Vector(0, 0, 0), Angle(0, 0, 0) -- sck_local_to_world(Vector(0,0,0), Angle(0,0,0), v.pos or Vector(0,0,0), v.angle or Angle(0,0,0))
         local bn = v.bone
         local parent = v
-
         for i = 1, 10 do
             if (parent.rel or "") == "" then break end
             parent = p.welements[parent.rel]
@@ -425,10 +355,7 @@ function GetIcon(p, mode)
         end
 
         --"ValveBiped.Bip01_R_Hand"?
-        if bn == "Base" then
-            bn = nil
-        end
-
+        if bn == "Base" then bn = nil end
         if bn then
             bn = mainent:LookupBone(bn)
             if not bn then continue end
@@ -439,11 +366,7 @@ function GetIcon(p, mode)
 
         lpos, lang = sck_local_to_world(v.pos or Vector(0, 0, 0), v.angle or Angle(0, 0, 0), lpos, lang)
         local e = ClientsideModel(v.model)
-
-        if mat then
-            e:SetMaterial(v.material)
-        end
-
+        if mat then e:SetMaterial(v.material) end
         e.lpos = lpos
         e.lang = lang
         mat = Matrix()
@@ -455,10 +378,7 @@ function GetIcon(p, mode)
     -- If we have an error, we'll still delete the entities
     local ok, ret = pcall(function()
         local function drawmodel()
-            if not p.hide_mainmodel then
-                mainent:DrawModel()
-            end
-
+            if not p.hide_mainmodel then mainent:DrawModel() end
             for i, v in ipairs(extraents) do
                 local p, a = LocalToWorld(v.lpos, v.lang, mainent:GetPos(), mainent:GetAngles())
                 v:SetPos(p)
@@ -472,24 +392,16 @@ function GetIcon(p, mode)
         local center, rad = (min + max) / 2, min:Distance(max) / 2
         local ang
         local b
-
         if p.force_angle then
             ang = p.force_angle
         else
             local muzzleatt = mainent:LookupAttachment("muzzle")
-
-            if muzzleatt < 1 then
-                muzzleatt = mainent:LookupAttachment("muzzle_flash")
-            end
-
+            if muzzleatt < 1 then muzzleatt = mainent:LookupAttachment("muzzle_flash") end
             b = mainent:LookupBone("ValveBiped.Bip01_R_Hand")
-
             if muzzleatt > 0 or b then
                 mainent:SetAngles(Angle(0, 0, 0))
                 mainent:SetupBones()
-
                 local v = muzzleatt > 0 and mainent:GetAttachment(muzzleatt).Ang:Forward() or ({mainent:GetBonePosition(b)})[2]:Forward()
-
                 -- Despite various attachments and bones existing, this is the best I could do.
                 -- Pretty pathetic huh? Half the SWEPs on workshop have totally wrong attachment/bone angles and anything more than this completely messes them up.
                 -- There is a second pass below where it tries to fix the angle by looking at the drawn mask itself
@@ -502,10 +414,7 @@ function GetIcon(p, mode)
         end
 
         -- Flip weaponselect icons the other way
-        if mode == MODE_HL2WEAPONSELECT then
-            ang:RotateAroundAxis(Vector(0, 0, 1), 180)
-        end
-
+        if mode == MODE_HL2WEAPONSELECT then ang:RotateAroundAxis(Vector(0, 0, 1), 180) end
         mainent:SetAngles(ang)
         mainent:SetupBones()
         local zpd = math.min(max.x - min.x, max.y - min.y)
@@ -514,14 +423,9 @@ function GetIcon(p, mode)
         local zfar = znear + zpd
         local hw, hh, cx, cy = 0.5, 0.5, 0.5, 0.5
         local rtx, rty = 512, 512
-
-        if mode == MODE_HL2KILLICON then
-            rtx, rty = 256, 256
-        end
-
+        if mode == MODE_HL2KILLICON then rtx, rty = 256, 256 end
         local crtx, crty = 512, 512
         local fov = 30
-
         local function ortho_cam()
             -- local function unclampedlerp(t, x, y)
             --     return (1 - t) * x + t * y
@@ -547,31 +451,18 @@ function GetIcon(p, mode)
         end
 
         local function drawtexture(tex, col, bf, x, y)
-            if isfunction(col) then
-                col, bf, x, y = nil, col, bf, x
-            end
-
-            if isnumber(col) then
-                col, bf, x, y = nil, nil, col, bf
-            end
-
+            if isfunction(col) then col, bf, x, y = nil, col, bf, x end
+            if isnumber(col) then col, bf, x, y = nil, nil, col, bf end
             col, x, y = col or Vector(1, 1, 1), x or 0, y or 0
             MAT_TEXTURE:SetTexture("$basetexture", tex)
             MAT_TEXTURE:SetVector("$color2", col)
-
             if bf then
                 bf()
             else
                 render.OverrideBlend(false)
             end
 
-            MAT_TEXTURE:SetMatrix("$basetexturetransform", Matrix({
-                {1, 0, 0, x / tex:Width()},
-                {0, 1, 0, y / tex:Height()},
-                {0, 0, 1, 0},
-                {0, 0, 0, 1}
-            }))
-
+            MAT_TEXTURE:SetMatrix("$basetexturetransform", Matrix({{1, 0, 0, x / tex:Width()}, {0, 1, 0, y / tex:Height()}, {0, 0, 1, 0}, {0, 0, 0, 1}}))
             render.SetMaterial(MAT_TEXTURE)
             render.DrawScreenQuad()
             render.OverrideBlend(false)
@@ -580,10 +471,8 @@ function GetIcon(p, mode)
         render.SuppressEngineLighting(true)
         render.SetColorModulation(1, 1, 1)
         local lnameidx = 0
-
         local function reusable_name()
             lnameidx = lnameidx + 1
-
             return name_prefix .. tostring(mode) .. "_" .. tostring(lnameidx)
         end
 
@@ -603,7 +492,6 @@ function GetIcon(p, mode)
         local cmaskrt = make_rt(reusable_name, crtx, crty)
         local cbmaskrt = make_rt(reusable_name, crtx, crty)
         local canglert = make_rt(reusable_name, crtx, crty)
-
         -- DRAW THE MODEL (WHITE MASK)
         render_context({
             rt = cmaskrt
@@ -629,7 +517,6 @@ function GetIcon(p, mode)
 
                 -- A mask of just the top edge of the gun
                 local fixang
-
                 render_context({
                     rt = canglert,
                     clear = {0, 0, 0, 0}
@@ -643,11 +530,7 @@ function GetIcon(p, mode)
 
                     local bitmask, bitcount = get_bitmap()
                     local x0, x1 = 0.33, 1
-
-                    if mode == MODE_HL2WEAPONSELECT then
-                        x0, x1 = 0, 0.67
-                    end
-
+                    if mode == MODE_HL2WEAPONSELECT then x0, x1 = 0, 0.67 end
                     fixang = estimate_bitmask_angle(bitmask, x0, x1)
                 end)
 
@@ -657,7 +540,6 @@ function GetIcon(p, mode)
                     ang:RotateAroundAxis(Vector(0, -1, 0), fixang)
                     mainent:SetAngles(ang)
                     mainent:SetupBones()
-
                     render_context({
                         clear = {0, 0, 0, 0},
                         cam = ortho_cam(),
@@ -668,12 +550,10 @@ function GetIcon(p, mode)
 
             local bitmask, bitcount = get_bitmap()
             local px1, py1, px2, py2 = get_bbox(bitmask)
-
             -- Zoom out until the whole actual model is in view (needed by some SCK weapons)
             while px1 == 0 or py1 == 0 or px2 == 1 or py2 == 1 do
                 fov = fov + 10
                 if fov > 150 then break end
-
                 render_context({
                     clear = {0, 0, 0, 0},
                     cam = ortho_cam(),
@@ -688,7 +568,6 @@ function GetIcon(p, mode)
             local area = bitcount / (rtx * rty)
             local pad = 0.01
             local icon_max_height = 0.5
-
             if mode == MODE_HL2WEAPONSELECT then
                 pad = 0.04
                 icon_max_height = 0.5
@@ -701,7 +580,6 @@ function GetIcon(p, mode)
             cx, cy = (px2 + px1) / 2, (py2 + py1) / 2
             local realhh = hh
             hw, hh = math.max(hw, hh), math.max(hw, hh)
-
             if realhh / hh > icon_max_height then
                 hw = hw * (realhh / hh) / icon_max_height
                 hh = hh * (realhh / hh) / icon_max_height
@@ -717,7 +595,6 @@ function GetIcon(p, mode)
         -- local mask2 = make_rt(reusable_name,rtx*2,rty*2,false,false)
         -- Render the mask
         local maskrt = make_rt(reusable_name, rtx, rty)
-
         render_context({
             rt = maskrt,
             clear = {0, 0, 0, 0},
@@ -727,7 +604,6 @@ function GetIcon(p, mode)
 
         -- Render the model fullbright
         local colorrt = make_rt(reusable_name, rtx, rty, true)
-
         render_context({
             rt = colorrt,
             clear = {0, 0, 0, 0, true, true}
@@ -741,7 +617,6 @@ function GetIcon(p, mode)
 
         -- Render the model normals
         local normalrt = make_rt(reusable_name, rtx, rty, true)
-
         render_context({
             rt = normalrt,
             clear = {0, 0, 0, 0, true, true}
@@ -765,7 +640,6 @@ function GetIcon(p, mode)
 
         -- Do edge detection convolution
         local coloredgert = make_rt(reusable_name, rtx, rty)
-
         render_context({
             rt = coloredgert,
             clear = {0, 0, 0, 0},
@@ -779,7 +653,6 @@ function GetIcon(p, mode)
             -- Nor can we use mul/8 for the shifted images and then mul the result
             -- (the bytes don't accumulate correctly)
             local mul = Vector(1, 1, 1) * 0.7
-
             -- edge detection from normals
             for x = -1, 1 do
                 for y = -1, 1 do
@@ -792,7 +665,6 @@ function GetIcon(p, mode)
 
             if mode == MODE_HL2WEAPONSELECT then
                 mul = Vector(1, 1, 1) * 0.7
-
                 -- edge detection from color
                 for x = -1, 1 do
                     for y = -1, 1 do
@@ -805,7 +677,6 @@ function GetIcon(p, mode)
 
                 d = 3
                 mul = Vector(1, 1, 1) * 0.5
-
                 -- edge detection from mask
                 -- maybe replace the mask with the depth buffer version? render.FogMode(MATERIAL_FOG_LINEAR) (NOTE: fog seems to only work with non-orthographic 3D that also doesn't have custom near/far z planes)
                 for x = -1, 1 do
@@ -822,7 +693,6 @@ function GetIcon(p, mode)
         -- Desaturate the edge detect image and adjust the min/max a little
         local edgert = make_rt(reusable_name, rtx, rty)
         local bluredgert
-
         render_context({
             rt = edgert,
             clear = {0, 0, 0, 0}
@@ -844,11 +714,9 @@ function GetIcon(p, mode)
         end)
 
         local finalrt = make_rt(unique_name, rtx, rty)
-
         if mode == MODE_HL2WEAPONSELECT then
             -- Blurred version of mask
             local blurmaskrt = make_rt(reusable_name, rtx, rty)
-
             render_context({
                 rt = blurmaskrt,
                 clear = {0, 0, 0, 0},
@@ -872,7 +740,6 @@ function GetIcon(p, mode)
                 drawtexture(blurmaskrt, Vector(1, 1, 1) * 128, bf_mul)
                 -- Mask out lines
                 local stp = 10
-
                 for y = 0, rty, stp do
                     surface.SetDrawColor(0, 0, 0, 180)
                     surface.DrawRect(0, y, rtx, stp - 1)
@@ -906,20 +773,15 @@ function GetIcon(p, mode)
         cache[mode][p.cachekey] = m
         render.SuppressEngineLighting(false)
         render.OverrideBlend(false)
-
         return m
     end)
 
     mainent:Remove()
-
     for i, v in ipairs(extraents) do
         v:Remove()
     end
 
-    if not ok then
-        error(ret)
-    end
-
+    if not ok then error(ret) end
     return ret
 end
 
@@ -940,11 +802,8 @@ function DrawWeaponSelection(self, x, y, wide, tall, alpha)
     render.DrawScreenQuadEx(x + (wide - sz) * 0.5, y2 + (tall2 - sz) * 0.5, sz, sz)
     render.OverrideBlend(false)
     cam.End2D()
-
     -- Draw weapon info box
-    if self.PrintWeaponInfo then
-        self:PrintWeaponInfo(x + wide + 20, y + tall * 0.95, alpha)
-    end
+    if self.PrintWeaponInfo then self:PrintWeaponInfo(x + wide + 20, y + tall * 0.95, alpha) end
 end
 
 hook.Add("PreRegisterSWEP", "AutoIconsOverrideDrawWeaponSelection", function(swep, cls)
@@ -956,9 +815,7 @@ hook.Add("PreRegisterSWEP", "AutoIconsOverrideDrawWeaponSelection", function(swe
         swep.BasedDrawWeaponSelection = swep.DrawWeaponSelection
     end
 
-    swep.DrawWeaponSelection = function(a, b, c, d, e, f)
-        DrawWeaponSelection(a, b, c, d, e, f)
-    end
+    swep.DrawWeaponSelection = function(a, b, c, d, e, f) DrawWeaponSelection(a, b, c, d, e, f) end
 end)
 
 -- Killicons
@@ -967,11 +824,9 @@ if not KilliconTable then
     for k, v in pairs(killicon) do
         if isfunction(v) then
             local info = debug.getinfo(v, "Su")
-
             if info.short_src == "lua/includes/modules/killicon.lua" then
                 for i = 1, info.nups do
                     local name, value = debug.getupvalue(v, i) -- Should be name == "Icons", but don't check in case of minification
-
                     if istable(value) and istable(value.default) then
                         KilliconTable = value
                         goto killicon_table_found
@@ -988,18 +843,12 @@ end
 
 local killicon_table = KilliconTable
 local default_killicon = KilliconTable.default
-
 local function killicon_params(name)
     local icon = killicon_table[name]
-
     if replace_all or (icon or default_killicon) == default_killicon then
         local params = autoicon_params(name)
-
         if params.legit then
-            if not icon then
-                killicon_table[name] = default_killicon
-            end
-
+            if not icon then killicon_table[name] = default_killicon end
             return params
         end
     end
@@ -1008,7 +857,6 @@ end
 local function override_killicon_functions()
     function killicon.Exists(name)
         killicon_params(name)
-
         return BasedKilliconExists(name)
     end
 
@@ -1016,14 +864,12 @@ local function override_killicon_functions()
         local params = killicon_params(name)
         local w, h = BasedKilliconGetSize(name) -- This will make sure the size is set on the stored killicon to address a weird bug people are reporting
         if params then return killiconsize, killiconsize / 2 end
-
         return w, h
     end
 
     -- It might be cool to override GM:PlayerDeath and have it actually send the inflictor entity as well as classname...
     function killicon.Draw(x, y, name, alpha)
         local params = killicon_params(name)
-
         if params then
             local w, h = killiconsize, killiconsize
             x = x - w * 0.5
@@ -1046,29 +892,23 @@ end
 
 override_killicon_functions()
 timer.Simple(1, override_killicon_functions) -- addon conflict?
-
 -- Commandes de console pour contrôler le réticule
 if CLIENT then
     -- ConVar pour forcer l'affichage du réticule natif
-    local gp2_force_crosshair = CreateClientConVar("gp2_force_crosshair", "0", true, false, 
-        "Force l'affichage du réticule natif pour toutes les armes (0=auto, 1=force)")
-    
+    local gp2_force_crosshair = CreateClientConVar("gp2_force_crosshair", "0", true, false, "Force l'affichage du réticule natif pour toutes les armes (0=auto, 1=force)")
     -- ConVar pour désactiver complètement tous les réticules
-    local gp2_disable_all_crosshairs = CreateClientConVar("gp2_disable_all_crosshairs", "0", true, false, 
-        "Désactive tous les réticules (0=normal, 1=désactivé)")
-    
+    local gp2_disable_all_crosshairs = CreateClientConVar("gp2_disable_all_crosshairs", "0", true, false, "Désactive tous les réticules (0=normal, 1=désactivé)")
     -- Commande pour basculer le réticule du Portal Gun
     concommand.Add("gp2_toggle_portalgun_crosshair", function()
         local enabled = GetConVar("gp2_force_crosshair"):GetBool()
         RunConsoleCommand("gp2_force_crosshair", enabled and "0" or "1")
-        
         if enabled then
             chat.AddText(Color(255, 100, 100), "[GP2] ", Color(255, 255, 255), "Mode réticule automatique activé")
         else
             chat.AddText(Color(255, 100, 100), "[GP2] ", Color(255, 255, 255), "Réticule natif forcé pour toutes les armes")
         end
     end, nil, "Bascule l'affichage du réticule natif")
-    
+
     -- Commande pour afficher l'aide sur les réticules
     concommand.Add("gp2_crosshair_help", function()
         chat.AddText(Color(100, 255, 255), "[GP2] ", Color(255, 255, 255), "=== Aide Réticules GP2 ===")
@@ -1083,13 +923,10 @@ if CLIENT then
     hook.Add("Think", "GP2::DynamicCrosshairControl", function()
         local forceCrosshair = GetConVar("gp2_force_crosshair")
         if not forceCrosshair then return end
-        
         local ply = LocalPlayer()
         if not IsValid(ply) then return end
-        
         local weapon = ply:GetActiveWeapon()
         if not IsValid(weapon) then return end
-        
         -- Forcer le réticule natif si l'option est activée
         if forceCrosshair:GetBool() then
             weapon.DrawCrosshair = true

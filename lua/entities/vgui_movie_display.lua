@@ -1,28 +1,24 @@
--- ----------------------------------------------------------------------------
+﻿-- ----------------------------------------------------------------------------
 -- GP2 Framework
 -- Movies
 -- ----------------------------------------------------------------------------
-
 AddCSLuaFile()
 ENT.Type = "point"
-
 function ENT:SetupDataTables()
-    self:NetworkVar( "Bool", "Active" )
-    self:NetworkVar( "Bool", "IsLooping" )
-    self:NetworkVar( "Bool", "IsStretching" )
-    self:NetworkVar( "Bool", "IsMaster" )
-    self:NetworkVar( "Int", "Frame" )
-    self:NetworkVar( "Float", "UMin" )
-    self:NetworkVar( "Float", "UMax" )
-    self:NetworkVar( "Float", "VMin" )
-    self:NetworkVar( "Float", "VMax" )
-    self:NetworkVar( "String", "Movie" )
-    self:NetworkVar( "String", "DisplayText" )
-    self:NetworkVar( "String", "GroupName" )
-    self:NetworkVar( "Vector", "Size" ) -- Vector2 (z is not used)
-
+    self:NetworkVar("Bool", "Active")
+    self:NetworkVar("Bool", "IsLooping")
+    self:NetworkVar("Bool", "IsStretching")
+    self:NetworkVar("Bool", "IsMaster")
+    self:NetworkVar("Int", "Frame")
+    self:NetworkVar("Float", "UMin")
+    self:NetworkVar("Float", "UMax")
+    self:NetworkVar("Float", "VMin")
+    self:NetworkVar("Float", "VMax")
+    self:NetworkVar("String", "Movie")
+    self:NetworkVar("String", "DisplayText")
+    self:NetworkVar("String", "GroupName")
+    self:NetworkVar("Vector", "Size") -- Vector2 (z is not used)
     self:NetworkVarNotify("Active", self.OnActiveChanged)
-
     if SERVER then
         self:SetSize(Vector(256, 128, 0))
         self:SetIsMaster(true)
@@ -37,11 +33,7 @@ function ENT:Initialize()
 end
 
 function ENT:Think()
-if CLIENT then
-    if VguiMovieDisplay and not VguiMovieDisplay.IsAddedDisplay(self) then
-        VguiMovieDisplay.AddDisplay(self)
-    end
-end
+    if CLIENT then if VguiMovieDisplay and not VguiMovieDisplay.IsAddedDisplay(self) then VguiMovieDisplay.AddDisplay(self) end end
 end
 
 function ENT:OnActiveChanged(name, old, new)
@@ -66,14 +58,12 @@ if SERVER then
         elseif k == "height" then
             local size = self:GetSize()
             size.y = tonumber(v)
-            self:SetSize(size)            
+            self:SetSize(size)
         elseif k == "forcedslave" then
             self:SetIsMaster(false)
         end
-    
-        if k:StartsWith("On") then
-            self:StoreOutput(k, v)
-        end
+
+        if k:StartsWith("On") then self:StoreOutput(k, v) end
     end
 
     function ENT:DelegateInputToOthers(input, activator, caller, data)
@@ -82,7 +72,6 @@ if SERVER then
                 if slave == self then continue end
                 if slave:GetIsMaster() then continue end
                 if slave:GetGroupName() ~= self:GetGroupName() then continue end
-
                 slave:Input(input, activator, caller, data)
             end
         end
@@ -90,19 +79,16 @@ if SERVER then
 
     function ENT:AcceptInput(name, activator, caller, data)
         name = name:lower()
-    
         if name == "enable" then
             self:SetActive(true)
-
-            net.Start(GP2.Net.SendMovieDisplay) 
-                net.WriteEntity(self)
+            net.Start(GP2.Net.SendMovieDisplay)
+            net.WriteEntity(self)
             net.Broadcast()
         elseif name == "disable" then
             self:SetActive(false)
-
             net.Start(GP2.Net.SendRemoveMovieDisplay)
-                net.WriteEntity(self)
-            net.Broadcast()            
+            net.WriteEntity(self)
+            net.Broadcast()
         elseif name == "setmovie" then
             self:SetMovie(data)
         elseif name == "setumin" then
@@ -116,5 +102,5 @@ if SERVER then
         end
 
         self:DelegateInputToOthers(name, activator, caller, data)
-    end    
+    end
 end

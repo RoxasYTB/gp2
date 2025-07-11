@@ -1,11 +1,9 @@
--- ----------------------------------------------------------------------------
+﻿-- ----------------------------------------------------------------------------
 -- GP2 Framework
 -- Neurotoxin countdown display
 -- ----------------------------------------------------------------------------
-
 AddCSLuaFile()
 ENT.Type = "point"
-
 function ENT:UpdateTransmitState()
     return TRANSMIT_ALWAYS
 end
@@ -21,7 +19,7 @@ function ENT:KeyValue(k, v)
     if k == "width" then
         self:SetWidth(tonumber(v))
     elseif k == "height" then
-        self:SetHeight(tonumber(v))        
+        self:SetHeight(tonumber(v))
     elseif k == "countdown" then
         self.Countdown = tonumber(v)
     end
@@ -37,9 +35,7 @@ end
 
 function ENT:Enable()
     if self:GetEnabled() then return end
-
     self:SetEnabled(true)
-
     self:SetTimeUntil(CurTime() + tonumber(self.Countdown or 0))
 end
 
@@ -49,7 +45,6 @@ end
 
 function ENT:AcceptInput(name, activator, caller, data)
     name = name:lower()
-
     if name == "enable" then
         self:Enable()
     elseif name == "disable" then

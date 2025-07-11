@@ -1,35 +1,25 @@
--- ----------------------------------------------------------------------------
+﻿-- ----------------------------------------------------------------------------
 -- GP2 Framework
 -- Cores
 -- ----------------------------------------------------------------------------
-
 AddCSLuaFile()
 ENT.Type = "ai"
 ENT.Base = "base_ai"
 ENT.AutomaticFrameAdvance = true
-
 local CORE_MODEL = "models/npcs/personality_sphere/personality_sphere.mdl"
 local CORE_SKINS_MODEL = "models/npcs/personality_sphere/personality_sphere_skins.mdl"
-
 ENT.m_fMaxYawSpeed = 200
 ENT.m_iClass = CLASS_PLAYER_ALLY
-
 local sv_personality_core_pca_pitch = CreateConVar("sv_personality_core_pca_pitch", "180", FCVAR_NONE, "Pitch value for personality core perferred carry angles.")
 local sv_personality_core_pca_yaw = CreateConVar("sv_personality_core_pca_yaw", "-90", FCVAR_NONE, "Yaw value for personality core perferred carry angles.")
 local sv_personality_core_pca_roll = CreateConVar("sv_personality_core_pca_roll", "195", FCVAR_NONE, "Roll value for personality core perferred carry angles.")
-
 PrecacheParticleSystem("")
-
-if SERVER then
-    ENT.IdleOverrideSequence = 0
-end
-
+if SERVER then ENT.IdleOverrideSequence = 0 end
 function ENT:SetupDataTables()
-    self:NetworkVar( "Bool", "Attached" )
-    self:NetworkVar( "Bool", "PickupEnabled" )
-    self:NetworkVar( "Bool", "FlashlightEnabled" )
-    self:NetworkVar( "Bool", "DropEnabled" )
-
+    self:NetworkVar("Bool", "Attached")
+    self:NetworkVar("Bool", "PickupEnabled")
+    self:NetworkVar("Bool", "FlashlightEnabled")
+    self:NetworkVar("Bool", "DropEnabled")
     if SERVER then
         self:SetDropEnabled(true)
         self:SetPickupEnabled(true)
@@ -39,7 +29,6 @@ end
 function ENT:Initialize()
     self.IdleOverrideSequence = nil
     self.FlashLightAttachment = self:LookupAttachment("eyes")
-    
     if SERVER then
         self:ChooseSkins()
         self:SetSolidFlags(FSOLID_NOT_STANDABLE)
@@ -57,17 +46,12 @@ function ENT:Initialize()
 end
 
 ENT.__input2func = {
-    ["setidlesequence"] = function(self, activator, caller, data)
-        self:SetIdleSequence(data)
-    end,
-    ["clearidlesequence"] = function(self, activator, caller, data)
-        self:ClearIdleSequence()
-    end,
+    ["setidlesequence"] = function(self, activator, caller, data) self:SetIdleSequence(data) end,
+    ["clearidlesequence"] = function(self, activator, caller, data) self:ClearIdleSequence() end,
     ["explode"] = function(self, activator, caller, data)
         local pos = self:GetPos()
         local effectdata = EffectData()
         effectdata:SetOrigin(pos)
-
         util.Effect("Explosion", effectdata)
         util.ScreenShake(self:GetPos(), 10, 150, 1, 750, true)
         self:Remove()
@@ -86,23 +70,12 @@ ENT.__input2func = {
     end,
     ["forcepickup"] = function(self, activator, caller, data)
         local ply = Entity(1)
-
-        if ply and IsValid(ply) then
-            ply:PickupObject(self)
-        end
+        if ply and IsValid(ply) then ply:PickupObject(self) end
     end,
-    ["enableflashlight"] = function(self, activator, caller, data)
-        self:SetFlashlightEnabled(true)
-    end,
-    ["disableflashlight"] = function(self, activator, caller, data)
-        self:SetFlashlightEnabled(false)
-    end,
-    ["enablepickup"] = function(self, activator, caller, data)
-        self:SetPickupEnabled(true)
-    end,
-    ["disablepickup"] = function(self, activator, caller, data)
-        self:SetPickupEnabled(false)
-    end,
+    ["enableflashlight"] = function(self, activator, caller, data) self:SetFlashlightEnabled(true) end,
+    ["disableflashlight"] = function(self, activator, caller, data) self:SetFlashlightEnabled(false) end,
+    ["enablepickup"] = function(self, activator, caller, data) self:SetPickupEnabled(true) end,
+    ["disablepickup"] = function(self, activator, caller, data) self:SetPickupEnabled(false) end,
     ["enablemotion"] = function(self, activator, caller, data)
         self:SetParent(NULL)
         self:PhysicsInit(SOLID_VPHYSICS)
@@ -114,54 +87,38 @@ ENT.__input2func = {
     end,
     ["disablemotion"] = function(self, activator, caller, data)
         local phys = self:GetPhysicsObject()
-
-        if phys and IsValid(phys) then
-            phys:EnableMotion(false)
-        end
+        if phys and IsValid(phys) then phys:EnableMotion(false) end
     end,
     ["clearparent"] = function(self, activator, caller, data)
         self:RemoveSolidFlags(FSOLID_NOT_SOLID)
         self:SetParent(NULL)
         self:PhysicsInit(SOLID_VPHYSICS)
-
-        local phys = self:GetPhysicsObject()        
+        local phys = self:GetPhysicsObject()
         if phys and IsValid(phys) then
             phys:EnableMotion(true)
             phys:Wake()
         end
-    end,               
+    end,
 }
 
 function ENT:AcceptInput(name, activator, caller, data)
     name = name:lower()
     local func = self.__input2func[name]
-
-    if func and isfunction(func) then
-        func(self, activator, caller, data)
-    end
+    if func and isfunction(func) then func(self, activator, caller, data) end
 end
 
 if SERVER then
     -- Schedules
-    local idleSched = ai_schedule.New( "Test Schedule" )
+    local idleSched = ai_schedule.New("Test Schedule")
     idleSched:AddTask("CustomIdle")
-
-    function ENT:KeyValue(k, v)   
-        if k == "ModelSkin" then
-            self.ModelSkin = tonumber(v)
-        end
-
-        if k == "altmodel" then   
+    function ENT:KeyValue(k, v)
+        if k == "ModelSkin" then self.ModelSkin = tonumber(v) end
+        if k == "altmodel" then
             self.AltModel = tobool(v)
-            
-            if tobool(v) then
-                print('using alt model ')
-            end
+            if tobool(v) then print('using alt model ') end
         end
 
-        if k:StartsWith("On") then
-            self:StoreOutput(k, v)
-        end
+        if k:StartsWith("On") then self:StoreOutput(k, v) end
     end
 
     function ENT:ChooseSkins()
@@ -180,7 +137,7 @@ if SERVER then
     end
 
     function ENT:ClearIdleSequence()
-        self.IdleOverrideSequence = nil 
+        self.IdleOverrideSequence = nil
         self:SetIdealActivity(ACT_IDLE)
     end
 
@@ -200,31 +157,22 @@ if SERVER then
     end
 
     function ENT:OnPhysgunPickup(ply, ent)
-        if self:GetPickupEnabled() and self:GetDropEnabled() then
-            self:TriggerOutput("OnPlayerPickup")
-        end
-
+        if self:GetPickupEnabled() and self:GetDropEnabled() then self:TriggerOutput("OnPlayerPickup") end
         return self:GetPickupEnabled()
     end
 
     function ENT:OnPhysgunDrop(ply, ent)
-        if self:GetPickupEnabled() and self:GetDropEnabled() then
-            self:TriggerOutput("OnPlayerDrop")
-        end
+        if self:GetPickupEnabled() and self:GetDropEnabled() then self:TriggerOutput("OnPlayerDrop") end
     end
 
     function ENT:OnPlayerPickup(ply, ent)
-        if self:GetDropEnabled() then
-            self:TriggerOutput("OnPlayerPickup")
-        end
+        if self:GetDropEnabled() then self:TriggerOutput("OnPlayerPickup") end
     end
 
     function ENT:OnPlayerDrop(ply, ent, thrown)
-        if self:GetDropEnabled() then
-            self:TriggerOutput("OnPlayerDrop")            
-        end
+        if self:GetDropEnabled() then self:TriggerOutput("OnPlayerDrop") end
     end
-    
+
     function ENT:GravGunPickupAllowed(ply)
         return self:GetPickupEnabled() and self:GetDropEnabled()
     end
@@ -255,10 +203,8 @@ end
 
 function ENT:Draw(flags)
     self:DrawModel()
-
     if self:GetFlashlightEnabled() and self.FlashLightAttachment ~= -1 then
         local attach = self:GetAttachment(self.FlashLightAttachment)
-
         if not IsValid(self.ProjectedTexture) then
             self.ProjectedTexture = ProjectedTexture()
             self.ProjectedTexture:SetFOV(85)
@@ -275,10 +221,8 @@ function ENT:Draw(flags)
 
         if not IsValid(self.FlashlightEffect) then
             self.FlashlightEffect = CreateParticleSystem(self, "flashlight_thirdperson", PATTACH_POINT_FOLLOW, self:LookupAttachment("flashlightAttachment"))
-
             if IsValid(self.FlashlightEffect) then
                 self.FlashlightEffect:StartEmission(true)
-            
                 self.FlashlightEffect:AddControlPoint(0, self, PATTACH_CUSTOMORIGIN)
                 self.FlashlightEffect:AddControlPoint(2, self, PATTACH_CUSTOMORIGIN)
             end
@@ -294,8 +238,8 @@ function ENT:Draw(flags)
             self.FlashlightEffect:SetControlPointForwardVector(1, attach.Ang:Forward())
         end
 
-        local dlight = DynamicLight( self:EntIndex() )
-        if ( dlight ) then
+        local dlight = DynamicLight(self:EntIndex())
+        if dlight then
             dlight.pos = attach.Pos + attach.Ang:Forward() * 2
             dlight.r = 31
             dlight.g = 31

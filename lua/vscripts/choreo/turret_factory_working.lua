@@ -1,4 +1,4 @@
-function PlayStuckSound()
+﻿function PlayStuckSound()
     print("=================I AM TURRET NAMED: " .. self:GetName())
     Globals.TurretVoManager.TurretStuck(self)
 end
@@ -58,7 +58,6 @@ end
 
 -- =======================================================================
 -- =======================================================================
-
 -- -------------------------------------------------------------------
 -- Precache sounds we will emit
 -- -------------------------------------------------------------------
@@ -95,10 +94,8 @@ function ScannerRejectMalfunctioningTurret()
     EntFire("reject_turret_relay", "trigger", 0, 4)
 end
 
-
 -- =======================================================================
 -- =======================================================================
-
 -- -------------------------------------------------------------------
 -- Called when a functioning turret is in position to shoot a dummy
 -- -------------------------------------------------------------------
@@ -113,26 +110,21 @@ function MalfunctioningTurretReachedDummyShootPosition()
     Globals.TurretVoManager.DefectTurretShootPosition(self)
 end
 
-
 -- -------------------------------------------------------------------
 -- Spawn a turret to shoot at dummy
 -- -------------------------------------------------------------------
 function SpawnDummyShootTurret()
     print("***Spawning a turret to shoot at dummy!")
-
     -- spawn a new turret
     --EntFire("dummyshoot_conveyor_1_spawn_rl", "trigger", 0, 2 )
-
     -- send current train on down the line to exit
     --EntFire("dummyshoot_conveyor_1_advance_train_relay", "trigger", 0, 2 )
 end
-
 
 -- --------------------------------------------------------------------------------------------------------------
 -- Turret Queue Functions
 -- --------------------------------------------------------------------------------------------------------------
 DBG = 0
-
 if not Globals.GlobalTurretFactoryQueue then
     -- set up global queue
     Globals.GlobalTurretFactoryQueue = {}
@@ -156,10 +148,8 @@ function QueueAdd()
     if DBG then print("====== Adding " .. self:GetName() .. " to queue. Length = " .. #Globals.GlobalTurretFactoryQueue) end
     if #Globals.GlobalTurretFactoryQueue > 4 then
         if DBG then print("====== Turret queue reached " .. #Globals.GlobalTurretFactoryQueue .. ". Removing turret " .. Globals.GlobalTurretFactoryQueue[1] .. " New queue Length = " .. #Globals.GlobalTurretFactoryQueue) end
-
         -- detonate turret
         EntFire(Globals.GlobalTurretFactoryQueue[1], "selfdestruct", 0, 0)
-
         -- remove the turret from the queue
         QueueDeleteFirstItem()
     end
@@ -172,9 +162,7 @@ end
 
 --Delete a single item by index from the queue
 function QueueDelete(index)
-    if QueueLen() == 0 then
-        return false
-    end
+    if QueueLen() == 0 then return false end
     -- remove from queue
     table.remove(Globals.GlobalTurretFactoryQueue, index)
 end
@@ -183,10 +171,7 @@ end
 function RemoveSelfFromQueue()
     turretname = self:GetName()
     if DBG then print("===== ATTEMPTING to remove self from queue: " .. turretname) end
-
-    if QueueLen() == 0 then
-        return false
-    end
+    if QueueLen() == 0 then return false end
     for index, val in ipairs(Globals.GlobalTurretFactoryQueue) do
         if turretname == Globals.GlobalTurretFactoryQueue[index] then
             if DBG then print(" === removing #" .. index .. " named: " .. Globals.GlobalTurretFactoryQueue[index]) end
