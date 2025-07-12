@@ -20,9 +20,9 @@ if SERVER then
     _G.EOT_Validator = _G.EOT_Validator or {}
     _G.EOT_Integrity = _G.EOT_Integrity or {}
     _G.EOT_FinalStatus = _G.EOT_FinalStatus or {}
-    _G.EOT_FinalIntegrationTest = _G.EOT_FinalIntegrationTest or {}
-    -- Initialize stub functions if they don't exist
+    _G.EOT_FinalIntegrationTest = _G.EOT_FinalIntegrationTest or {}    -- Initialize stub functions if they don't exist
     if not _G.EOT_Config.Initialize then _G.EOT_Config.Initialize = function() print("[EOT] Config initialized") end end
+    if not _G.EOT_Test then _G.EOT_Test = {} end
     if not _G.EOT_Test.QuickTest then _G.EOT_Test.QuickTest = function(ply) print("[EOT] QuickTest executed") end end
     if not _G.EOT_Integration.EnableIntegration then _G.EOT_Integration.EnableIntegration = function(name) print("[EOT] Enabled: " .. tostring(name)) end end
     if not _G.EOT_Integration.DisableIntegration then _G.EOT_Integration.DisableIntegration = function(name) print("[EOT] Disabled: " .. tostring(name)) end end

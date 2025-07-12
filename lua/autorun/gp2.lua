@@ -67,6 +67,7 @@ include("gp2/particles.lua")
 include("gp2/entityextensions.lua")
 include("gp2/portalmanager.lua")
 include("gp2/portaldetours.lua")
+include("gp2/vscriptmanager.lua") -- <-- Correction : initialisation plus tôt
 include("gp2/portalmovement" .. (PORTAL_USE_NEW_ENVIRONMENT_SYSTEM and "_new" or "_old") .. ".lua")
 AddCSLuaFile("gp2/portalmovement" .. (PORTAL_USE_NEW_ENVIRONMENT_SYSTEM and "_new" or "_old") .. ".lua")
 AddCSLuaFile("gp2/globals.lua")
@@ -275,8 +276,7 @@ list.Set("SpawnableEntities", "prop_weighted_cube_antique", {
 
 -- Note: prop_portal entity is loaded automatically by Garry's Mod from entities/ folder
 -- Don't force include it here as it breaks ENT context
-if SERVER then
-    -- AcceptInput hooks
+if SERVER then    -- AcceptInput hooks
     include("gp2/inputsmanager.lua")
     -- EntityKeyValue hooks
     include("gp2/keyvalues.lua")
@@ -286,7 +286,8 @@ if SERVER then
     include("gp2/mouthmanager.lua")
     include("gp2/gamemovement.lua")
     include("gp2/portalpvs.lua")
-    include("gp2/portalpropteleport.lua")
+    include("gp2/portalgun_prop_transmission.lua") -- Portal Gun inspired prop transmission system
+    include("gp2/portalgun_test.lua") -- Portal Gun transmission test commands
     include("gp2/paint.lua")
     include("gp2/client/hud.lua")
     hook.Add("Initialize", "GP2::Initialize", function()
@@ -376,7 +377,7 @@ if SERVER then
     end)
 
     hook.Add("PhysgunPickup", "GP2::PhysgunPickup", function(ply, ent) if ent.OnPhysgunPickup and isfunction(ent.OnPhysgunPickup) then return ent:OnPhysgunPickup(ply) end end)
-    hook.Add("PhysgunDrop", "GP2::PhysgunDrop", function(ply, ent) if ent.OnPhysgunDrop and isfunction(ent.OnPhysGunDrop) then ent:OnPhysGunDrop(ply) end end)
+    hook.Add("PhysgunDrop", "GP2::PhysgunDrop", function(ply, ent) if ent.OnPhysgunDrop and isfunction(ent.OnPhysgunDrop) then ent:OnPhysgunDrop(ply) end end)
     hook.Add("OnPlayerPhysicsPickup", "GP2::OnPlayerPhysicsPickup", function(ply, ent) if ent.OnPlayerPickup and isfunction(ent.OnPlayerPickup) then ent:OnPlayerPickup(ply) end end)
     hook.Add("OnPlayerPhysicsDrop", "GP2::OnPlayerPhysicsDrop", function(ply, ent, thrown) if ent.OnPlayerDrop and isfunction(ent.OnPlayerDrop) then ent:OnPlayerDrop(ply, thrown) end end)
     hook.Add("GravGunOnPickedUp", "GP2::GravGunOnPickedUp", function(ply, ent) if ent.OnGravGunPickup and isfunction(ent.OnGravGunPickup) then ent:OnGravGunPickup(ply) end end)

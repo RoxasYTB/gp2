@@ -10,7 +10,7 @@ SWEP.DrawCrosshair = false
 SWEP.Spawnable = true
 SWEP.BobScale = 0 -- Required for custom viewbob
 SWEP.ViewModel = "models/weapons/v_portalgun.mdl"
-SWEP.WorldModel = "models/weapons/w_portalgun.mdl"
+SWEP.WorldModel =  "models/weapons/portalgun/w_portalgun_hl2.mdl"
 SWEP.ViewModelFOV = 50
 SWEP.Automatic = true
 SWEP.Primary.Ammo = "None"
@@ -669,50 +669,89 @@ function SWEP:ViewModelDrawn(vm)
 end
 
 function SWEP:DrawWorldModel(studio)
-    local lastPlacedPortal = self:GetLastPlacedPortal()
-    local lightColor
-    if not IsValid(lastPlacedPortal) then
-        lightColor = vector_origin
-    else
-        -- Verify this is actually a portal entity with GetColorVector method
-        if IsValid(lastPlacedPortal) and lastPlacedPortal:GetClass() == "prop_portal" and lastPlacedPortal.GetColorVector then
-            lightColor = lastPlacedPortal:GetColorVector() * 0.2
-            lightColor.g = lightColor.g * 1.05
-        else
-            -- Fallback to default color if entity is invalid or not a portal
+    -- Enhanced world model drawing inspired by original Portal Gun mod
+    -- Ensures proper visibility for other players and third-person view
+    local owner = self:GetOwner()
+    local shouldDraw = true
+
+    -- Advanced visibility logic from original Portal Gun concepts
+    if IsValid(owner) then
+        -- Check if we're in a special rendering context (portals, mirrors, etc.)
+        local isSpecialRender = PortalRendering and PortalRendering.Rendering
+        local isLocalPlayer = owner == LocalPlayer()
+        local viewEntity = GetViewEntity()
+
+        -- Don't draw if owner is in vehicle and viewing from first person
+        if owner:InVehicle() and isLocalPlayer and not owner:ShouldDrawLocalPlayer() then
+            shouldDraw = false
+        end
+
+        -- Don't draw in first person unless in special render context
+        if isLocalPlayer and not owner:ShouldDrawLocalPlayer() and not isSpecialRender then
+            shouldDraw = false
+        end
+
+        -- Always draw for other players viewing this weapon
+        if not isLocalPlayer then
+            shouldDraw = true
+        end
+
+        -- Always draw when viewed by different entity (cameras, etc.)
+        if IsValid(viewEntity) and viewEntity ~= owner then
+            shouldDraw = true
+        end
+    end
+
+    -- Enhanced drawing with proper third-person support
+    if shouldDraw then
+        local lastPlacedPortal = self:GetLastPlacedPortal()
+        local lightColor
+        if not IsValid(lastPlacedPortal) then
             lightColor = vector_origin
+        else
+            -- Verify this is actually a portal entity with GetColorVector method
+            if IsValid(lastPlacedPortal) and lastPlacedPortal:GetClass() == "prop_portal" and lastPlacedPortal.GetColorVector then
+                lightColor = lastPlacedPortal:GetColorVector() * 0.2
+                lightColor.g = lightColor.g * 1.05
+            else
+                -- Fallback to default color if entity is invalid or not a portal
+                lightColor = vector_origin
+            end
         end
-    end
 
-    if not self.TopLightThirdPersonAttachment then self.TopLightThirdPersonAttachment = self:LookupAttachment("Body_light") end
-    if not self.TopLightColor then self.TopLightColor = Vector() end
-    -- Top light particle (and beam) - world model
-    if not IsValid(self.TopLightThirdPerson) then
-        self.TopLightThirdPerson = CreateParticleSystem(self, "portalgun_top_light_thirdperson", PATTACH_POINT_FOLLOW, self.TopLightThirdPersonAttachment)
-        if IsValid(self.TopLightThirdPerson) then
-            self.TopLightThirdPerson:SetShouldDraw(false)
-            -- Beam particles
-            self.TopLightThirdPerson:AddControlPoint(2, self:GetOwner(), PATTACH_CUSTOMORIGIN)
-            self.TopLightThirdPerson:AddControlPoint(3, self, PATTACH_POINT_FOLLOW, "Beam_point1")
-            self.TopLightThirdPerson:AddControlPoint(4, self, PATTACH_POINT_FOLLOW, "Beam_point5")
-        end
-    else
-        self.TopLightThirdPerson:Render()
-        -- Set color to current portal placed
-        -- TODO: Make portals recolorable, since this code sucks
-        self.TopLightThirdPerson:SetControlPoint(1, lightColor)
-        self.TopLightThirdPerson:SetControlPoint(0, self:GetAttachment(self.TopLightThirdPersonAttachment).Pos)
-        if self.TopLightColor ~= lightColor then
-            lightColor.x = lightColor.x * 0.5
-            lightColor.y = lightColor.y * 0.5
-            lightColor.z = lightColor.z * 0.5
+        if not self.TopLightThirdPersonAttachment then self.TopLightThirdPersonAttachment = self:LookupAttachment("Body_light") end
+        if not self.TopLightColor then self.TopLightColor = Vector() end
+        -- Top light particle (and beam) - world model
+        if not IsValid(self.TopLightThirdPerson) then
+            self.TopLightThirdPerson = CreateParticleSystem(self, "portalgun_top_light_thirdperson", PATTACH_POINT_FOLLOW, self.TopLightThirdPersonAttachment)
+            if IsValid(self.TopLightThirdPerson) then
+                self.TopLightThirdPerson:SetShouldDraw(true) -- Make sure particles are visible
+                -- Beam particles
+                self.TopLightThirdPerson:AddControlPoint(2, self:GetOwner(), PATTACH_CUSTOMORIGIN)
+                self.TopLightThirdPerson:AddControlPoint(3, self, PATTACH_POINT_FOLLOW, "Beam_point1")
+                self.TopLightThirdPerson:AddControlPoint(4, self, PATTACH_POINT_FOLLOW, "Beam_point5")
+            end
+        else
+            self.TopLightThirdPerson:Render()
             -- Set color to current portal placed
+            -- TODO: Make portals recolorable, since this code sucks
             self.TopLightThirdPerson:SetControlPoint(1, lightColor)
-            self.TopLightColor = lightColor
+            if self.TopLightThirdPersonAttachment and self:GetAttachment(self.TopLightThirdPersonAttachment) then
+                self.TopLightThirdPerson:SetControlPoint(0, self:GetAttachment(self.TopLightThirdPersonAttachment).Pos)
+            end
+            if self.TopLightColor ~= lightColor then
+                lightColor.x = lightColor.x * 0.5
+                lightColor.y = lightColor.y * 0.5
+                lightColor.z = lightColor.z * 0.5
+                -- Set color to current portal placed
+                self.TopLightThirdPerson:SetControlPoint(1, lightColor)
+                self.TopLightColor = lightColor
+            end
         end
-    end
 
-    self:DrawModel(studio)
+        -- Always draw the world model when it should be visible
+        self:DrawModel(studio)
+    end
 end
 
 function SWEP:Reload()
