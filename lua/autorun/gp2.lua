@@ -67,7 +67,6 @@ include("gp2/particles.lua")
 include("gp2/entityextensions.lua")
 include("gp2/portalmanager.lua")
 include("gp2/portaldetours.lua")
-include("gp2/vscriptmanager.lua") -- <-- Correction : initialisation plus tôt
 include("gp2/portalmovement" .. (PORTAL_USE_NEW_ENVIRONMENT_SYSTEM and "_new" or "_old") .. ".lua")
 AddCSLuaFile("gp2/portalmovement" .. (PORTAL_USE_NEW_ENVIRONMENT_SYSTEM and "_new" or "_old") .. ".lua")
 AddCSLuaFile("gp2/globals.lua")
@@ -286,8 +285,6 @@ if SERVER then    -- AcceptInput hooks
     include("gp2/mouthmanager.lua")
     include("gp2/gamemovement.lua")
     include("gp2/portalpvs.lua")
-    include("gp2/portalgun_prop_transmission.lua") -- Portal Gun inspired prop transmission system
-    include("gp2/portalgun_test.lua") -- Portal Gun transmission test commands
     include("gp2/paint.lua")
     include("gp2/client/hud.lua")
     hook.Add("Initialize", "GP2::Initialize", function()
