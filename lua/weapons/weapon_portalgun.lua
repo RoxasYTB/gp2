@@ -13,7 +13,7 @@ SWEP.Spawnable = true
 SWEP.BobScale = 0 // Required for custom viewbob
 
 SWEP.ViewModel = "models/weapons/v_portalgun.mdl"
-SWEP.WorldModel = "models/weapons/w_portalgun.mdl"
+SWEP.WorldModel = "models/weapons/portalgun/w_portalgun_hl2.mdl"
 SWEP.ViewModelFOV = 50
 SWEP.Automatic = true
 
@@ -70,10 +70,10 @@ if SERVER then
 			print("Erreur: Joueur invalide")
 			return
 		end
-		
+
 		-- Donner l'arme au joueur
 		ply:Give("weapon_portalgun")
-		
+
 		-- Mettre à jour toutes les armes portal gun du joueur
 		local upgraded = false
 		for _, weapon in ipairs(ply:GetWeapons()) do
@@ -82,7 +82,7 @@ if SERVER then
 				upgraded = true
 			end
 		end
-		
+
 		-- Message de confirmation
 		if upgraded then
 			ply:PrintMessage(HUD_PRINTCHAT, "[GP2] Portal Gun amélioré avec succès!")
@@ -99,7 +99,7 @@ if SERVER then
 			print("Erreur: Joueur invalide")
 			return
 		end
-		
+
 		local upgraded = false
 		for _, weapon in ipairs(ply:GetWeapons()) do
 			if weapon:GetClass() == "weapon_portalgun" then
@@ -107,7 +107,7 @@ if SERVER then
 				upgraded = true
 			end
 		end
-		
+
 		-- Message de confirmation
 		if upgraded then
 			ply:PrintMessage(HUD_PRINTCHAT, "[GP2] Portal Gun en mode Potato activé!")
@@ -123,7 +123,7 @@ if SERVER then
 			print("Erreur: Joueur invalide")
 			return
 		end
-		
+
 		local downgraded = false
 		for _, weapon in ipairs(ply:GetWeapons()) do
 			if weapon:GetClass() == "weapon_portalgun" then
@@ -131,7 +131,7 @@ if SERVER then
 				downgraded = true
 			end
 		end
-		
+
 		if downgraded then
 			ply:PrintMessage(HUD_PRINTCHAT, "[GP2] Mode Potato désactivé!")
 			ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Portal Gun restauré en mode normal")
@@ -146,7 +146,7 @@ if SERVER then
 			print("Erreur: Joueur invalide")
 			return
 		end
-		
+
 		ply:PrintMessage(HUD_PRINTCONSOLE, "=== COMMANDES PORTAL GUN GP2-SDK ===")
 		ply:PrintMessage(HUD_PRINTCONSOLE, "upgrade_portalgun - Obtenir/améliorer votre Portal Gun")
 		ply:PrintMessage(HUD_PRINTCONSOLE, "upgrade_potatogun - Activer le mode Potato")
@@ -603,8 +603,8 @@ function SWEP:PlacePortal(type, owner)
 	local placementStatus, traceResult, pos, ang
 
 	if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
-		placementStatus, traceResult, pos, ang = setPortalPlacementNew(self:GetOwner(), portal) 
-	else 
+		placementStatus, traceResult, pos, ang = setPortalPlacementNew(self:GetOwner(), portal)
+	else
 		placementStatus, traceResult, pos, ang = setPortalPlacementOld(self:GetOwner(), portal)
 	end
 
@@ -903,7 +903,10 @@ function SWEP:DrawWorldModel(studio)	local lastPlacedPortal = self:GetLastPlaced
 		-- Set color to current portal placed
 		-- TODO: Make portals recolorable, since this code sucks
 		self.TopLightThirdPerson:SetControlPoint(1, lightColor)
-		self.TopLightThirdPerson:SetControlPoint(0, self:GetAttachment(self.TopLightThirdPersonAttachment).Pos)
+		local att = self:GetAttachment(self.TopLightThirdPersonAttachment)
+		if att then
+			self.TopLightThirdPerson:SetControlPoint(0, att.Pos)
+		end
 
 		if self.TopLightColor ~= lightColor then
 			lightColor.x = lightColor.x * 0.5

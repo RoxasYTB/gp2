@@ -12,14 +12,15 @@ timer.Create("portals_ent_update", ENTS_UPDATE_INTERVAL, 0, function()
     local portals = ents.FindByClass("prop_portal")
     allEnts = {}
     for _, ent in ipairs(ents.GetAll()) do
-        -- Filtrage plus strict dès le départ
-        if not ent:IsValid() then goto continue end
-        if not ent.GetPhysicsObject or not ent:GetPhysicsObject():IsValid() then goto continue end
-        if ent:GetVelocity():IsZero() then goto continue end
-        local class = ent:GetClass()
-        if class == "player" or class == "prop_portal" then goto continue end
-        table.insert(allEnts, ent)
-        ::continue::
+        do
+            -- Filtrage plus strict dès le départ
+            if not ent:IsValid() then break end
+            if not ent.GetPhysicsObject or not ent:GetPhysicsObject():IsValid() then break end
+            if ent:GetVelocity():IsZero() then break end
+            local class = ent:GetClass()
+            if class == "player" or class == "prop_portal" then break end
+            table.insert(allEnts, ent)
+        end
     end
     lastEntsUpdate = CurTime()
 end)
@@ -56,34 +57,35 @@ hook.Add("Tick", "seamless_portal_teleport", function()
     -- Early return si la liste n'a pas été mise à jour récemment
     if not lastEntsUpdate or CurTime() - lastEntsUpdate > ENTS_UPDATE_INTERVAL * 2 then return end
     for _, prop in ipairs(allEnts) do
-        if not prop or not prop:IsValid() then goto continue end
-        if prop:IsPlayerHolding() then goto continue end
-        local realPos = prop:GetPos()
-        local obbVel = prop:GetVelocity(); obbVel:Mul(0.02)
-        local obbMin = prop:OBBMins()
-        local obbMax = prop:OBBMax()
-        local tr = util.TraceHull({
-            start       = realPos - obbVel,
-            endpos      = realPos + obbVel,
-            mins        = obbMin,
-            maxs        = obbMax,
-            filter      = seamless_check,
-            ignoreworld = true,
-        })
-        if not tr.Hit then goto continue end
-        local hitPortal = tr.Entity
-        if hitPortal:GetClass() ~= "prop_portal" then goto continue end
-        local hitPortalExit = tr.Entity:GetLinkedPartner()
-        if hitPortalExit and hitPortalExit:IsValid() and obbMax[1] < hitPortal:GetSize()[1] * 2 and obbMax[2] < hitPortal:GetSize()[2] * 2 and prop:GetVelocity():Dot(hitPortal:GetUp()) < -0.5 then
-            local constrained = constraint.GetAllConstrainedEntities(prop)
-            for k, constrainedProp in pairs(constrained) do
-                local editedPos, editedPropAng = PortalManager.TransformPortal(hitPortal, hitPortalExit, constrainedProp:GetPos(), constrainedProp:GetAngles())
-                local _, editedVel = PortalManager.TransformPortal(hitPortal, hitPortalExit, nil, constrainedProp:GetVelocity():Angle())
-                local max = math.Max(constrainedProp:GetVelocity():Length(), hitPortalExit:GetUp():Dot(-physenv.GetGravity() / 3))
-                constrainedProp:ForcePlayerDrop()
-                unfucked_setpos(constrainedProp, editedPos, editedPropAng, editedVel:Forward() * max)
+        do
+            if not prop or not prop:IsValid() then break end
+            if prop:IsPlayerHolding() then break end
+            local realPos = prop:GetPos()
+            local obbVel = prop:GetVelocity(); obbVel:Mul(0.02)
+            local obbMin = prop:OBBMins()
+            local obbMax = prop:OBBMax()
+            local tr = util.TraceHull({
+                start       = realPos - obbVel,
+                endpos      = realPos + obbVel,
+                mins        = obbMin,
+                maxs        = obbMax,
+                filter      = seamless_check,
+                ignoreworld = true,
+            })
+            if not tr.Hit then break end
+            local hitPortal = tr.Entity
+            if hitPortal:GetClass() ~= "prop_portal" then break end
+            local hitPortalExit = tr.Entity:GetLinkedPartner()
+            if hitPortalExit and hitPortalExit:IsValid() and obbMax[1] < hitPortal:GetSize()[1] * 2 and obbMax[2] < hitPortal:GetSize()[2] * 2 and prop:GetVelocity():Dot(hitPortal:GetUp()) < -0.5 then
+                local constrained = constraint.GetAllConstrainedEntities(prop)
+                for k, constrainedProp in pairs(constrained) do
+                    local editedPos, editedPropAng = PortalManager.TransformPortal(hitPortal, hitPortalExit, constrainedProp:GetPos(), constrainedProp:GetAngles())
+                    local _, editedVel = PortalManager.TransformPortal(hitPortal, hitPortalExit, nil, constrainedProp:GetVelocity():Angle())
+                    local max = math.Max(constrainedProp:GetVelocity():Length(), hitPortalExit:GetUp():Dot(-physenv.GetGravity() / 3))
+                    constrainedProp:ForcePlayerDrop()
+                    unfucked_setpos(constrainedProp, editedPos, editedPropAng, editedVel:Forward() * max)
+                end
             end
         end
-        ::continue::
     end
 end)

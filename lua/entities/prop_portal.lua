@@ -41,22 +41,22 @@ if CLIENT then
 			GP2.Print("Failed to load portalrendering.lua: %s", err or "unknown error")
 		end
 	end
-	
+
 	PropPortal = PropPortal or {}
 	PropPortal.Portals = PropPortal.Portals or {}
-	
+
 	-- Initialize PropPortal functions if not already present
 	if not PropPortal.AddToRenderList then
 		PropPortal.AddToRenderList = function(portal)
 			PropPortal.Portals[portal] = true
 		end
 	end
-	
+
 	PortalRendering = PortalRendering or {}
 	PortalRendering.PortalMeshes = PortalRendering.PortalMeshes or {}
 	PortalRendering.PortalMaterials = PortalRendering.PortalMaterials or {}
 	PortalRendering.Rendering = PortalRendering.Rendering or false
-	
+
 	-- Initialize PortalRendering functions if not already present
 	if not PortalRendering.ValidateAndSetRingRT then
 		PortalRendering.ValidateAndSetRingRT = function(portal)
@@ -69,7 +69,7 @@ if CLIENT then
 			return 250 -- Default draw distance
 		end
 	end
-	
+
 	if not PortalRendering.GetShowGhosting then
 		PortalRendering.GetShowGhosting = function()
 			return true -- Default ghosting enabled
@@ -110,7 +110,7 @@ function ENT:SetSize(n)
 		GP2.Print("Portal %d: Invalid size provided: %s", self:EntIndex(), tostring(n))
 		return
 	end
-	
+
 	self:SetSizeInternal(n)
 	-- Only update physics mesh if we're on the server and entity is initialized
 	if SERVER and self:GetClass() == "prop_portal" then
@@ -128,7 +128,7 @@ end
 
 function ENT:GetSize()
 	local size = self:GetSizeInternal()
-	
+
 	-- Return default size if not set or invalid
 	if not size or size == Vector(0,0,0) or size.x <= 0 or size.y <= 0 or size.z <= 0 then
 		if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
@@ -137,7 +137,7 @@ function ENT:GetSize()
 			return Vector(PORTAL_HEIGHT / 2, PORTAL_WIDTH / 2, 7)
 		end
 	end
-	
+
 	return size
 end
 
@@ -220,7 +220,7 @@ function ENT:Initialize()
 			self:SetPos(self:GetPos() + self:GetAngles():Up() * 7.1)
 		end
 		PortalManager.PortalIndex = PortalManager.PortalIndex + 1
-		
+
 		-- Delay physics mesh creation to ensure entity is fully initialized
 		timer.Simple(0.1, function()
 			if self:IsValid() then
@@ -234,7 +234,7 @@ function ENT:Initialize()
 			self:BuildPortalEnvironment()
 		end
 	end
-	
+
 	-- Override portal in LinkageGroup
 	PortalManager.SetPortal(self:GetLinkageGroup(), self)
 	PortalManager.Portals[self] = true
@@ -254,7 +254,7 @@ function ENT:OnRemove()
 	if SERVER and self.PORTAL_REMOVE_EXIT then
 		SafeRemoveEntity(self:GetLinkedPartner())
 	end
-	
+
 	if CLIENT and IsValid(self.RingParticle) then
 		self.RingParticle:StopEmissionAndDestroyImmediately()
 	end
@@ -280,7 +280,7 @@ if CLIENT then
 		local color = net.ReadVector()
 
 		local forward, right, up = angle:Forward(), angle:Right(), angle:Up()
-	
+
 		local particle = CreateParticleSystemNoEntity("portal_close", pos, angle)
 		if IsValid(particle) then
 			particle:SetControlPoint(0, pos)
@@ -288,13 +288,13 @@ if CLIENT then
 			particle:SetControlPoint(2, color)
 		end
 	end)
-	
+
 	local function getRenderMesh()
 		-- Ensure PortalRendering is initialized
 		if not PortalRendering or not PortalRendering.PortalMeshes then
 			return Mesh(), Mesh()
 		end
-		
+
 		if not PortalRendering.PortalMeshes[4] then
 			PortalRendering.PortalMeshes[4] = { Mesh(), Mesh() }
 
@@ -333,8 +333,8 @@ if CLIENT then
 
 		return PortalRendering.PortalMeshes[4][2], PortalRendering.PortalMeshes[4][1]
 	end
-	
-	
+
+
 	function ENT:Draw()
 		if not self:GetActivated() then return end
 
@@ -358,7 +358,7 @@ if CLIENT then
 				self.RENDER_MATRIX:SetScale(size * 0.999)
 				size.z = -0.5
 				self:SetRenderBounds(-size, size)
-	
+
 				size[3] = 0
 			end
 		else
@@ -367,15 +367,15 @@ if CLIENT then
 				self.RENDER_MATRIX:SetTranslation(self:GetPos())
 				self.RENDER_MATRIX:SetAngles(self:GetAngles())
 				self.RENDER_MATRIX:SetScale(size * 0.999)
-				
+
 				self:SetRenderBounds(-size, size)
-	
+
 				size[3] = 0
 			end
 		end		-- Try to build gradient texture for current color
-		-- to override color - without shaders :( 
+		-- to override color - without shaders :(
 		local portalOverlay = PortalRendering and PortalRendering.ValidateAndSetRingRT and PortalRendering.ValidateAndSetRingRT(self)
-		
+
 		if not portalOverlay or not portalOverlay.SetFloat then
 			-- PortalRendering not fully loaded yet, skip rendering this frame
 			return
@@ -385,7 +385,7 @@ if CLIENT then
 		-- because it uses mesh rather entity's model
 		stencilHole:SetFloat("$portalopenamount", self:GetOpenAmount())		portalOverlay:SetFloat("$portalopenamount", self:GetOpenAmount())
 		portalOverlay:SetFloat("$time", CurTime())
-		
+
 		if PortalRendering and not PortalRendering.Rendering and IsValid(self:GetLinkedPartner()) then
 			portalOverlay:SetFloat("$portalstatic", self:GetStaticAmount())
 		else
@@ -407,7 +407,7 @@ if CLIENT then
 		render.SetStencilZFailOperation(STENCIL_KEEP)
 		render.SetStencilPassOperation(STENCIL_REPLACE)
 		render.SetStencilCompareFunction(STENCIL_ALWAYS)
-		
+
 		if stencilHole and not stencilHole:IsError() then
 			render.SetMaterial(stencilHole)
 
@@ -438,7 +438,7 @@ if CLIENT then
 				renderMesh:Draw()
 			cam.PopModelMatrix()
 		end
-				-- 
+				--
 		-- Render the ring particle only not in portal view
 		-- after everything
 		--
@@ -476,7 +476,7 @@ if CLIENT then
 			cam.PushModelMatrix(self.RENDER_MATRIX)
 				renderMesh:Draw()
 				renderMesh2:Draw()
-			cam.PopModelMatrix()    
+			cam.PopModelMatrix()
 			render.OverrideColorWriteEnable(false, false)
 
 			render.SetStencilCompareFunction(STENCIL_EQUAL)
@@ -488,13 +488,13 @@ if CLIENT then
 			cam.PushModelMatrix(self.RENDER_MATRIX)
 				renderMesh:Draw()
 				renderMesh2:Draw()
-			cam.PopModelMatrix() 
+			cam.PopModelMatrix()
 			cam.IgnoreZ(false)
 		end
 		render.SetBlend(1)
 
 			render.SetStencilEnable(false)
-		end		
+		end
 	end
 
 	-- hacky bullet fix
@@ -513,7 +513,7 @@ if CLIENT then
         if not IsValid(self.RingParticle) then
             -- they're lagging
             self.RingParticle = CreateParticleSystem(self, self:GetType() == PORTAL_TYPE_SECOND and "portal_edge_reverse" or "portal_edge", PATTACH_CUSTOMORIGIN)
-            
+
             if IsValid(self.RingParticle) then
                 self.RingParticle:StartEmission()
                 self.RingParticle:SetShouldDraw(false)
@@ -532,7 +532,7 @@ if CLIENT then
             local angles = self:GetAngles()
             local fwd, right, up = angles:Forward(), angles:Right(), angles:Up()
             self.RingParticle:SetControlPointOrientation(0, right, fwd, up)
-            
+
             if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
                 self.RingParticle:SetControlPoint(7, self:GetColorVector())
             else
@@ -549,6 +549,60 @@ if CLIENT then
         elseif self:GetVelocity() == Vector() then
             self:UpdatePhysmesh()
         end
+
+        -- Téléportation réelle du prop si la bounding box est entièrement passée
+        for prop, _ in pairs(self._portalProps or {}) do
+            if not IsValid(prop) then
+                self._portalProps[prop] = nil
+                break
+            end
+            local localPos = self:WorldToLocal(prop:GetPos())
+            local obbMins, obbMaxs = prop:OBBMins(), prop:OBBMaxs()
+            -- On considère le prop "entièrement passé" si son OBB est entièrement de l'autre côté du plan du portail
+            local allPassed = true
+            for _, corner in ipairs({
+                Vector(obbMins.x, obbMins.y, obbMins.z),
+                Vector(obbMins.x, obbMins.y, obbMaxs.z),
+                Vector(obbMins.x, obbMaxs.y, obbMins.z),
+                Vector(obbMins.x, obbMaxs.y, obbMaxs.z),
+                Vector(obbMaxs.x, obbMins.y, obbMins.z),
+                Vector(obbMaxs.x, obbMins.y, obbMaxs.z),
+                Vector(obbMaxs.x, obbMaxs.y, obbMins.z),
+                Vector(obbMaxs.x, obbMaxs.y, obbMaxs.z),
+            }) do
+                local worldCorner = prop:LocalToWorld(corner)
+                local rel = self:WorldToLocal(worldCorner)
+                if rel.x < 0 then
+                    allPassed = false
+                    break
+                end
+            end
+            if allPassed then
+                local exit = self:GetLinkedPartner()
+                if IsValid(exit) then
+                    -- Transformation position/angle/velocity
+                    local newPos, newAng = self:TransformThroughPortal(exit, prop:GetPos(), prop:GetAngles())
+                    local phys = prop:GetPhysicsObject()
+                    if IsValid(phys) then
+                        local vel = phys:GetVelocity()
+                        local newVel = exit:LocalToWorld(self:WorldToLocal(vel))
+                        prop:SetPos(newPos)
+                        prop:SetAngles(newAng)
+                        phys:SetVelocity(newVel)
+                    else
+                        prop:SetPos(newPos)
+                        prop:SetAngles(newAng)
+                    end
+                    -- Suppression du ghost
+                    net.Start("GP2_PortalPropGhostRemove")
+                        net.WriteEntity(self)
+                        net.WriteEntity(prop)
+                    net.Broadcast()
+                    prop._portalGhosted = false
+                    self._portalProps[prop] = nil
+                end
+            end
+        end
     end
 
 	hook.Add("NetworkEntityCreated", "seamless_portal_init", function(ent)
@@ -561,16 +615,72 @@ if CLIENT then
 	end)
 end
 
+if SERVER then
+    util.AddNetworkString("GP2_PortalPropGhost")
+    util.AddNetworkString("GP2_PortalPropGhostRemove")    -- Table pour suivre l'état des props en ghost par portail
+    ENT._portalProps = ENT._portalProps or {}
+
+    function ENT:Think()
+        local portalPos = self:GetPos()
+        local portalAng = self:GetAngles()
+        local portalNormal = portalAng:Forward()
+        local portalSize = self:GetSize() or Vector(56,32,8)
+        local bboxExpand = 32
+
+        -- Recherche des props physiques (ex: cubes)
+        for _, prop in ipairs(ents.FindInSphere(portalPos, 96)) do
+            if IsValid(prop) and prop.GetClass and (prop:GetClass() == "prop_weighted_cube" or prop:GetClass() == "prop_physics") and not prop._portalGhosted then
+                -- Calculer la position relative au plan du portail
+                local localPos = self:WorldToLocal(prop:GetPos())
+                -- Test : le prop touche-t-il le plan du portail ?
+                if math.abs(localPos.x) < bboxExpand and math.abs(localPos.y) < portalSize.y and math.abs(localPos.z) < portalSize.x then
+                    -- Créer le ghost côté client
+                    net.Start("GP2_PortalPropGhost")
+                        net.WriteEntity(self)
+                        net.WriteEntity(prop)
+                        net.WriteVector(prop:GetPos())
+                        net.WriteAngle(prop:GetAngles())
+                        net.WriteString(prop:GetModel())
+                    net.Broadcast()
+                    prop._portalGhosted = true
+                    self._portalProps = self._portalProps or {}
+                    self._portalProps[prop] = true
+                end
+            end
+        end
+
+        -- Nettoyage des ghosts si le prop s'éloigne ou est supprimé
+        for prop, _ in pairs(self._portalProps or {}) do
+            if not IsValid(prop) or not prop._portalGhosted then
+                self._portalProps[prop] = nil
+            else
+                local localPos = self:WorldToLocal(prop:GetPos())
+                if math.abs(localPos.x) > bboxExpand*1.5 or math.abs(localPos.y) > portalSize.y*1.5 or math.abs(localPos.z) > portalSize.x*1.5 then
+                    net.Start("GP2_PortalPropGhostRemove")
+                        net.WriteEntity(self)
+                        net.WriteEntity(prop)
+                    net.Broadcast()
+                    prop._portalGhosted = false
+                    self._portalProps[prop] = nil
+                end
+            end
+        end
+
+        self:NextThink(CurTime() + 0.05)
+        return true
+    end
+end
+
 function ENT:UpdatePhysmesh()
 	local size = self:GetSize()
-	
+
 	-- Ensure constants are defined
 	if not PORTAL_HEIGHT or not PORTAL_WIDTH then
 		PORTAL_HEIGHT = PORTAL_HEIGHT or 112
 		PORTAL_WIDTH = PORTAL_WIDTH or 64
 		GP2.Print("Portal %d: Constants not loaded, using defaults", self:EntIndex())
 	end
-	
+
 	-- Validate size before creating physics mesh
 	if not size or size == Vector(0,0,0) or size.x <= 0 or size.y <= 0 or size.z <= 0 then
 		GP2.Print("Portal %d: Invalid size for physics mesh: %s", self:EntIndex(), tostring(size))
@@ -585,7 +695,7 @@ function ENT:UpdatePhysmesh()
 	if not PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
 		-- Try different physics initialization methods
 		local physicsInitialized = false
-		
+
 		-- Method 1: Try PhysicsInit with SOLID_VPHYSICS
 		if not physicsInitialized then
 			local success = pcall(self.PhysicsInit, self, SOLID_VPHYSICS)
@@ -594,7 +704,7 @@ function ENT:UpdatePhysmesh()
 				GP2.Print("Portal %d: Physics initialized with SOLID_VPHYSICS", self:EntIndex())
 			end
 		end
-		
+
 		-- Method 2: Try PhysicsInitBox as fallback
 		if not physicsInitialized then
 			local success = pcall(self.PhysicsInitBox, self, -size, size)
@@ -603,7 +713,7 @@ function ENT:UpdatePhysmesh()
 				GP2.Print("Portal %d: Physics initialized with PhysicsInitBox", self:EntIndex())
 			end
 		end
-		
+
 		-- Method 3: Try PhysicsInitConvex directly with simple mesh
 		if not physicsInitialized then
 			local simpleMesh = {
@@ -616,14 +726,14 @@ function ENT:UpdatePhysmesh()
 				Vector( size.x,  size.y, -size.z),
 				Vector( size.x,  size.y,  size.z)
 			}
-			
+
 			local success = pcall(self.PhysicsInitConvex, self, simpleMesh)
 			if success and IsValid(self:GetPhysicsObject()) then
 				physicsInitialized = true
 				GP2.Print("Portal %d: Physics initialized with simple convex mesh", self:EntIndex())
 			end
 		end
-		
+
 		if physicsInitialized and IsValid(self:GetPhysicsObject()) then
 			-- Now try to create the detailed portal mesh
 			local finalMesh = {}
@@ -639,7 +749,7 @@ function ENT:UpdatePhysmesh()
 				table.insert(finalMesh, side1 * size)
 				table.insert(finalMesh, side2 * size)
 			end
-			
+
 			-- Try to replace with detailed mesh
 			if #finalMesh > 0 then
 				local success, err = pcall(self.PhysicsInitConvex, self, finalMesh)
@@ -672,12 +782,12 @@ function ENT:UpdatePhysmesh()
 		self:PhysicsInit(6) -- Initialize physics as a solid
 		if self:GetPhysicsObject():IsValid() then
 			local meshSize = size * 2
-	
+
 			-- Calculate the bounds for the mesh with validation
 			local x0, x1 = -meshSize.x / 2, meshSize.x / 2
 			local y0, y1 = -meshSize.y / 2, meshSize.y / 2
 			local z0, z1 = -meshSize.z, meshSize.z
-	
+
 			-- Define the convex quad mesh
 			local mesh = {
 				Vector(x0, y0, z0),
@@ -774,15 +884,15 @@ function ENT:SetLinkedPartner(partner)
 		return
 	end
 
-	if not partner:GetActivated() then 
+	if not partner:GetActivated() then
 		print("[GP2][DEBUG] SetLinkedPartner: partner n'est pas activé")
-		return 
+		return
 	end
-	
+
 	partner:SetStaticTime(CurTime())
 	self:SetStaticTime(CurTime())
 	self:SetLinkedPartnerInternal(partner)
-	partner:SetLinkedPartnerInternal(self)	
+	partner:SetLinkedPartnerInternal(self)
 
 	GP2.Print("Setting partner for " .. tostring(partner) .. " on portal " .. tostring(self))
 
@@ -857,6 +967,16 @@ end
 function ENT:SetPortalColor(r, g, b)
 	self:SetColorVectorInternal(Vector(r, g, b))
 	self:SetColorVector01Internal(Vector(r * 0.5 / 255, g * 0.5 / 255, b * 0.5 / 255))
+end
+
+-- Utilitaire de transformation entrée → sortie de portail
+function ENT:TransformThroughPortal(exitPortal, pos, ang)
+    -- Transforme une position et un angle du référentiel de ce portail vers celui du portail de sortie
+    local localPos = self:WorldToLocal(pos)
+    local localAng = self:WorldToLocalAngles(ang)
+    local newPos = exitPortal:LocalToWorld(localPos)
+    local newAng = exitPortal:LocalToWorldAngles(localAng)
+    return newPos, newAng
 end
 
 -- Register the entity with Garry's Mod
