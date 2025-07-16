@@ -21,7 +21,7 @@ end
 local freezePly = false
 local function updateCalcViews(finalPos, finalVel)
 	timer.Remove("portals_eye_fix_delay")	--just in case you enter the portal while the timer is running
-	
+
 	local addAngle = 1
 	finalPos = finalPos - finalVel * FrameTime()	-- why does this work? idk but it feels nice, could be a source prediction thing
 	hook.Add("CalcView", "GP2::PortalFix", function(ply, origin, angle, fov)
@@ -37,7 +37,7 @@ local function updateCalcViews(finalPos, finalVel)
 			finalPos = ply:EyePos()
 			PortalRendering.DrawPlayerInView = false
 		end
-		
+
 		local wep = ply:GetActiveWeapon()
 		if wep:IsValid() and isfunction(wep.CalcView) then
 			local origin, angles, fov = wep:CalcView(ply, Vector(finalPos), Angle(angle), fov)
@@ -75,7 +75,7 @@ if SERVER then
     util.AddNetworkString("PORTALS_FREEZE")
 else
     net.Receive("PORTALS_FREEZE", function()
-		if game.SinglePlayer() then 
+		if game.SinglePlayer() then
 			updateCalcViews(Vector(), Vector())
 			if net.ReadBool() then
 				--PortalRendering.ToggleMirror(!PortalRendering.ToggleMirror())
@@ -91,6 +91,15 @@ local function seamless_check(e)
 	return not (seamless_table[e:GetClass()] or e:GetCollisionGroup() == COLLISION_GROUP_WORLD)
 end -- for traces
 
+-- Enhanced seamless check that ignores world when player has disabled collisions
+local function seamless_check_enhanced(e, ply)
+	if IsValid(ply) and ply:IsPlayer() and ply.PORTAL_COLLISION_DISABLED then
+		-- Ignore world collisions for players in portal transition
+		return not seamless_table[e:GetClass()]
+	end
+	return not (seamless_table[e:GetClass()] or e:GetCollisionGroup() == COLLISION_GROUP_WORLD)
+end
+
 -- 'no collide' the player with the wall by shrinking the player's collision box
 local traceTable = {}
 local function editPlayerCollision(mv, ply, t)
@@ -103,9 +112,9 @@ local function editPlayerCollision(mv, ply, t)
 	traceTable.mins = Vector(-16, -16, 0)
 	traceTable.maxs = Vector( 16,  16, 72 - (ply:Crouching() and 1 or 0) * 36)
 	traceTable.filter = ply
-
 	if !ply.PORTAL_STUCK_OFFSET then
-		traceTable.ignoreworld = true
+		-- Use enhanced collision check that can ignore world when collisions are disabled
+		traceTable.ignoreworld = ply.PORTAL_COLLISION_DISABLED or false
 	else
 		-- extrusion in case the player enables non-ground collision and manages to clip outside of the portal while they are falling (rare case)
 		if ply.PORTAL_STUCK_OFFSET != 0 then
@@ -114,7 +123,7 @@ local function editPlayerCollision(mv, ply, t)
 				ply.PORTAL_STUCK_OFFSET = nil
 				mv:SetOrigin(tr.HitPos)
 				ply:ResetHull()
-				return 
+				return
 			end
 		end
 	end
@@ -156,19 +165,19 @@ local function editPlayerCollision(mv, ply, t)
 		ply:ResetHull()
 		ply.PORTAL_STUCK_OFFSET = nil
 	end
-	
+
 	traceTable.ignoreworld = false
 end
 
 -- teleport players
 local seamless_check2 = function(e) return e:GetClass() == "prop_portal" end
 hook.Add("Move", "seamless_portal_teleport", function(ply, mv)
-    if !PortalManager or PortalManager.PortalIndex < 1 then 
+    if !PortalManager or PortalManager.PortalIndex < 1 then
 		if ply.PORTAL_STUCK_OFFSET then
 			ply:ResetHull()
 			ply.PORTAL_STUCK_OFFSET = nil
 		end
-		return 
+		return
 	end
 
 	editPlayerCollision(mv, ply)
@@ -196,13 +205,12 @@ hook.Add("Move", "seamless_portal_teleport", function(ply, mv)
 		--ground can fluxuate depending on how the user places the portals, so we need to make sure we're not going to teleport into the ground
 		local eyeHeight = (ply:EyePos() - ply:GetPos())
 		local finalPos = editedPos - eyeHeight
-
 		-- dont do extrusion if the player is noclipping
 		local offset = Vector()
 		if ply:GetMoveType() != MOVETYPE_NOCLIP then
 			traceTable.start = editedPos
 			traceTable.endpos = finalPos - Vector(0, 0, 0.01)
-			traceTable.filter = seamless_check
+			traceTable.filter = function(e) return seamless_check_enhanced(e, ply) end
 			local tr = PortalManager.TraceLine(traceTable)
 			offset = tr.HitPos - finalPos
 		end
@@ -220,15 +228,17 @@ hook.Add("Move", "seamless_portal_teleport", function(ply, mv)
 
 		-- apply final velocity
 		mv:SetVelocity(editedVelocity:Forward() * max * exitSize)
-
 		-- send the client that the new position is valid
-		if SERVER then 
+		if SERVER then
+			-- Déclencher l'événement de téléportation pour le système de collisions
+			hook.Run("GP2_PlayerTeleportedThroughPortal", ply, hitPortal, linkedPartner)
+
 			-- lerp fix for singleplayer
 			if game.SinglePlayer() then
 				ply:SetPos(finalPos)
 				ply:SetEyeAngles(editedAng)
 			end
-			
+
 			// infinite map support
 			if InfMap then
 				local final_pos_offset, chunk_offset = InfMap.localize_vector(finalPos)
@@ -237,7 +247,7 @@ hook.Add("Move", "seamless_portal_teleport", function(ply, mv)
 			end
 
 			mv:SetOrigin(finalPos)
-			
+
 			net.Start("PORTALS_FREEZE")
 			net.WriteBool(hitPortal == linkedPartner)
 			net.Send(ply)

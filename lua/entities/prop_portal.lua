@@ -19,7 +19,6 @@ end
 ENT.Type = "anim"
 ENT.Base = "base_anim"
 ENT.Spawnable = true
-ENT.AdminOnly = false
 ENT.Category = "Portal 2"
 ENT.PrintName = "Portal"
 ENT.Author = "GP2 Framework"
@@ -253,6 +252,20 @@ function ENT:OnRemove()
 	PortalManager.PortalIndex = math.max(PortalManager.PortalIndex - 1, 0)
 	if SERVER and self.PORTAL_REMOVE_EXIT then
 		SafeRemoveEntity(self:GetLinkedPartner())
+	end
+
+	-- Nettoyer tous les ghosts de ce portail
+	if SERVER then
+		for prop, _ in pairs(self._portalProps or {}) do
+			if IsValid(prop) then
+				prop._portalGhosted = false
+			end
+		end
+		self._portalProps = {}
+
+		-- Nettoyer la queue réseau côté serveur
+		self._netQueue = {}
+		self._netProcessing = false
 	end
 
 	if CLIENT and IsValid(self.RingParticle) then
@@ -502,12 +515,74 @@ if CLIENT then
 		function ENT:TestCollision(startpos, delta, isbox, extents, mask)
 			if bit.band(mask, CONTENTS_GRATE) ~= 0 then return true end
 		end
-	end
-
-    function ENT:Think()
+	end    function ENT:Think()
         -- OPTIMISATION : N'ajoute à la render list que si pas déjà présent
         if PropPortal and PropPortal.AddToRenderList and not PropPortal.IsAddedToRenderList(self) then
             PropPortal.AddToRenderList(self)
+        end
+
+        -- Système de téléportation des ghosts
+        if SERVER and self._serverGhosts then
+            for ghost, data in pairs(self._serverGhosts) do
+                if IsValid(ghost) and IsValid(data.originalProp) then
+                    local portal = self
+                    local exit = self:GetLinkedPartner()
+
+                    if IsValid(exit) then
+                        -- Vérifier si le ghost ne touche plus le portail
+                        local ghostPos = ghost:GetPos()
+                        local localPos = portal:WorldToLocal(ghostPos)
+                        local portalSize = portal:GetSize()
+
+                        -- Seuil de déclenchement de la téléportation
+                        local triggerDistance = portalSize.z * 0.5
+
+                        -- Si le ghost n'est plus proche du portail, téléporter le prop original
+                        if math.abs(localPos.x) > triggerDistance then
+                            local originalProp = data.originalProp
+
+                            -- Téléporter le prop original à la position du ghost
+                            local ghostWorldPos = ghost:GetPos()
+                            local ghostWorldAng = ghost:GetAngles()
+
+                            -- Appliquer la transformation pour obtenir la position finale
+                            local finalPos, finalAng = PortalManager.TransformPortal(portal, exit, ghostWorldPos, ghostWorldAng)
+
+                            originalProp:SetPos(finalPos)
+                            originalProp:SetAngles(finalAng)
+
+                            -- Préserver la vélocité si le prop a une physique
+                            local phys = originalProp:GetPhysicsObject()
+                            if IsValid(phys) then
+                                local ghostPhys = ghost:GetPhysicsObject()
+                                if IsValid(ghostPhys) then
+                                    local ghostVel = ghostPhys:GetVelocity()
+                                    local _, newVelAng = PortalManager.TransformPortal(portal, exit, nil, ghostVel:Angle())
+                                    local newVel = newVelAng:Forward() * ghostVel:Length()
+                                    phys:SetVelocity(newVel)
+                                end
+                            end
+
+                            -- Supprimer le ghost côté serveur
+                            ghost:Remove()
+                            self._serverGhosts[ghost] = nil
+
+                            -- Supprimer le ghost côté client
+                            self:QueueNetworkMessage("GP2_PortalPropGhostRemove", {
+                                {func = net.WriteEntity, value = self},
+                                {func = net.WriteEntity, value = originalProp}
+                            }, function()
+                                if IsValid(originalProp) then
+                                    originalProp._portalGhosted = false
+                                end
+                                if self._portalProps then
+                                    self._portalProps[originalProp] = nil
+                                end
+                            end)
+                        end
+                    end
+                end
+            end
         end
 
         if not IsValid(self.RingParticle) then
@@ -576,30 +651,30 @@ if CLIENT then
                     allPassed = false
                     break
                 end
-            end
-            if allPassed then
+            end            if allPassed then
                 local exit = self:GetLinkedPartner()
                 if IsValid(exit) then
-                    -- Transformation position/angle/velocity
-                    local newPos, newAng = self:TransformThroughPortal(exit, prop:GetPos(), prop:GetAngles())
+                    -- Transformation position/angle/velocity avec symétrie axiale correcte
+                    local newPos, newAng = PortalManager.TransformPortal(self, exit, prop:GetPos(), prop:GetAngles())
                     local phys = prop:GetPhysicsObject()
                     if IsValid(phys) then
                         local vel = phys:GetVelocity()
-                        local newVel = exit:LocalToWorld(self:WorldToLocal(vel))
+                        local _, newVelAng = PortalManager.TransformPortal(self, exit, nil, vel:Angle())
+                        local newVel = newVelAng:Forward() * vel:Length()
                         prop:SetPos(newPos)
                         prop:SetAngles(newAng)
                         phys:SetVelocity(newVel)
                     else
                         prop:SetPos(newPos)
                         prop:SetAngles(newAng)
-                    end
-                    -- Suppression du ghost
-                    net.Start("GP2_PortalPropGhostRemove")
-                        net.WriteEntity(self)
-                        net.WriteEntity(prop)
-                    net.Broadcast()
-                    prop._portalGhosted = false
-                    self._portalProps[prop] = nil
+                    end                    -- Suppression du ghost (via queue pour éviter les conflits)
+                    self:QueueNetworkMessage("GP2_PortalPropGhostRemove", {
+                        {func = net.WriteEntity, value = self},
+                        {func = net.WriteEntity, value = prop}
+                    }, function()
+                        prop._portalGhosted = false
+                        self._portalProps[prop] = nil
+                    end)
                 end
             end
         end
@@ -617,34 +692,163 @@ end
 
 if SERVER then
     util.AddNetworkString("GP2_PortalPropGhost")
-    util.AddNetworkString("GP2_PortalPropGhostRemove")    -- Table pour suivre l'état des props en ghost par portail
+    util.AddNetworkString("GP2_PortalPropGhostRemove")
+
+    -- Table pour suivre l'état des props en ghost par portail
     ENT._portalProps = ENT._portalProps or {}
+
+    -- Système de queue pour éviter les conflits de messages réseau
+    ENT._netQueue = ENT._netQueue or {}
+    ENT._netProcessing = ENT._netProcessing or false
+
+    -- Fonction pour traiter la queue des messages réseau
+    function ENT:ProcessNetworkQueue()
+        if self._netProcessing or #self._netQueue == 0 then return end
+
+        self._netProcessing = true
+        local message = table.remove(self._netQueue, 1)
+
+        if message then
+            local success = pcall(function()
+                net.Start(message.type)
+                for _, writeOp in ipairs(message.data) do
+                    writeOp.func(writeOp.value)
+                end
+                net.Broadcast()
+            end)
+
+            if success and message.callback then
+                message.callback()
+            end
+        end
+
+        self._netProcessing = false
+
+        -- Traiter le message suivant dans la queue
+        if #self._netQueue > 0 then
+            timer.Simple(0.01, function()
+                if IsValid(self) then
+                    self:ProcessNetworkQueue()
+                end
+            end)
+        end
+    end    -- Fonction pour ajouter un message à la queue
+    function ENT:QueueNetworkMessage(msgType, data, callback)
+        table.insert(self._netQueue, {
+            type = msgType,
+            data = data,
+            callback = callback
+        })
+
+        -- Démarrer le traitement si ce n'est pas déjà fait
+        if not self._netProcessing then
+            self:ProcessNetworkQueue()
+        end
+    end
+
+    -- Fonction pour recréer tous les ghosts après un reset de portail
+    function ENT:RecreateGhosts()
+        if not self:GetActivated() or not IsValid(self:GetLinkedPartner()) then
+            return
+        end
+
+        local portalPos = self:GetPos()
+        local portalSize = self:GetSize() or Vector(56,32,8)
+        local portalUp = self:GetUp()
+
+        -- Déterminer l'orientation du portail
+        local upDot = math.abs(portalUp:Dot(Vector(0, 0, 1)))
+        local isFloorCeiling = upDot > 0.8
+        local bboxExpand = isFloorCeiling and 48 or 32
+        local detectionRadius = isFloorCeiling and 128 or 96
+
+        -- Rechercher tous les props valides dans la zone
+        for _, prop in ipairs(ents.FindInSphere(portalPos, detectionRadius)) do
+            if IsValid(prop) and prop.GetClass and
+               (prop:GetClass() == "prop_weighted_cube" or prop:GetClass() == "prop_physics") and
+               not prop._portalGhosted then
+
+                local localPos = self:WorldToLocal(prop:GetPos())
+                local inPortalBounds = false
+
+                if isFloorCeiling then
+                    inPortalBounds = math.abs(localPos.x) < bboxExpand and
+                                   math.abs(localPos.y) < portalSize.y * 1.2 and
+                                   math.abs(localPos.z) < portalSize.x * 1.2
+                else
+                    inPortalBounds = math.abs(localPos.x) < bboxExpand and
+                                   math.abs(localPos.y) < portalSize.y and
+                                   math.abs(localPos.z) < portalSize.x
+                end
+
+                if inPortalBounds then
+                    -- Créer le ghost
+                    self:QueueNetworkMessage("GP2_PortalPropGhost", {
+                        {func = net.WriteEntity, value = self},
+                        {func = net.WriteEntity, value = prop},
+                        {func = net.WriteVector, value = prop:GetPos()},
+                        {func = net.WriteAngle, value = prop:GetAngles()},
+                        {func = net.WriteString, value = prop:GetModel()}
+                    }, function()
+                        prop._portalGhosted = true
+                        self._portalProps = self._portalProps or {}
+                        self._portalProps[prop] = true
+                    end)
+                end
+            end
+        end
+    end
 
     function ENT:Think()
         local portalPos = self:GetPos()
         local portalAng = self:GetAngles()
         local portalNormal = portalAng:Forward()
         local portalSize = self:GetSize() or Vector(56,32,8)
-        local bboxExpand = 32
+        local portalUp = self:GetUp()
+
+        -- Déterminer l'orientation du portail pour ajuster la tolérance
+        local upDot = math.abs(portalUp:Dot(Vector(0, 0, 1)))
+        local isFloorCeiling = upDot > 0.8  -- Portail au sol ou au plafond
+
+        -- Ajuster la tolérance selon l'orientation
+        local bboxExpand = isFloorCeiling and 48 or 32
+        local detectionRadius = isFloorCeiling and 128 or 96
 
         -- Recherche des props physiques (ex: cubes)
-        for _, prop in ipairs(ents.FindInSphere(portalPos, 96)) do
+        for _, prop in ipairs(ents.FindInSphere(portalPos, detectionRadius)) do
             if IsValid(prop) and prop.GetClass and (prop:GetClass() == "prop_weighted_cube" or prop:GetClass() == "prop_physics") and not prop._portalGhosted then
                 -- Calculer la position relative au plan du portail
                 local localPos = self:WorldToLocal(prop:GetPos())
-                -- Test : le prop touche-t-il le plan du portail ?
-                if math.abs(localPos.x) < bboxExpand and math.abs(localPos.y) < portalSize.y and math.abs(localPos.z) < portalSize.x then
-                    -- Créer le ghost côté client
-                    net.Start("GP2_PortalPropGhost")
-                        net.WriteEntity(self)
-                        net.WriteEntity(prop)
-                        net.WriteVector(prop:GetPos())
-                        net.WriteAngle(prop:GetAngles())
-                        net.WriteString(prop:GetModel())
-                    net.Broadcast()
-                    prop._portalGhosted = true
-                    self._portalProps = self._portalProps or {}
-                    self._portalProps[prop] = true
+
+                -- Test adaptatif selon l'orientation du portail
+                local inPortalBounds = false
+
+                if isFloorCeiling then
+                    -- Pour sol/plafond : tolérance plus large sur X (profondeur)
+                    inPortalBounds = math.abs(localPos.x) < bboxExpand and
+                                   math.abs(localPos.y) < portalSize.y * 1.2 and
+                                   math.abs(localPos.z) < portalSize.x * 1.2
+                else
+                    -- Pour murs : tolérance normale
+                    inPortalBounds = math.abs(localPos.x) < bboxExpand and
+                                   math.abs(localPos.y) < portalSize.y and
+                                   math.abs(localPos.z) < portalSize.x
+                end                if inPortalBounds then
+                    -- Vérifier qu'on n'a pas déjà un ghost pour ce prop
+                    if not self._portalProps or not self._portalProps[prop] then
+                        -- Créer le ghost côté client (via queue pour éviter les conflits)
+                        self:QueueNetworkMessage("GP2_PortalPropGhost", {
+                            {func = net.WriteEntity, value = self},
+                            {func = net.WriteEntity, value = prop},
+                            {func = net.WriteVector, value = prop:GetPos()},
+                            {func = net.WriteAngle, value = prop:GetAngles()},
+                            {func = net.WriteString, value = prop:GetModel()}
+                        }, function()
+                            prop._portalGhosted = true
+                            self._portalProps = self._portalProps or {}
+                            self._portalProps[prop] = true
+                        end)
+                    end
                 end
             end
         end
@@ -655,13 +859,17 @@ if SERVER then
                 self._portalProps[prop] = nil
             else
                 local localPos = self:WorldToLocal(prop:GetPos())
-                if math.abs(localPos.x) > bboxExpand*1.5 or math.abs(localPos.y) > portalSize.y*1.5 or math.abs(localPos.z) > portalSize.x*1.5 then
-                    net.Start("GP2_PortalPropGhostRemove")
-                        net.WriteEntity(self)
-                        net.WriteEntity(prop)
-                    net.Broadcast()
-                    prop._portalGhosted = false
-                    self._portalProps[prop] = nil
+                local cleanupThreshold = isFloorCeiling and 1.8 or 1.5                if math.abs(localPos.x) > bboxExpand * cleanupThreshold or
+                   math.abs(localPos.y) > portalSize.y * cleanupThreshold or
+                   math.abs(localPos.z) > portalSize.x * cleanupThreshold then
+                    -- Supprimer le ghost côté client (via queue pour éviter les conflits)
+                    self:QueueNetworkMessage("GP2_PortalPropGhostRemove", {
+                        {func = net.WriteEntity, value = self},
+                        {func = net.WriteEntity, value = prop}
+                    }, function()
+                        prop._portalGhosted = false
+                        self._portalProps[prop] = nil
+                    end)
                 end
             end
         end
@@ -843,6 +1051,29 @@ function ENT:GetStaticAmount()
 end
 
 function ENT:Fizzle()
+	-- Avant d'envoyer le message de fermeture, vider la queue réseau
+	if SERVER then
+		-- Nettoyer tous les ghosts de ce portail
+		for prop, _ in pairs(self._portalProps or {}) do
+			if IsValid(prop) then
+				prop._portalGhosted = false
+				-- Envoyer message de suppression de ghost
+				self:QueueNetworkMessage("GP2_PortalPropGhostRemove", {
+					{func = net.WriteEntity, value = self},
+					{func = net.WriteEntity, value = prop}
+				})
+			end
+		end
+		self._portalProps = {}
+
+		-- Vider la queue de messages réseau pour éviter les conflits
+		self._netQueue = {}
+		self._netProcessing = false
+
+		-- Forcer l'envoi de tout message réseau en cours avant le fizzle
+		net.Abort()
+	end
+
 	net.Start(GP2.Net.SendPortalClose)
 		net.WriteVector(self:GetPos())
 		net.WriteAngle(self:GetAngles())
@@ -859,6 +1090,13 @@ function ENT:OnActivated(name, old, new)
 		self:SetOpenTime(CurTime())
 		if new then
 			self:EmitSound(self:GetType() == PORTAL_TYPE_SECOND and "Portal.open_red" or "Portal.open_blue")
+
+			-- Quand un portail est activé, recréer les ghosts pour tous les props existants
+			timer.Simple(0.1, function()
+				if IsValid(self) then
+					self:RecreateGhosts()
+				end
+			end)
 		end
 	end
 	-- Override portal in LinkageGroup after activation change
@@ -967,16 +1205,6 @@ end
 function ENT:SetPortalColor(r, g, b)
 	self:SetColorVectorInternal(Vector(r, g, b))
 	self:SetColorVector01Internal(Vector(r * 0.5 / 255, g * 0.5 / 255, b * 0.5 / 255))
-end
-
--- Utilitaire de transformation entrée → sortie de portail
-function ENT:TransformThroughPortal(exitPortal, pos, ang)
-    -- Transforme une position et un angle du référentiel de ce portail vers celui du portail de sortie
-    local localPos = self:WorldToLocal(pos)
-    local localAng = self:WorldToLocalAngles(ang)
-    local newPos = exitPortal:LocalToWorld(localPos)
-    local newAng = exitPortal:LocalToWorldAngles(localAng)
-    return newPos, newAng
 end
 
 -- Register the entity with Garry's Mod
