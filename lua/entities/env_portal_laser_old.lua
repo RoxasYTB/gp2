@@ -60,7 +60,7 @@ ENT.__input2func = {
     end,
     ["turnoff"] = function(self, activator, caller, data)
         self:TurnOff()
-    end,    
+    end,
 }
 
 function ENT:AcceptInput(name, activator, caller, data)
@@ -77,7 +77,7 @@ function ENT:Initialize()
     if SERVER then
         self:PhysicsInitStatic(SOLID_VPHYSICS)
     else
-        EnvPortalLaser.AddToRenderList(self) 
+        EnvPortalLaser.AddToRenderList(self)
     end
 end
 
@@ -131,23 +131,23 @@ local function PushPlayerAwayFromLine(player, sourcePos, targetPos, force)
     if not IsValid(player) or not player:IsPlayer() or player:GetMoveType() == MOVETYPE_NOCLIP then
         return
     end
-    
+
     -- Calculate the nearest point on the line segment to the player
     local playerPos = player:GetPos()
     local nearestPoint = CalcClosestPointOnLineSegment(playerPos, sourcePos, targetPos)
-    
+
     -- Calculate the direction from the line segment to the player
     local pushDirection = (playerPos - nearestPoint):GetNormalized()
     pushDirection.z = 0  -- Keep the push direction horizontal
-    
+
     -- Double the force if the player is crouching
     if player:Crouching() then
         force = force * 2
     end
-    
+
     -- Calculate the push velocity vector
     local pushVelocity = pushDirection * force
-    
+
     -- Apply the calculated push velocity to the player
     player:SetVelocity(pushVelocity)
 end
@@ -186,12 +186,12 @@ function ENT:DoLaser(child)
         end,
         mask = MASK_OPAQUE_AND_NPCS
     })
-    
+
     local hitent = tr.Entity
     if TARGETABLE_ENTS[hitent:GetClass()] then
-        self:SetHitEntity(hitent) 
+        self:SetHitEntity(hitent)
     else
-        self:SetHitEntity(NULL) 
+        self:SetHitEntity(NULL)
     end
 
     if hitent:GetClass() == "prop_weighted_cube" and hitent:GetCubeType() ~= 2 then
@@ -202,11 +202,11 @@ function ENT:DoLaser(child)
 
     if SERVER then
         --debugoverlay.Line(start, rayEndPos, 0.12, Color(255, 10, 10), true)
-    
+
         local lst = ents.FindAlongRay(start, rayEndPos, -RAY_EXTENTS, RAY_EXTENTS)
         for _, entity in ipairs(lst) do
             if not IsValid(entity) then continue end
-    
+
             -- Check if the entity is damagable
             if entity:IsPlayer() then
                 if entity:IsOnGround() then
@@ -218,7 +218,7 @@ function ENT:DoLaser(child)
                 entity:Ignite(5)
             else
                 entity:TakeDamage(8, self)
-            end      
+            end
         end
     else
         --debugoverlay.Line(start, rayEndPos, 0.12, Color(10, 218, 255), true)
@@ -236,18 +236,18 @@ function ENT:DoLaser(child)
             child.BeamSound:SetSoundLevel(0)
             child.BeamSound:PlayEx(0, 100)
         else
-            
+
             local pos = LocalPlayer():GetPos()
             local nearest = CalcClosestPointOnLineSegment(pos, start, rayEndPos)
             local distance = (pos - nearest):Length()
-        
+
             local maxDistance = 355
             local minVolume = 0
             local maxVolume = 0.25
-        
+
             -- Volume based on the distance
             local volume = math.Clamp((maxDistance - distance) / maxDistance * (maxVolume - minVolume) + minVolume, minVolume, maxVolume)
-        
+
             if not child.BeamSound:IsPlaying() then
                 child.BeamSound:PlayEx(volume, 100)
             else
