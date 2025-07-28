@@ -109,37 +109,156 @@ function ENT:Think()
     return true
 end
 
-function ENT:RecursionLaserThroughPortals(data)
-    local tr = util_TraceLine(data)
+function ENT:RecursionLaserThroughPortals(data, recursionDepth, visitedPortals, laserSegments)
+    -- Protection contre la récursion infinie
+    recursionDepth = recursionDepth or 0
+    visitedPortals = visitedPortals or {}
+    laserSegments = laserSegments or {}
 
-    self:DamageEntsAlongTheRay(data.start, tr.HitPos)
+    if recursionDepth >= 5 then  -- Limite maximale de rebonds
+        return { HitPos = data.endpos, Entity = NULL, Fraction = 1 }, laserSegments
+    end
 
-    if tr.Entity:IsValid() and tr.Entity:GetClass() == "prop_portal" and IsValid(tr.Entity:GetLinkedPartner()) then
-        local hitPortal = tr.Entity
-        local linkedPortal = hitPortal:GetLinkedPartner()
+    -- D'abord, détecter les portails le long du rayon AVANT le trace line
+    local rayStart = data.start
+    local rayEnd = data.endpos
+    local extents = Vector(10, 10, 10)
+    local foundPortalEntity = nil
+    local portalHitPos = nil
 
-        -- Ensure the hit normal aligns for portal transition
-        if tr.HitNormal:Dot(hitPortal:GetUp()) > 0.9 then
-            local newData = table.Copy(data)
+    local rayHits = ents.FindAlongRay(rayStart, rayEnd, -extents, extents)
+    for _, ent in ipairs(rayHits) do
+        if IsValid(ent) and ent:GetClass() == "prop_portal" and IsValid(ent:GetLinkedPartner()) then
+            -- Vérifier si on a déjà visité ce portail
+            local portalId = ent:EntIndex()
+            if not visitedPortals[portalId] then
+                foundPortalEntity = ent
+                visitedPortals[portalId] = true
 
-            newData.start = PortalManager.TransformPortal(hitPortal, linkedPortal, tr.HitPos)
-            newData.endpos = PortalManager.TransformPortal(hitPortal, linkedPortal, data.endpos)
-
-            if isentity(data.filter) and data.filter:GetClass() ~= "player" then
-                newData.filter = { data.filter, linkedPortal }
-            else
-                if istable(data.filter) then
-                    table.insert(newData.filter, linkedPortal)
-                else
-                    newData.filter = linkedPortal
+                -- Calculer le point d'impact sur ce portail
+                local mins, maxs = ent:GetCollisionBounds()
+                if not mins or not maxs then
+                    mins, maxs = Vector(-34, -34, -1), Vector(34, 34, 1)
                 end
-            end
 
-            return self:RecursionLaserThroughPortals(newData)
+                portalHitPos = util.IntersectRayWithOBB(
+                    rayStart,
+                    (rayEnd - rayStart):GetNormalized(),
+                    ent:GetPos(),
+                    ent:GetAngles(),
+                    mins, maxs
+                )
+                if not portalHitPos then
+                    portalHitPos = ent:GetPos()
+                end
+                break
+            end
         end
     end
 
-    return tr
+    -- Maintenant faire le trace line normal (qui ignore les portails grâce au filtre)
+    local tr = util_TraceLine(data)
+
+    -- Déterminer quel point d'impact utiliser
+    local actualEndPos = tr.HitPos
+    local hitPortal = nil
+
+    if foundPortalEntity and portalHitPos then
+        local distanceToPortal = (portalHitPos - rayStart):Length()
+        local distanceToHit = (tr.HitPos - rayStart):Length()
+
+        -- Si le portail est plus proche que l'obstacle, l'utiliser
+        if distanceToPortal < distanceToHit and distanceToPortal > 50 then  -- Protection contre les rebonds immédiats
+            actualEndPos = portalHitPos
+            hitPortal = foundPortalEntity
+        end
+    end
+
+    -- Ajouter ce segment à la liste des segments de laser (jusqu'au portail d'entrée)
+    table.insert(laserSegments, { start = data.start, endpos = actualEndPos })
+
+    -- Si on n'a pas de portail à traverser, s'arrêter ici
+    if not hitPortal then
+        return tr, laserSegments
+    end
+
+    -- Continuer avec la logique de téléportation de portail
+    local linkedPortal = hitPortal:GetLinkedPartner()
+
+    -- Transformation similaire à projected_wall_entity
+    local newData = table.Copy(data)
+
+    -- Calcul de la transformation de position et d'angle
+    local rayDirection = (rayEnd - rayStart):GetNormalized()
+    local newPos, newAng = self:TransformPortal(hitPortal, linkedPortal, actualEndPos, rayDirection:Angle())
+
+    -- Correction de l'angle pour continuer dans la bonne direction
+    newAng = Angle(newAng.p, newAng.y + 180, newAng.r)
+
+    -- Correction spécifique pour les portails au plafond ou au sol
+    local exitPortalPitch = linkedPortal:GetAngles().p
+    if math.abs(exitPortalPitch - 90) < 10 then
+        -- Portail au sol (pitch ~90) : inverser pour aller vers le haut
+        newAng = Angle(-newAng.p, newAng.y, newAng.r)
+    elseif math.abs(exitPortalPitch + 90) < 10 then
+        -- Portail au plafond (pitch ~-90) : inverser pour aller vers le bas
+        newAng = Angle(-newAng.p, newAng.y, newAng.r)
+    end
+
+    -- Calculer la longueur restante du rayon
+    local rayLength = (rayEnd - rayStart):Length()
+    local usedLength = (actualEndPos - rayStart):Length()
+    local remainingLength = math.max(rayLength - usedLength, 100)  -- Au moins 100 unités
+
+    -- Décaler légèrement la position de départ pour éviter de retoucher le portail de sortie
+    newPos = newPos + newAng:Forward() * 0
+
+    -- IMPORTANT: Ajouter un segment qui part du portail de sortie
+    table.insert(laserSegments, { start = linkedPortal:GetPos(), endpos = newPos })
+
+    newData.start = newPos
+    newData.endpos = newPos + newAng:Forward() * remainingLength
+
+    -- Ajouter les portails au filtre pour éviter de les retoucher immédiatement
+    if istable(data.filter) then
+        local newFilter = table.Copy(data.filter)
+        table.insert(newFilter, linkedPortal)
+        table.insert(newFilter, hitPortal)
+        newData.filter = newFilter
+    else
+        newData.filter = { data.filter, linkedPortal, hitPortal }
+    end
+
+    return self:RecursionLaserThroughPortals(newData, recursionDepth + 1, visitedPortals, laserSegments)
+end
+
+-- Fonction de transformation inspirée de projected_wall_entity
+function ENT:TransformPortal(entryPortal, exitPortal, hitPos, hitAng)
+    -- Calcul de l'offset local dans le repère du portail d'entrée
+    local hitOffset = hitPos - entryPortal:GetPos()
+    local localOffset = Vector(
+        hitOffset:Dot(entryPortal:GetRight()),
+        hitOffset:Dot(entryPortal:GetUp()),
+        hitOffset:Dot(entryPortal:GetForward())
+    )
+
+    -- Miroir sur l'axe X (left becomes right)
+    localOffset.x = -localOffset.x
+
+    -- Transformation de la position vers le portail de sortie
+    local newPos = exitPortal:GetPos() +
+        localOffset.x * exitPortal:GetRight() +
+        localOffset.y * exitPortal:GetUp() +
+        localOffset.z * exitPortal:GetForward()
+
+    -- Transformation de l'angle
+    local localAng = entryPortal:WorldToLocalAngles(hitAng)
+    localAng.y = -localAng.y  -- Miroir sur Y
+    localAng.r = -localAng.r  -- Miroir sur Roll
+
+    local newAng = exitPortal:LocalToWorldAngles(localAng)
+
+    return newPos, newAng
 end
 
 --- Fire laser every tick (depending on if laser is reflected or base there should be
@@ -170,7 +289,7 @@ function ENT:FireLaser()
 
     attachForward = attachAng:Forward()
 
-    local tr = self:RecursionLaserThroughPortals({
+    local tr, laserSegments = self:RecursionLaserThroughPortals({
         start = attachPos,
         endpos = attachPos + attachForward * MAX_RAY_LENGTH,
         filter = {
@@ -180,11 +299,49 @@ function ENT:FireLaser()
             "point_laser_target",
             "prop_laser_catcher",
             "prop_laser_relay",
+            "prop_portal",
             self:GetParent() },
         mask = MASK_OPAQUE_AND_NPCS
     })
 
-    local hitEntity = tr.Entity
+    -- Stocker les segments pour le client
+    self.LaserSegments = laserSegments or {}
+
+    -- Créer un segment de sortie de portail (la fonction détecte elle-même s'il y a des portails)
+    local exitSegments, entryHitWithOffset = self:CalculatePortalExitSegments(attachPos, attachForward)    -- Combiner le segment principal et les segments de sortie de portail
+    local allSegments = {}
+
+    -- Ajouter le segment principal (jusqu'au premier portail ou jusqu'à l'impact)
+    if #self.LaserSegments > 0 then
+        local mainSegment = self.LaserSegments[1]
+        -- Le segment principal garde toujours sa position réelle, pas d'offset appliqué
+        table.insert(allSegments, mainSegment)
+    else
+        -- Pas de portail, segment normal
+        table.insert(allSegments, { start = attachPos, endpos = tr.HitPos })
+    end
+
+    -- Ajouter les segments de sortie de portail
+    for _, segment in ipairs(exitSegments) do
+        table.insert(allSegments, segment)
+    end
+
+    -- Toujours envoyer les segments au client (seulement pour les lasers principaux)
+    if not IsValid(self:GetParentLaser()) then
+        net.Start("LaserSegments")
+        net.WriteEntity(self)
+        net.WriteUInt(#allSegments, 8)
+        for _, segment in ipairs(allSegments) do
+            net.WriteVector(segment.start)
+            net.WriteVector(segment.endpos)
+        end
+        net.Broadcast()
+    end
+
+    -- Gérer les collisions uniquement pour les segments finaux (ceux envoyés au client)
+    for _, segment in ipairs(allSegments) do
+        self:DamageEntsAlongTheRay(segment.start, segment.endpos)
+    end    local hitEntity = tr.Entity
     self:SetReflector(hitEntity)
 
     -- Set hit pos for client
@@ -365,4 +522,189 @@ function ENT:SpawnFunction(ply, tr, ClassName)
     ent:Activate()
 
     return ent
+end
+
+-- Fonction pour calculer les segments de sortie de portail (inspirée de projected_wall_entity)
+function ENT:CalculatePortalExitSegments(startPos, direction)
+    local exitSegments = {}
+    local entryHitPosWithOffset = nil -- Position d'impact sur le portail d'entrée avec offsets
+
+    -- Trouver les portails le long du rayon principal
+    local rayEnd = startPos + direction * MAX_RAY_LENGTH
+    local extents = Vector(10, 10, 10)
+    local rayHits = ents.FindAlongRay(startPos, rayEnd, -extents, extents)
+
+    for _, ent in ipairs(rayHits) do
+        if IsValid(ent) and ent:GetClass() == "prop_portal" and IsValid(ent:GetLinkedPartner()) then
+            local entryPortal = ent
+            local exitPortal = entryPortal:GetLinkedPartner()
+
+            -- Calcul du point d'impact sur le portail d'entrée
+            local mins, maxs = entryPortal:GetCollisionBounds()
+            if not mins or not maxs then
+                mins, maxs = Vector(-34, -34, -1), Vector(34, 34, 1)
+            end
+
+            local hitPos = util.IntersectRayWithOBB(
+                startPos,
+                direction,
+                entryPortal:GetPos(),
+                entryPortal:GetAngles(),
+                mins, maxs
+            )
+            if not hitPos then
+                hitPos = entryPortal:GetPos()
+            end
+
+            -- Calcul des offsets comme dans projected_wall_entity
+            -- L'offset Z doit être calculé par rapport à la position de l'émetteur laser (comme originalWallZ)
+            local portalZ = entryPortal:GetPos().z
+            local offsetZ = portalZ - startPos.z
+
+            -- Offset local gauche/droite (Right) dans le repère du portail d'entrée
+            local entryRight = entryPortal:GetRight()
+            local offsetVec = startPos - entryPortal:GetPos()
+            local offsetXLocal = offsetVec:Dot(entryRight)
+
+            -- Debug: afficher les offsets calculés
+            if portal_laser_perf_debug:GetBool() then
+                print(string.format("Laser Offset Debug: startPos.z=%.2f, portalZ=%.2f, offsetZ=%.2f, offsetXLocal=%.2f",
+                    startPos.z, portalZ, offsetZ, offsetXLocal))
+            end
+
+            -- Créer une position d'entrée modifiée avec les offsets pour la transformation
+            local modifiedHitPos = Vector(hitPos.x, hitPos.y, hitPos.z)
+
+            -- Transformation de position à travers le portail avec la position modifiée
+            local newPos, newAng = self:TransformPortal(entryPortal, exitPortal, modifiedHitPos, direction:Angle())
+
+            -- Debug: position avant application des offsets
+            if portal_laser_perf_debug:GetBool() then
+                print(string.format("Laser Position Debug: newPos avant offsets = (%.2f, %.2f, %.2f)",
+                    newPos.x, newPos.y, newPos.z))
+            end
+
+            -- Correction de l'angle pour continuer dans la bonne direction
+            newAng = Angle(newAng.p, newAng.y + 180, newAng.r)
+
+            -- Correction spécifique pour les portails au plafond ou au sol
+            local exitPortalPitch = exitPortal:GetAngles().p
+            if math.abs(exitPortalPitch - 90) < 10 then
+                newAng = Angle(-newAng.p, newAng.y, newAng.r)
+            elseif math.abs(exitPortalPitch + 90) < 10 then
+                newAng = Angle(-newAng.p, newAng.y, newAng.r)
+            end
+
+            -- Application des offsets exactement comme dans projected_wall_entity
+            local exitPortalPitch = exitPortal:GetAngles().p
+            local exitPortalYaw = exitPortal:GetAngles().y
+
+            -- Appliquer les corrections de position selon l'orientation (comme projected_wall_entity)
+            if exitPortalYaw == -90 then
+                newPos.y = newPos.y - 20
+            end
+            if exitPortalYaw > 90 and exitPortalYaw < 180 then
+                -- newPos.y = newPos.y (pas de changement)
+            end
+            if exitPortalYaw > -1 and exitPortalYaw < 1 then
+                -- newPos.x = newPos.x (pas de changement)
+            end
+            if exitPortalYaw == -180 then
+                newPos.x = newPos.x - 20
+            end
+
+            -- Appliquer l'offset X local sur l'axe Right du portail de sortie (négatif comme dans projected_wall_entity)
+            newPos = newPos + exitPortal:GetRight() * (-offsetXLocal)
+
+            -- Application de l'offset Z selon l'orientation du portail (exactement comme projected_wall_entity)
+            if math.abs(exitPortalPitch - 90) < 10 then
+                -- Portail au sol : l'offset Z devient un offset sur l'axe Forward du portail
+                newPos = newPos + exitPortal:GetForward() * offsetZ
+            elseif math.abs(exitPortalPitch + 90) < 10 then
+                -- Portail au plafond : l'offset Z devient un offset sur l'axe Forward du portail (inversé)
+                newPos = newPos - exitPortal:GetForward() * offsetZ
+            else
+                -- Mur : application normale de l'offset Z (soustraction comme dans projected_wall_entity)
+                newPos.z = newPos.z - offsetZ
+            end
+
+            -- Debug: position après application des offsets
+            if portal_laser_perf_debug:GetBool() then
+                print(string.format("Laser Position Debug: newPos après offsets = (%.2f, %.2f, %.2f)",
+                    newPos.x, newPos.y, newPos.z))
+            end
+
+            -- Décaler légèrement pour éviter de retoucher le portail
+            -- newPos = newPos + newAng:Forward() * 10
+            newPos = newPos + newAng:Forward() * 0
+
+            -- Calculer la position d'impact sur le portail d'entrée avec les mêmes offsets
+            -- pour que les segments se connectent correctement
+            local entryHitWithOffset = Vector(hitPos.x, hitPos.y, hitPos.z)
+            local entryPortalPitch = entryPortal:GetAngles().p
+            local entryPortalYaw = entryPortal:GetAngles().y
+
+            -- Appliquer les corrections de position selon l'orientation du portail d'entrée
+            if entryPortalYaw == -90 then
+                entryHitWithOffset.y = entryHitWithOffset.y - 20
+            end
+            if entryPortalYaw > 90 and entryPortalYaw < 180 then
+                -- entryHitWithOffset.y = entryHitWithOffset.y (pas de changement)
+            end
+            if entryPortalYaw > -1 and entryPortalYaw < 1 then
+                -- entryHitWithOffset.x = entryHitWithOffset.x (pas de changement)
+            end
+            if entryPortalYaw == -180 then
+                entryHitWithOffset.x = entryHitWithOffset.x - 20
+            end
+
+            -- Appliquer l'offset X local sur l'axe Right du portail d'entrée
+            entryHitWithOffset = entryHitWithOffset + entryPortal:GetRight() * (-offsetXLocal)
+
+            -- Appliquer les mêmes offsets Z que pour newPos mais au point d'entrée
+            if math.abs(entryPortalPitch - 90) < 10 then
+                -- Portail au sol
+                entryHitWithOffset = entryHitWithOffset + entryPortal:GetForward() * offsetZ
+            elseif math.abs(entryPortalPitch + 90) < 10 then
+                -- Portail au plafond
+                entryHitWithOffset = entryHitWithOffset - entryPortal:GetForward() * offsetZ
+            else
+                -- Mur
+                entryHitWithOffset.z = entryHitWithOffset.z - offsetZ
+            end
+
+            -- Stocker pour retourner avec les segments
+            entryHitPosWithOffset = entryHitWithOffset
+
+            -- Tracer le rayon depuis le portail de sortie
+            local exitTr = util.TraceLine({
+                start = newPos,
+                endpos = newPos + newAng:Forward() * MAX_RAY_LENGTH,
+                filter = {
+                    self,
+                    exitPortal,
+                    entryPortal,
+                    "projected_wall_entity",
+                    "player",
+                    "point_laser_target",
+                    "prop_laser_catcher",
+                    "prop_laser_relay",
+                    self:GetParent()
+                },
+                mask = MASK_OPAQUE_AND_NPCS
+            })
+
+            -- Ajouter le segment de sortie
+            table.insert(exitSegments, {
+                start = newPos,
+                endpos = exitTr.HitPos
+            })
+
+            -- Collision supprimée ici - sera gérée uniquement pour les segments finaux
+
+            break -- Prendre seulement le premier portail trouvé
+        end
+    end
+
+    return exitSegments, entryHitPosWithOffset
 end

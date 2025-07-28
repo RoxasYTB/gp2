@@ -11,6 +11,11 @@ ENT.Category = "Portal 2"
 ENT.Spawnable = true
 ENT.Editable = true
 
+-- Network string pour les segments de laser
+if SERVER then
+    util.AddNetworkString("LaserSegments")
+end
+
 util.PrecacheSound("Flesh.BulletImpact")
 PrecacheParticleSystem("reflector_start_glow")
 PrecacheParticleSystem("laser_start_glow")
