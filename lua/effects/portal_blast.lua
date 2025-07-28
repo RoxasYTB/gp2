@@ -17,7 +17,7 @@ function EFFECT:Init(data)
     local angles = data:GetAngles()
 
     local vStart = data:GetOrigin()
-    local vEnd = data:GetStart() 
+    local vEnd = data:GetStart()
     local owner = data:GetEntity()
 
     self.CreationPoint = vStart
@@ -38,7 +38,7 @@ function EFFECT:Init(data)
     if not data.PlacedByPedestal then
         if owner:IsPlayer() then
             self.Particle = CreateParticleSystem(self, "portal_projectile_stream", PATTACH_ABSORIGIN_FOLLOW)
-            
+
             if IsValid(self.Particle) then
                 self.Particle:SetControlPoint(2, data:GetNormal())
             end
