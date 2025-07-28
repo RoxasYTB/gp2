@@ -197,19 +197,23 @@ function ENT:Think()
                         bestPortalClonePos.y = bestPortalClonePos.y - 20
                     end
                     if exitAngY > 90 and exitAngY < 180 then
-                        bestPortalClonePos.y = bestPortalClonePos.y + 20
+                        bestPortalClonePos.y = bestPortalClonePos.y
                     end
                     if exitAngY > -1 and exitAngY < 1 then
-                        bestPortalClonePos.x = bestPortalClonePos.x + 20
+                        bestPortalClonePos.x = bestPortalClonePos.x
                     end
                     if exitAngY == -180 then
                         bestPortalClonePos.x = bestPortalClonePos.x - 20
                     end
                     -- Appliquer l'offset X local sur l'axe Right du portail de sortie
-                    bestPortalClonePos = bestPortalClonePos + exitPortal:GetRight() * (-(lastOffsetReceivedX or 0))
+                    bestPortalClonePos = bestPortalClonePos + exitPortal:GetRight() * (-(lastOffsetReceivedX  or 0))
+                    if exitPortal:GetAngles().p == 270 or exitPortal:GetAngles().p == 90 then
+                        bestPortalClonePos = bestPortalClonePos + exitPortal:GetUp() * (-(lastOffsetReceivedZ  or 0))
+                    end
                     -- Correction du gap : coller le mur exactement à la face du portail de sortie
                     local wallThickness = 1 -- épaisseur du mur projeté (voir PhysicsInitConvex)
-                    bestPortalClonePos = bestPortalClonePos - exitPortal:GetForward() * (wallThickness * 0.51) -- 0.51 pour éviter le z-fighting
+                    bestPortalClonePos = bestPortalClonePos + exitPortal:GetForward() * (wallThickness * - 30) -- 0.1 pour éviter le z-fighting
+
                     bestPortalCloneAng = newAng
                     bestPortalCloneLinked = exitPortal
                 end
@@ -294,28 +298,75 @@ function ENT:Think()
         local finalX = self:GetFinalOffsetX()
         local foundPortalEntIndex = self.LastFoundPortalEntity and self.LastFoundPortalEntity:IsValid() and self.LastFoundPortalEntity:EntIndex() or "nil"
         if foundPortal and bestPortalClonePos and bestPortalCloneAng and bestPortalCloneLinked then
-            -- On force Z à la valeur du portail de sortie
-            bestPortalClonePos.z = bestPortalClonePos.z
-            if finalZ then bestPortalClonePos.z = bestPortalClonePos.z - finalZ end
+            -- Application de l'offset selon l'orientation du portail
+            local exitPortalPitch = bestPortalCloneLinked:GetAngles().p
+
+            if finalZ then
+                if math.abs(exitPortalPitch - 90) < 10 then
+                    -- Portail au sol : l'offset Z devient un offset sur l'axe Forward du portail
+                    bestPortalClonePos = bestPortalClonePos + bestPortalCloneLinked:GetForward() * finalZ
+                elseif math.abs(exitPortalPitch + 90) < 10 then
+                    -- Portail au plafond : l'offset Z devient un offset sur l'axe Forward du portail (inversé)
+                    bestPortalClonePos = bestPortalClonePos - bestPortalCloneLinked:GetForward() * finalZ
+                else
+                    -- Mur : application normale de l'offset Z
+                    bestPortalClonePos.z = bestPortalClonePos.z - finalZ
+                end
+            end
+
             -- L'offset X est déjà appliqué via l'axe Right du portail de sortie plus haut
             -- Création / mise à jour unique du clone
             if not self.PortalClone or not IsValid(self.PortalClone) then
                 local clone = ents.Create("projected_wall_entity")
                 if IsValid(clone) then
                     clone:SetPos(bestPortalClonePos)
-                    clone:SetAngles(bestPortalCloneAng)
+                    -- Correction orientation du clone selon le type de portail
+                    local exitPortalPitch = bestPortalCloneLinked:GetAngles().p
+                    local cloneAng = bestPortalCloneAng
+                    if math.abs(exitPortalPitch - 90) < 10 then
+                        -- Portail au sol : Up
+                        clone:SetAngles(cloneAng)
+                    elseif math.abs(exitPortalPitch + 90) < 10 then
+                        -- Portail au plafond : Down (inverser pour aller vers le bas)
+                        cloneAng:RotateAroundAxis(cloneAng:Right(), 180)
+                        clone:SetAngles(cloneAng)
+                    else
+                        -- Mur : Forward
+                        clone:SetAngles(cloneAng)
+                    end
                     clone:Spawn()
                     clone:CreateWall() -- Ajout : génère la collision du clone
                     clone:SetParent(bestPortalCloneLinked)
                     clone.IsPortalClone = true
                     clone.OriginalWallZ = self.OriginalWallZ
                     clone.OriginalWallX = self.OriginalWallX
+                    -- Stocker l'orientation initiale pour éviter les changements à chaque frame
+                    clone.InitialCloneAngle = clone:GetAngles()
                     self.PortalClone = clone
                     self.PortalCloneLinked = bestPortalCloneLinked
                 end
             else
                 self.PortalClone:SetPos(bestPortalClonePos)
-                self.PortalClone:SetAngles(bestPortalCloneAng)
+                -- Appliquer la même correction d'orientation que lors de la création
+                local exitPortalPitch = bestPortalCloneLinked:GetAngles().p
+                local cloneAng = bestPortalCloneAng
+                print(string.format("Updating PortalClone position: %s", tostring(bestPortalClonePos)))
+                print(string.format("exitPortalPitch: %s, exitPortalYaw: %s, exitPortalRoll: %s",
+                    tostring(bestPortalCloneLinked:GetAngles().p),
+                    tostring(bestPortalCloneLinked:GetAngles().y),
+                    tostring(bestPortalCloneLinked:GetAngles().r)))
+                if exitPortalPitch == 90 then
+                    cloneAng:RotateAroundAxis(cloneAng:Right(), 0)
+                    self.PortalClone:SetAngles(cloneAng)
+                elseif exitPortalPitch == 270 then
+                    -- Portail au sol : Up
+                    cloneAng:RotateAroundAxis(cloneAng:Right(), 180)
+
+                    self.PortalClone:SetAngles(cloneAng)
+                else
+                    -- Mur : Forward
+                    self.PortalClone:SetAngles(cloneAng)
+                end
             end
         else
             -- Pas de portail valide : suppression du clone s’il existe
