@@ -139,7 +139,16 @@ function ENT:Think()
     -- Création/mise à jour du clone
     if SERVER then
         if foundPortal and bestPortalClonePos and bestPortalCloneAng and bestPortalCloneLinked then
-            if not self.PortalClone or not IsValid(self.PortalClone) or self.PortalCloneLinked ~= bestPortalCloneLinked then
+            -- Vérifier si la position du portail de sortie a changé
+            local portalPosChanged = false
+            if self.LastPortalPosition and self.PortalClone and IsValid(self.PortalClone) then
+                local currentPortalPos = bestPortalCloneLinked:GetPos()
+                if self.LastPortalPosition:DistToSqr(currentPortalPos) > 1 then -- Seuil de 1 unité²
+                    portalPosChanged = true
+                end
+            end
+
+            if not self.PortalClone or not IsValid(self.PortalClone) or self.PortalCloneLinked ~= bestPortalCloneLinked or portalPosChanged then
                 if self.PortalClone and IsValid(self.PortalClone) then
                     self.PortalClone:Remove()
                 end
@@ -169,6 +178,8 @@ function ENT:Think()
                     clone:CreateBeam(distanceRestante)
                     self.PortalClone = clone
                     self.PortalCloneLinked = bestPortalCloneLinked
+                    -- Mémoriser la position du portail pour détecter les changements
+                    self.LastPortalPosition = bestPortalCloneLinked:GetPos()
                 end
             else
                 self.PortalClone:SetPos(bestPortalClonePos)
@@ -189,6 +200,8 @@ function ENT:Think()
                 self.PortalClone:SetRadius(self:GetRadius())
                 self.PortalClone:SetLinearForce(self:Get_LinearForce())
                 self.PortalClone:CreateBeam(distanceRestante)
+                -- Mettre à jour la position mémorisée du portail
+                self.LastPortalPosition = bestPortalCloneLinked:GetPos()
             end
         else
             if self.PortalClone and IsValid(self.PortalClone) then
