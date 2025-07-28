@@ -103,8 +103,8 @@ function PANEL:Paint(w, h)
 
     surface_SetMaterial(crosshairMaterial)
 
-    local can1 = weapon:GetCanFirePortal1()
-    local can2 = weapon:GetCanFirePortal2()
+    local can1 = weapon.GetCanFirePortal1 and weapon:GetCanFirePortal1() or false
+    local can2 = weapon.GetCanFirePortal2 and weapon:GetCanFirePortal2() or false
 
     if not (can1 or can2) then return end
 
