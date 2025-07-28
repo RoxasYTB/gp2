@@ -17,10 +17,45 @@ if SERVER then
 end
 
 util.PrecacheSound("Flesh.BulletImpact")
-PrecacheParticleSystem("reflector_start_glow")
-PrecacheParticleSystem("laser_start_glow")
-PrecacheParticleSystem("laser_relay_powered")
-PrecacheParticleSystem("discouragement_beam_sparks")
+-- Précacher les particules seulement si elles existent
+local particlesToPrecache = {
+    "reflector_start_glow",
+    "laser_start_glow",
+    "laser_relay_powered",
+    "discouragement_beam_sparks"
+}
+
+-- Fonction helper pour vérifier l'existence d'un système de particules
+local function ParticleSystemExists(name)
+    -- On essaie de précacher et on capture les erreurs
+    local success = pcall(PrecacheParticleSystem, name)
+    return success
+end
+
+for _, particleName in ipairs(particlesToPrecache) do
+    if ParticleSystemExists(particleName) then
+        -- Déjà précaché dans la vérification
+    else
+        print("[GP2] Avertissement: Système de particules '" .. particleName .. "' non trouvé")
+    end
+end
+
+-- Fonction pour vérifier et utiliser les particules de fallback
+function ENT:GetParticleNameOrFallback(particleName, fallback)
+    -- Fonction helper pour vérifier l'existence d'un système de particules
+    local function ParticleExists(name)
+        local success = pcall(PrecacheParticleSystem, name)
+        return success
+    end
+
+    if ParticleExists(particleName) then
+        return particleName
+    elseif fallback and ParticleExists(fallback) then
+        return fallback
+    else
+        return nil
+    end
+end
 
 function ENT:SetupDataTables()
     self:NetworkVar(

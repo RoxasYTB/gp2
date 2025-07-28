@@ -20,8 +20,28 @@ local sv_player_collide_with_laser = CreateConVar("gp2_sv_player_collide_with_la
 local clamp = math.Clamp
 local util_TraceLine = util.TraceLine
 local ents_FindAlongRay = ents.FindAlongRay
-local CalcClosestPointOnLineSegment = GP2.Utils.CalcClosestPointOnLineSegment
-local EmitSoundAtClosestPoint = GP2.Utils.EmitSoundAtClosestPoint
+
+-- Protection contre les erreurs de chargement
+local CalcClosestPointOnLineSegment = function(pos, start, endpos)
+    if GP2 and GP2.Utils and GP2.Utils.CalcClosestPointOnLineSegment then
+        return GP2.Utils.CalcClosestPointOnLineSegment(pos, start, endpos)
+    else
+        -- Fallback simple si GP2.Utils n'est pas disponible
+        local dir = (endpos - start):GetNormalized()
+        local projection = (pos - start):Dot(dir)
+        projection = math.max(0, math.min(projection, start:Distance(endpos)))
+        return start + dir * projection
+    end
+end
+
+local EmitSoundAtClosestPoint = function(...)
+    if GP2 and GP2.Utils and GP2.Utils.EmitSoundAtClosestPoint then
+        return GP2.Utils.EmitSoundAtClosestPoint(...)
+    else
+        -- Fallback basique
+        return false
+    end
+end
 
 local PROP_WEIGHTED_CUBE_CLASS = {
     ["prop_weighted_cube"] = true

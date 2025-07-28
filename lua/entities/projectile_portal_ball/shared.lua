@@ -12,7 +12,7 @@ ENT.Spawnable = false
 ENT.AdminSpawnable = false
 
 		useInstant = CreateConVar("portal_instant", 0, {FCVAR_ARCHIVE,FCVAR_REPLICATED,FCVAR_SERVER_CAN_EXECUTE}, "Make portals create instantly and don't use the projectile.")
-		ballEnable = CreateConVar("portal_projectile_ball","1",true,false)
+		ballEnable = CreateConVar("portal_projectile_ball","1",{FCVAR_ARCHIVE,FCVAR_REPLICATED},"Enable portal projectile ball")
 
 function ENT:Initialize()
 	self.Entity:PhysicsInit(SOLID_VPHYSICS)

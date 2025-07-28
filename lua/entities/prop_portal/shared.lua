@@ -163,8 +163,8 @@ function ENT:SetType( int )
 		end
 	end
 
-	-- Intégrer avec PortalManager si activé
-	if SERVER and self:GetActivated() then
+	-- Intégrer avec PortalManager si disponible et activé
+	if SERVER and self:GetActivated() and PortalManager and PortalManager.SetPortal then
 		PortalManager.SetPortal(0, self) -- Utiliser linkage group 0 par défaut
 	end
 end
@@ -172,6 +172,35 @@ end
 -- GP2 Compatibility method
 function ENT:GetType()
 	return self:GetNWInt("Potal:PortalType", TYPE_BLUE)
+end
+
+-- GP2 Compatibility method - Check if portal was placed by map
+function ENT:GetPlacedByMap()
+	return self:GetNWBool("Potal:PlacedByMap", false)
+end
+
+-- GP2 Compatibility method - Set if portal was placed by map
+function ENT:SetPlacedByMap(placed)
+	if SERVER then
+		self:SetNWBool("Potal:PlacedByMap", placed or false)
+	end
+end
+
+-- GP2 Compatibility method - Set portal color
+function ENT:SetPortalColor(r, g, b)
+	if SERVER then
+		self:SetNWInt("Potal:ColorR", r or 255)
+		self:SetNWInt("Potal:ColorG", g or 255)
+		self:SetNWInt("Potal:ColorB", b or 255)
+	end
+end
+
+-- GP2 Compatibility method - Get portal color
+function ENT:GetPortalColor()
+	local r = self:GetNWInt("Potal:ColorR", 255)
+	local g = self:GetNWInt("Potal:ColorG", 255)
+	local b = self:GetNWInt("Potal:ColorB", 255)
+	return r, g, b
 end
 
 -- GP2 Compatibility method - alias for GetOther()

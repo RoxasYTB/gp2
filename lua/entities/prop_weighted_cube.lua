@@ -50,6 +50,13 @@ local CUBE_ANTIQUE_CLEAN_SKIN = 0
 local CUBE_ANTIQUE_BOUNCE_SKIN = 1
 local CUBE_ANTIQUE_SPEED_SKIN = 2
 
+-- Cube types
+local CUBE_STANDARD = 0
+local CUBE_COMPANION = 1
+local CUBE_REFLECTIVE = 2
+local CUBE_SPHERE = 3
+local CUBE_ANTIQUE = 4
+
 CUBE_TYPE_TO_INFO = {
     [CUBE_STANDARD] = {
         model = CUBE_MODEL

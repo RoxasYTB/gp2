@@ -5,7 +5,18 @@
 
 include "shared.lua"
 
-local CalcClosestPointOnLineSegment = GP2.Utils.CalcClosestPointOnLineSegment
+-- Protection contre les erreurs de chargement
+local CalcClosestPointOnLineSegment = function(pos, start, endpos)
+    if GP2 and GP2.Utils and GP2.Utils.CalcClosestPointOnLineSegment then
+        return GP2.Utils.CalcClosestPointOnLineSegment(pos, start, endpos)
+    else
+        -- Fallback simple si GP2.Utils n'est pas disponible
+        local dir = (endpos - start):GetNormalized()
+        local projection = (pos - start):Dot(dir)
+        projection = math.max(0, math.min(projection, start:Distance(endpos)))
+        return start + dir * projection
+    end
+end
 local clamp = math.Clamp
 
 -- Table globale pour stocker les lasers qui doivent être rendus
@@ -82,52 +93,92 @@ end
 function ENT:DrawLaserSegments()
     if not self.LaserSegments or #self.LaserSegments == 0 then return end
 
+    -- Matériau principal du laser
     local material = Material("sprites/physbeam")
-    local whiteMaterial = Material("sprites/physbeam")
-    local debugMaterial = Material("sprites/bluelaser1")
+    if material:IsError() then
+        material = Material("cable/cable")
+    end
+
+    -- Matériau pour le glow
+    local glowMaterial = Material("sprites/light_glow")
+    if glowMaterial:IsError() then
+        glowMaterial = material
+    end
 
     for i, segment in ipairs(self.LaserSegments) do
-        -- Couleur rouge pour le faisceau principal
-        local color = Color(104, 6, 6)
-        -- Couleur bleue pour les segments de debug (invisibles normalement)
-        local debugColor = color
+        if not segment.start or not segment.endpos then continue end
 
-        -- Faisceau principal
+        -- Largeur du laser principal
+        local mainWidth = 8
+        -- Largeur du glow
+        local glowWidth = 18
+
+        -- Couleur principale (rouge Portal 2)
+        local color = Color(104, 6, 6, 255)
+        -- Couleur du glow (plus clair, alpha dégradé)
+        local glowColor = Color(255, 80, 80, 120)
+
+        -- Si c'est le segment de continuité (généralement le dernier)
+        if i == #self.LaserSegments then
+            -- Glow autour du beam
+            render.SetMaterial(glowMaterial)
+            render.DrawBeam(segment.start, segment.endpos, glowWidth, 0, 1, glowColor)
+            -- Beam principal
+            render.SetMaterial(material)
+            render.DrawBeam(segment.start, segment.endpos, mainWidth, 0, 1, color)
+        else
+            -- Segments normaux
+            render.SetMaterial(material)
+            render.DrawBeam(segment.start, segment.endpos, mainWidth, 0, 1, color)
+        end
+
+        -- Ligne blanche intérieure pour le style Portal
         render.SetMaterial(material)
-        render.DrawBeam(segment.start, segment.endpos, 8, 0, 1, color)
-
-        -- Ligne blanche intérieure
-        render.SetMaterial(whiteMaterial)
-        render.DrawBeam(segment.start, segment.endpos, 1, 0, 1, Color(255, 255, 255, 255))
-        render.DrawBeam(segment.start, segment.endpos, 1, 0, 1, Color(234, 0, 255))
-
-
+        render.DrawBeam(segment.start, segment.endpos, 2, 0, 1, Color(255, 255, 255, 180))
     end
 end
 
 -- Hook pour le rendu global des lasers
 hook.Add("PostDrawOpaqueRenderables", "EnvPortalLaser_Render", function()
-    for laser, _ in pairs(EnvPortalLaser.RenderList) do
-        if IsValid(laser) and laser:GetState() then
-            laser:DrawLaserSegments()
-        else
-            EnvPortalLaser.RenderList[laser] = nil
+    -- Protection contre les erreurs de rendu
+    local success, err = pcall(function()
+        for laser, _ in pairs(EnvPortalLaser.RenderList) do
+            if IsValid(laser) and laser:GetState() and laser.DrawLaserSegments then
+                laser:DrawLaserSegments()
+            else
+                EnvPortalLaser.RenderList[laser] = nil
+            end
         end
+    end)
+
+    if not success then
+        print("[GP2] Erreur lors du rendu des lasers: " .. tostring(err))
     end
 end)
 
 function ENT:StartSparkParticle()
     if not IsValid(self.SparksParticle) then
-        self.SparksParticle = CreateParticleSystem(self, "discouragement_beam_sparks", PATTACH_CUSTOMORIGIN)
+        -- Utiliser le système de fallback pour les particules
+        local particleName = self:GetParticleNameOrFallback("discouragement_beam_sparks", "explosion_turret_break")
+        if particleName then
+            self.SparksParticle = CreateParticleSystem(self, particleName, PATTACH_CUSTOMORIGIN)
+        end
     end
 end
 
 function ENT:StartParticles()
+    -- Vérifier que les particules existent avant de les créer
     if IsValid(self:GetParentLaser()) then
-        self.Particle = CreateParticleSystem(self, "reflector_start_glow", PATTACH_ABSORIGIN_FOLLOW)
+        local particleName = self:GetParticleNameOrFallback("reflector_start_glow", "explosion_turret_break")
+        if particleName then
+            self.Particle = CreateParticleSystem(self, particleName, PATTACH_ABSORIGIN_FOLLOW)
+        end
     else
-        self.Particle = CreateParticleSystem(self, "laser_start_glow", PATTACH_POINT_FOLLOW,
-            self:LookupAttachment("laser_attachment"))
+        local particleName = self:GetParticleNameOrFallback("laser_start_glow", "explosion_turret_break")
+        if particleName then
+            self.Particle = CreateParticleSystem(self, particleName, PATTACH_POINT_FOLLOW,
+                self:LookupAttachment("laser_attachment"))
+        end
     end
 
     self:StartSparkParticle()
@@ -187,4 +238,31 @@ function ENT:OnStateChange(name, old, new)
         self:StopParticles()
         self:StopLoopingSounds()
     end
+end
+
+-- Actualisation forcée des lasers après chargement et nettoyage
+local function RefreshAllPortalLasers()
+    for _, ent in ipairs(ents.FindByClass("env_portal_laser")) do
+        if IsValid(ent) then
+            EnvPortalLaser.AddToRenderList(ent)
+            if ent.LaserSegments and #ent.LaserSegments > 0 then
+                ent:DrawLaserSegments()
+            end
+        end
+    end
+end
+
+-- Hook après le chargement des entités
+hook.Add("InitPostEntity", "GP2_RefreshPortalLasers", function()
+    timer.Simple(0.5, RefreshAllPortalLasers)
+end)
+
+-- Hook après le nettoyage de la map
+hook.Add("PostCleanupMap", "GP2_RefreshPortalLasers_Cleanup", function()
+    timer.Simple(0.5, RefreshAllPortalLasers)
+end)
+
+-- Timer pour forcer l'actualisation régulière
+if not timer.Exists("GP2_ForceLaserRefresh") then
+    timer.Create("GP2_ForceLaserRefresh", 1, 0, RefreshAllPortalLasers)
 end

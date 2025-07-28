@@ -84,8 +84,19 @@ include("gp2/particles.lua")
 include("gp2/entityextensions.lua")
 include("gp2/portalmanager.lua")
 include("gp2/portaldetours.lua")
-include("gp2/portalmovement" .. (PORTAL_USE_NEW_ENVIRONMENT_SYSTEM and "_new" or "_old") .. ".lua")
-AddCSLuaFile("gp2/portalmovement" .. (PORTAL_USE_NEW_ENVIRONMENT_SYSTEM and "_new" or "_old") .. ".lua")
+-- Inclure le système de mouvement en fonction de la version
+local movementFile = "gp2/portalmovement" .. (PORTAL_USE_NEW_ENVIRONMENT_SYSTEM and "_new" or "_old") .. ".lua"
+if file.Exists(movementFile, "LUA") then
+    include(movementFile)
+else
+    print("[GP2] Avertissement: " .. movementFile .. " non trouvé")
+end
+
+-- Ajouter les fichiers client
+local movementFileCS = "gp2/portalmovement" .. (PORTAL_USE_NEW_ENVIRONMENT_SYSTEM and "_new" or "_old") .. ".lua"
+if file.Exists(movementFileCS, "LUA") then
+    AddCSLuaFile(movementFileCS)
+end
 AddCSLuaFile("gp2/globals.lua")
 AddCSLuaFile("gp2/utils.lua")
 AddCSLuaFile("gp2/netmessages.lua")
@@ -121,8 +132,12 @@ if SERVER then
     end
 
     -- Ensure critical entities are specifically registered
-    AddCSLuaFile("entities/prop_portal.lua")
-    AddCSLuaFile("entities/base_brush.lua")
+    if file.Exists("entities/prop_portal.lua", "LUA") then
+        AddCSLuaFile("entities/prop_portal.lua")
+    end
+    if file.Exists("entities/base_brush.lua", "LUA") then
+        AddCSLuaFile("entities/base_brush.lua")
+    end
 
     -- Register HUD element files to fix the empty file errors
     AddCSLuaFile("gp2/client/hudelements/base.lua")
@@ -294,7 +309,12 @@ if SERVER then
     include("gp2/mouthmanager.lua")
     include("gp2/gamemovement.lua")
     include("gp2/portalpvs.lua")
-    include("gp2/portalpropteleport.lua")
+    -- Inclure portalpropteleport seulement s'il existe
+    if file.Exists("gp2/portalpropteleport.lua", "LUA") then
+        include("gp2/portalpropteleport.lua")
+    else
+        print("[GP2] Avertissement: gp2/portalpropteleport.lua non trouvé")
+    end
     include("gp2/paint.lua")
     include("gp2/client/hud.lua")
 
@@ -335,13 +355,24 @@ if SERVER then
     function fixPortalColors()
         timer.Simple(2, function()
             for _, portal in ipairs(ents.FindByClass("prop_portal")) do
-                if portal:GetPlacedByMap() then
+                -- Vérifier si la méthode existe avant de l'appeler
+                local isMapPortal = false
+                if portal.GetPlacedByMap and isfunction(portal.GetPlacedByMap) then
+                    isMapPortal = portal:GetPlacedByMap()
+                end
+
+                if isMapPortal then
                     local firstPlayer = Entity(1)
                     if IsValid(firstPlayer) then
-                        local info = firstPlayer:GetInfo("gp2_portal_color" .. portal:GetType() + 1)
-                        local r, g, b = unpack((info or "255 255 255"):Split(" "))
+                        local portalType = (portal.GetType and portal:GetType()) or 1
+                        local info = firstPlayer:GetInfo("gp2_portal_color" .. (portalType + 1))
+                        local colorString = info or "255 255 255"
+                        local colorTable = string.Split(colorString, " ")
+                        local r, g, b = tonumber(colorTable[1]) or 255, tonumber(colorTable[2]) or 255, tonumber(colorTable[3]) or 255
 
-                        portal:SetPortalColor(r, g, b)
+                        if portal.SetPortalColor and isfunction(portal.SetPortalColor) then
+                            portal:SetPortalColor(r, g, b)
+                        end
                     end
                 end
             end
@@ -544,5 +575,30 @@ else
                 end
             end)
         end
+    end)
+
+    -- Fonction pour recharger les scripts clients critiques
+    local function ReloadClientScripts()
+        local clientFiles = {
+            "entities/env_portal_laser/cl_init.lua",
+            -- Ajouter ici d'autres fichiers à recharger si besoin
+        }
+        for _, file in ipairs(clientFiles) do
+            pcall(include, file)
+        end
+    end
+
+    -- Commande console pour forcer le reload
+    concommand.Add("gp2_reload_client_scripts", function()
+        ReloadClientScripts()
+    end, nil, "Recharge les scripts clients GP2 (visuel laser, etc.)")
+
+    -- Hook pour recharger automatiquement après le chargement des entités
+    hook.Add("InitPostEntity", "GP2_ReloadClientScripts", function()
+        timer.Simple(0.5, ReloadClientScripts)
+    end)
+    -- Hook pour recharger après nettoyage map
+    hook.Add("PostCleanupMap", "GP2_ReloadClientScripts_Cleanup", function()
+        timer.Simple(0.5, ReloadClientScripts)
     end)
 end
