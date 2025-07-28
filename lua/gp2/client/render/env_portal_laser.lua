@@ -113,7 +113,7 @@ local function RecursionLaserThroughPortals(laser, linkedPortal, data)
             continue
         end
 
-        rayHit = { 
+        rayHit = {
             HitPos = intersect,
             Entity = tracedEntity,
             Distance = math.sqrt(candidate.DistanceSqr)
@@ -135,9 +135,11 @@ local function RecursionLaserThroughPortals(laser, linkedPortal, data)
         local hitPortal = tr.Entity
         local linkedPortal = hitPortal:GetLinkedPartner()
 
+        -- Vérifier que le rayon frappe bien la face avant du portail
         if tr.HitNormal:Dot(hitPortal:GetUp()) > 0.9 then
             local newData = table.Copy(data)
 
+            -- Utiliser PortalManager.TransformPortal pour transformer la position et direction
             newData.start = PortalManager.TransformPortal(hitPortal, linkedPortal, tr.HitPos - tr.Normal * linkedPortal:GetSize().z * 2)
             newData.endpos = PortalManager.TransformPortal(hitPortal, linkedPortal, data.endpos)
 
@@ -202,8 +204,8 @@ function EnvPortalLaser.Render()
         else
             attachPos = laser:GetPos()
             attachAng = laser:GetAngles()
-            attachForward = attachAng:Forward()        end       
-        
+            attachForward = attachAng:Forward()        end
+
         render.SetMaterial(LASER_MATERIAL)
 
         -- Le rendu du laser est maintenant géré par RecursionLaserThroughPortals

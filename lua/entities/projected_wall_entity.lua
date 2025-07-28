@@ -68,7 +68,7 @@ function ENT:Think()
     if not self:GetUpdated() then
         self:CreateWall()
     end
-    
+
     if CLIENT then
         self:SetNextClientThink(CurTime())
         if ProjectedWallEntity and not ProjectedWallEntity.IsAdded(self) then
@@ -162,15 +162,12 @@ function ENT:Think()
                         if IsValid(ent) then
                             ent:SetFinalOffsetZ(offsetZ)
                             ent:SetFinalOffsetX(offsetX)
-                            print("[GP2][DEBUG][SERVER] Offset reçu du client : Z=", offsetZ, " X=", offsetX, " (GetFinalOffsetZ()=", ent:GetFinalOffsetZ(), ", GetFinalOffsetX()=", ent:GetFinalOffsetX(), ")")
                             lastOffsetReceivedZ = offsetZ
                             lastOffsetReceivedX = offsetX
                         end
                     end)
                 end
-                print ("[GP2][DEBUG] lastOffsetReceivedZ : " .. tostring(lastOffsetReceivedZ) .. ", lastOffsetReceivedX : " .. tostring(lastOffsetReceivedX))
-                print("[GP2][DEBUG] Meilleur offset trouvé : Z=" .. lastOffsetReceivedZ .. " X=" .. tostring(lastOffsetReceivedX) .. " isServeur=" .. tostring(SERVER))
-                bestExitPortalZ = exitPortalZ
+               bestExitPortalZ = exitPortalZ
                 bestExitPortalX = exitPortalX
                 if firstExitPortalZ == nil then
                     firstExitPortalZ = exitPortalZ
@@ -178,8 +175,19 @@ function ENT:Think()
                 -- On stocke aussi la position/angle/parent pour ce portail
                 if SERVER then
                     local newPos, newAng = PortalManager.TransformPortal(entryPortal, exitPortal, hitPos, currentAng)
-                    print("[GP2][DEBUG] exitPortal:GetAngles().y = " .. tostring(exitPortal:GetAngles().y))
-                    bestPortalClonePos = newPos
+                    -- Correction de l'angle pour faire face à la direction du portail au lieu d'être dos au portail
+                    newAng = Angle(newAng.p, newAng.y + 180, newAng.r)
+
+                    -- Correction spécifique pour les portails au plafond ou au sol
+                    local exitPortalPitch = exitPortal:GetAngles().p
+                    if math.abs(exitPortalPitch - 90) < 10 then
+                        -- Portail au sol (pitch ~90) : inverser pour aller vers le haut
+                        newAng = Angle(-newAng.p, newAng.y, newAng.r)
+                    elseif math.abs(exitPortalPitch + 90) < 10 then
+                        -- Portail au plafond (pitch ~-90) : inverser pour aller vers le bas
+                        newAng = Angle(-newAng.p, newAng.y, newAng.r)
+                    end
+                   bestPortalClonePos = newPos
                     bestPortalClonePos.z = bestPortalClonePos.z    -- Force Z à la valeur du portail de sortie
                     -- Appliquer un décalage sur Y en fonction de l'orientation du portail de sortie
                     local exitRight = exitPortal:GetRight()
@@ -207,6 +215,19 @@ function ENT:Think()
                 end
             end
             currentPos, currentAng = PortalManager.TransformPortal(entryPortal, exitPortal, hitPos, currentAng)
+            -- Correction de l'angle pour que le projected wall continue dans la direction du portail
+            currentAng = Angle(currentAng.p, currentAng.y + 180, currentAng.r)
+
+            -- Correction spécifique pour les portails au plafond ou au sol
+            local exitPortalPitch = exitPortal:GetAngles().p
+            if math.abs(exitPortalPitch - 90) < 10 then
+                -- Portail au sol (pitch ~90) : inverser pour aller vers le haut
+                currentAng = Angle(-currentAng.p, currentAng.y, currentAng.r)
+            elseif math.abs(exitPortalPitch + 90) < 10 then
+                -- Portail au plafond (pitch ~-90) : inverser pour aller vers le bas
+                currentAng = Angle(-currentAng.p, currentAng.y, currentAng.r)
+            end
+
             lastEntity = exitPortal
 
             break -- Ajout : on sort de la boucle après le premier passage portail
@@ -235,7 +256,6 @@ function ENT:Think()
         if self.LastLoggedOffsetZ ~= bestOffsetZ or self.LastLoggedOffsetX ~= bestOffsetX then
             self.LastLoggedOffsetZ = bestOffsetZ
             self.LastLoggedOffsetX = bestOffsetX
-            print("[GP2][DEBUG] finalOffsetZ mis à jour : " .. tostring(bestOffsetZ) .. ", finalOffsetX : " .. tostring(bestOffsetX))
         end
     end
 
@@ -273,14 +293,6 @@ function ENT:Think()
         local finalZ = self:GetFinalOffsetZ()
         local finalX = self:GetFinalOffsetX()
         local foundPortalEntIndex = self.LastFoundPortalEntity and self.LastFoundPortalEntity:IsValid() and self.LastFoundPortalEntity:EntIndex() or "nil"
-        print(string.format(
-            "[GP2][DEBUG] SERVER Think — foundPortal=%s, finalZ=%s, finalX=%s, pos=%s, foundPortalEntIndex=%s",
-            tostring(foundPortal),
-            tostring(finalZ),
-            tostring(finalX),
-            tostring(bestPortalClonePos),
-            tostring(foundPortalEntIndex)
-        ))
         if foundPortal and bestPortalClonePos and bestPortalCloneAng and bestPortalCloneLinked then
             -- On force Z à la valeur du portail de sortie
             bestPortalClonePos.z = bestPortalClonePos.z
@@ -288,10 +300,8 @@ function ENT:Think()
             -- L'offset X est déjà appliqué via l'axe Right du portail de sortie plus haut
             -- Création / mise à jour unique du clone
             if not self.PortalClone or not IsValid(self.PortalClone) then
-                print("[GP2][DEBUG] Aucun clone existant, on en crée un nouveau.")
                 local clone = ents.Create("projected_wall_entity")
                 if IsValid(clone) then
-                    print("[GP2][DEBUG] Spawn clone at " .. tostring(bestPortalClonePos))
                     clone:SetPos(bestPortalClonePos)
                     clone:SetAngles(bestPortalCloneAng)
                     clone:Spawn()
@@ -302,19 +312,14 @@ function ENT:Think()
                     clone.OriginalWallX = self.OriginalWallX
                     self.PortalClone = clone
                     self.PortalCloneLinked = bestPortalCloneLinked
-                    print("[GP2][DEBUG] Clone créé, parent=" .. tostring(bestPortalCloneLinked))
-                    print("[GP2][DEBUG] Hauteur du clone du projected wall : " .. tostring(clone:GetPos().z) .. ", X : " .. tostring(clone:GetPos().x))
                 end
             else
-                print("[GP2][DEBUG] Clone existant, on met à jour sa position.")
                 self.PortalClone:SetPos(bestPortalClonePos)
                 self.PortalClone:SetAngles(bestPortalCloneAng)
-                print("[GP2][DEBUG] Hauteur du clone du projected wall (update) : " .. tostring(self.PortalClone:GetPos().z) .. ", X : " .. tostring(self.PortalClone:GetPos().x))
             end
         else
             -- Pas de portail valide : suppression du clone s’il existe
             if self.PortalClone and IsValid(self.PortalClone) then
-                print("[GP2][DEBUG] Aucun portail valide, suppression du clone existant.")
                 self.PortalClone:Remove()
                 self.PortalClone = nil
                 self.PortalCloneLinked = nil
@@ -341,13 +346,11 @@ function ENT:OnRemove(fd)
         self.WallImpact:StopEmissionAndDestroyImmediately()
     end
     if SERVER and self.PortalClone and IsValid(self.PortalClone) then
-        print("[GP2][DEBUG] projected_wall_entity " .. tostring(self) .. " : OnRemove, suppression du clone.")
         self.PortalClone:Remove()
         self.PortalClone = nil
         self.PortalCloneLinked = nil
     end
     if self.IsPortalClone then
-        print("[GP2][DEBUG] projected_wall_entity " .. tostring(self) .. " : OnRemove appelé sur un clone.")
     end
 end
 
@@ -412,7 +415,7 @@ function ENT:CreateWall()
             local wallImpactAng = tr.HitNormal:Angle()
 
             self.WallImpact = CreateParticleSystemNoEntity("projected_wall_impact", tr.HitPos - fwd * 4, wallImpactAng)
-            
+
             --idk how to work with this particle, maybe converter fucked it up
             --self.WallImpact:SetControlPoint(1, Vector(1,1,1))
         end
@@ -423,7 +426,7 @@ function ENT:CreateWall()
         end
     end
 
-    self:EnableCustomCollisions(true) 
+    self:EnableCustomCollisions(true)
     self:PhysicsInitConvex(verts_col, "hard_light_bridge")
     self:GetPhysicsObject():EnableMotion(false)
     self:GetPhysicsObject():SetContents(CONTENTS_SOLID + CONTENTS_MOVEABLE + CONTENTS_BLOCKLOS)

@@ -1,6 +1,10 @@
 TYPE_BLUE = 1
 TYPE_ORANGE = 2
 
+-- Compatibility constants with GP2 Framework
+PORTAL_TYPE_FIRST = 1  -- TYPE_BLUE
+PORTAL_TYPE_SECOND = 2 -- TYPE_ORANGE
+
 ENT.Type = "anim";
 
 ENT.PrintName = "Portal";
@@ -158,6 +162,11 @@ function ENT:SetType( int )
 			self:SetUpEffects(int)
 		end
 	end
+
+	-- Intégrer avec PortalManager si activé
+	if SERVER and self:GetActivated() then
+		PortalManager.SetPortal(0, self) -- Utiliser linkage group 0 par défaut
+	end
 end
 
 -- GP2 Compatibility method
@@ -176,6 +185,129 @@ end
 
 function ENT:GetOther()
 	return self:GetNWEntity("Potal:Other",NULL)
+end
+
+-- Méthode pour définir le portail lié (partenaire)
+function ENT:SetLinkedPartner(partner)
+	if SERVER then
+		if IsValid(partner) then
+			self:SetNWEntity("Potal:Other", partner)
+			partner:SetNWEntity("Potal:Other", self)
+
+			-- Définir le statut de liaison
+			self:SetNWBool("Potal:Linked", true)
+			partner:SetNWBool("Potal:Linked", true)
+		else
+			self:SetNWEntity("Potal:Other", NULL)
+			self:SetNWBool("Potal:Linked", false)
+		end
+	end
+end
+
+-- Méthode pour obtenir la taille du portail (pour les calculs de collision)
+function ENT:GetSize()
+	if self:IsHorizontal() then
+		return Vector(34, 34, 2) -- Portail horizontal
+	else
+		return Vector(34, 34, 2) -- Portail vertical
+	end
+end
+
+-- Méthodes pour vérifier l'état d'activation
+function ENT:GetActivated()
+	return self:GetNWBool("Potal:Activated", false)
+end
+
+function ENT:SetActivated(state)
+	if SERVER then
+		self:SetNWBool("Potal:Activated", state)
+		if state and self.Activated ~= true then
+			self.Activated = true
+			if self.PortalType then
+				self:SetUpEffects(self.PortalType)
+			end
+			-- Intégrer avec PortalManager quand le portail s'active
+			if self.PortalType then
+				PortalManager.SetPortal(0, self) -- Utiliser linkage group 0 par défaut
+			end
+		end
+	end
+end
+
+-- Méthode pour vérifier si le portail est sur le sol
+function ENT:IsHorizontal()
+	local p = math.Round(self:GetAngles().p)
+	return p == 0
+end
+
+function ENT:OnFloor()
+	local p = math.Round(self:GetAngles().p)
+	return p == 0 and p == -90 -- Fixed Portals
+end
+
+function ENT:OnRoof()
+	local p = math.Round(self:GetAngles().p)
+	return p >= 0 and p <= 180 -- Fixed Portals
+end
+
+-- Méthode pour obtenir le vecteur Up du portail (utilisé par les lasers et autres)
+function ENT:GetUp()
+	return self:GetAngles():Up()
+end
+
+-- Méthode pour obtenir le vecteur Forward du portail
+function ENT:GetForward()
+	return self:GetAngles():Forward()
+end
+
+-- Méthode pour obtenir le vecteur Right du portail
+function ENT:GetRight()
+	return self:GetAngles():Right()
+end
+
+-- Méthode pour transformer les coordonnées d'un point local vers le monde
+function ENT:LocalToWorld(localVector)
+	return self:GetPos() + self:GetAngles():Forward() * localVector.x +
+		   self:GetAngles():Right() * localVector.y +
+		   self:GetAngles():Up() * localVector.z
+end
+
+-- Méthode pour transformer les coordonnées d'un point monde vers local
+function ENT:WorldToLocal(worldVector)
+	local relativePos = worldVector - self:GetPos()
+	return Vector(
+		relativePos:Dot(self:GetAngles():Forward()),
+		relativePos:Dot(self:GetAngles():Right()),
+		relativePos:Dot(self:GetAngles():Up())
+	)
+end
+
+-- Méthode pour transformer les angles du monde vers local
+function ENT:WorldToLocalAngles(worldAngles)
+	return worldAngles - self:GetAngles()
+end
+
+-- Méthode pour transformer les angles du local vers le monde
+function ENT:LocalToWorldAngles(localAngles)
+	return self:GetAngles() + localAngles
+end
+
+-- Méthode pour obtenir les limites de collision du portail (nécessaire pour les calculs de passage)
+function ENT:GetCollisionBounds()
+	if self:IsHorizontal() then
+		return Vector(-34, -34, -1), Vector(34, 34, 1) -- Portail horizontal
+	else
+		return Vector(-34, -34, -1), Vector(34, 34, 1) -- Portail vertical
+	end
+end
+
+-- Fonction d'aide pour forcer la liaison entre deux portails (pour tests/debug)
+function ENT:ForceLinkWith(otherPortal)
+	if SERVER and IsValid(otherPortal) and otherPortal:GetClass() == "prop_portal" then
+		self:SetLinkedPartner(otherPortal)
+		otherPortal:SetLinkedPartner(self)
+		GP2.Print("Forced link between portal %s and %s", tostring(self), tostring(otherPortal))
+	end
 end
 
 function ENT:SetUpEffects(int)
@@ -374,19 +506,6 @@ function ENT:GetOpposite() --Don't think this is being used..? Gets the portal t
 	elseif self.PortalType == TYPE_ORANGE then
 		return TYPE_BLUE
 	end
-end
-
-function ENT:IsHorizontal()
-	local p = math.Round(self:GetAngles().p)
-	return p == 0
-end
-function ENT:OnFloor()
-	local p = math.Round(self:GetAngles().p)
-	return p == 0 and p == -90 -- Fixed Portals
-end
-function ENT:OnRoof()
-	local p = math.Round(self:GetAngles().p)
-	return p >= 0 and p <= 180 -- Fixed Portals
 end
 
 local function PlayerPickup( ply, ent )

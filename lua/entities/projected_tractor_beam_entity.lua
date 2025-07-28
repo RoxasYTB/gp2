@@ -76,7 +76,7 @@ function ENT:Think()
         self:CreateBeam()
         self:SetUpdated(true)
     end
-    
+
     if CLIENT then
         self:SetNextClientThink(CurTime())
         if ProjectedTractorBeamEntity and ProjectedTractorBeamEntity.IsAdded and ProjectedTractorBeamEntity.AddToRenderList then
@@ -106,6 +106,15 @@ function ENT:Think()
             local localHit = entry:WorldToLocal(hitPos)
             -- Transformation à travers le portail
             local newPos, newAng = PortalManager.TransformPortal(entry, exit, hitPos, self:GetAngles())
+            -- Correction de l'angle pour faire face à la direction du portail au lieu d'être dos au portail
+            newAng = Angle(newAng.p, newAng.y, newAng.r)
+
+            -- Correction spécifique pour les portails au plafond ou au sol
+            local exitPortalPitch = exit:GetAngles().p
+            if math.abs(exitPortalPitch + 90) < 10 then
+                -- Portail au plafond (pitch ~-90) : inverser pour aller vers le bas
+                newAng = Angle(newAng.p, newAng.y, newAng.r)
+            end
             -- Récupérer les axes du portail de sortie
             local eAng    = exit:GetAngles()
             local eRight  = eAng:Right()
@@ -139,7 +148,20 @@ function ENT:Think()
                     clone.IsPortalClone = true
                     clone.OrigZ = self.OrigZ -- Copie la hauteur d'origine pour le calcul d'offset Z
                     clone:SetPos(bestPortalClonePos)
-                    clone:SetAngles(bestPortalCloneAng)
+                    -- Correction orientation du clone selon le type de portail
+                    local exitPortalPitch = bestPortalCloneLinked:GetAngles().p
+                    local cloneAng = bestPortalCloneLinked:GetAngles()
+                    if math.abs(exitPortalPitch - 90) < 10 then
+                        -- Portail au sol : Up
+                        clone:SetAngles(cloneAng)
+                    elseif math.abs(exitPortalPitch + 90) < 10 then
+                        -- Portail au plafond : Down
+                        cloneAng:RotateAroundAxis(cloneAng:Right(), 180)
+                        clone:SetAngles(cloneAng)
+                    else
+                        -- Mur : Forward
+                        clone:SetAngles(cloneAng)
+                    end
                     clone:SetRadius(self:GetRadius())
                     clone:SetLinearForce(self:Get_LinearForce())
                     clone:Spawn()
@@ -150,7 +172,20 @@ function ENT:Think()
                 end
             else
                 self.PortalClone:SetPos(bestPortalClonePos)
-                self.PortalClone:SetAngles(bestPortalCloneAng)
+                -- Appliquer la même correction d'orientation que lors de la création
+                local exitPortalPitch = bestPortalCloneLinked:GetAngles().p
+                local cloneAng = bestPortalCloneLinked:GetAngles()
+                if math.abs(exitPortalPitch - 90) < 10 then
+                    -- Portail au sol : Up
+                    self.PortalClone:SetAngles(cloneAng)
+                elseif math.abs(exitPortalPitch + 90) < 10 then
+                    -- Portail au plafond : Down
+                    cloneAng:RotateAroundAxis(cloneAng:Right(), 180)
+                    self.PortalClone:SetAngles(cloneAng)
+                else
+                    -- Mur : Forward
+                    self.PortalClone:SetAngles(cloneAng)
+                end
                 self.PortalClone:SetRadius(self:GetRadius())
                 self.PortalClone:SetLinearForce(self:Get_LinearForce())
                 self.PortalClone:CreateBeam(distanceRestante)
@@ -291,7 +326,7 @@ function ENT:CreateBeam(distance)
             local uv1 = {0, u1}
             local uv2 = {0, u2}
             local uv3 = {v, u2}
-            local uv4 = {v, u1}            
+            local uv4 = {v, u1}
             GP2.Utils.AddFace(verts, v1, v2, v3, v4, uv1, uv2, uv3, uv4)
         end
 
@@ -301,7 +336,7 @@ function ENT:CreateBeam(distance)
 
         self.Mesh = Mesh()
         self.Mesh:BuildFromTriangles(verts)
-        
+
         -- Assurez-vous que ProjectedTractorBeamEntity est initialisé
         if ProjectedTractorBeamEntity and ProjectedTractorBeamEntity.AddToRenderList then
             ProjectedTractorBeamEntity.AddToRenderList(self, self.Mesh)
@@ -325,7 +360,7 @@ function ENT:CreateBeam(distance)
             self.Trigger.LinearForce = self:Get_LinearForce()
 
             if developer:GetBool() then
-                debugoverlay.BoxAngles(pos, self:WorldToLocal(mins), self:WorldToLocal(maxs), ang, 0.1, self:Get_LinearForce() < 0 and debugReversedColor or debugNormalColor) 
+                debugoverlay.BoxAngles(pos, self:WorldToLocal(mins), self:WorldToLocal(maxs), ang, 0.1, self:Get_LinearForce() < 0 and debugReversedColor or debugNormalColor)
             end
         else
             self.Trigger = ents.Create("trigger_tractorbeam")
@@ -344,12 +379,12 @@ function ENT:CreateBeam(distance)
 
             local mins = pos - right * radius - up * radius
             local maxs = pos + right * radius + up * radius + fwd * distance
-           
+
             self.Trigger:SetCollisionBoundsWS(mins, maxs)
             self.Trigger:SetAngles(self:GetAngles())
 
             if developer:GetBool() then
-                debugoverlay.BoxAngles(pos, self:WorldToLocal(mins), self:WorldToLocal(maxs), ang, 0.1, self:Get_LinearForce() < 0 and debugReversedColor or debugNormalColor) 
+                debugoverlay.BoxAngles(pos, self:WorldToLocal(mins), self:WorldToLocal(maxs), ang, 0.1, self:Get_LinearForce() < 0 and debugReversedColor or debugNormalColor)
             end
         end
     end

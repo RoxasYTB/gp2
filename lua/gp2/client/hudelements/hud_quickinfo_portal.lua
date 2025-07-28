@@ -88,7 +88,7 @@ function PANEL:Paint(w, h)
     local ply = self.ply
     local weapon = ply:GetActiveWeapon()
 
-    if 
+    if
         (ply:InVehicle() and not ply:GetAllowWeaponsInVehicle()) or
         (ply:GetViewEntity() ~= ply)
     then
@@ -113,16 +113,15 @@ function PANEL:Paint(w, h)
     local placed2 = can2 and group[1] or group[0]
 
 
-    if not self.gp2_portal_color1 then
+    if not self.gp2_portal_color1 or not IsValid(self.gp2_portal_color1) then
         self.gp2_portal_color1 = GetConVar("gp2_portal_color1")
     end
-
-    if not self.gp2_portal_color2 then
+    if not self.gp2_portal_color2 or not IsValid(self.gp2_portal_color2) then
         self.gp2_portal_color2 = GetConVar("gp2_portal_color2")
     end
 
-    local clr1 = self.gp2_portal_color1:GetString():Split(" ")
-    local clr2 = self.gp2_portal_color2:GetString():Split(" ")
+    local clr1 = (self.gp2_portal_color1 and self.gp2_portal_color1.GetString and self.gp2_portal_color1:GetString() or "255 255 255"):Split(" ")
+    local clr2 = (self.gp2_portal_color2 and self.gp2_portal_color2.GetString and self.gp2_portal_color2:GetString() or "255 255 255"):Split(" ")
 
     local r1 = tonumber(clr1[1]) or 255
     local g1 = tonumber(clr1[2]) or 255
@@ -153,7 +152,7 @@ function PANEL:Paint(w, h)
         else
             drawCrosshairPart(1, w / 2 - 31, h / 2 - 44, r1, g1, b1, 196)
         end
-    
+
         if IsValid(placed2) then
             drawCrosshairPart(4, w / 2 - 17, h / 2 - 22, r2, g2, b2, 255)
         else
