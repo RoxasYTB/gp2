@@ -259,6 +259,32 @@ if SERVER then
             ply:ChatPrint("[GP2] Aucune collision détectée sous le joueur.")
         end
     end, nil, "Affiche l'entité en collision sous le joueur.")
+    concommand.Add("gp2_print_object_height", function(ply)
+        if not IsValid(ply) then
+            print("Commande à utiliser en tant que joueur.")
+            return
+        end
+        local trace = ply:GetEyeTrace()
+        if trace.Hit and IsValid(trace.Entity) then
+            local pos = trace.Entity:GetPos()
+            local entName = trace.Entity:GetName() or "(aucun nom)"
+            -- Trace vers le bas depuis la position de l'objet
+            local tr = util.TraceLine({
+                start = pos,
+                endpos = pos - Vector(0,0,10000),
+                filter = trace.Entity
+            })
+            local solZ = tr.HitPos.z
+            local diff = math.Round(pos.z - solZ, 2)
+            local playerZ = math.Round(ply:GetPos().z, 2)
+            local diffPlayer = math.Round(pos.z - playerZ, 2)
+            ply:ChatPrint("[GP2] Hauteur (Z) de l'objet: " .. math.Round(pos.z, 2) .. " | Nom: " .. entName ..
+                "\n[GP2] Hauteur du sol sous l'objet: " .. math.Round(solZ, 2) .. " | Différence: " .. diff ..
+                "\n[GP2] Hauteur (Z) du joueur: " .. playerZ .. " | Différence objet-joueur: " .. diffPlayer)
+        else
+            ply:ChatPrint("[GP2] Aucun objet trouvé devant vous.")
+        end
+    end, nil, "Affiche la hauteur (Z) de l'objet visé par le joueur et celle du joueur.")
 end
 
 -- Cubes

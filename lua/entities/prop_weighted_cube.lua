@@ -147,27 +147,46 @@ function ENT:Initialize()
         self._spawnPos = self:GetPos()
         self._spawnAng = self:GetAngles()
         self._shakeEndTime = CurTime() + 5 -- Shake fort pendant 5 secondes
-        timer.Simple(0, function()
-            if not IsValid(self) then return end
-            self:PhysicsInit(SOLID_VPHYSICS)
-            local phys = self:GetPhysicsObject()
-            if IsValid(phys) then
-                phys:Wake()
-                -- DEBUG: Appliquer une impulsion aléatoire pour simuler le mouvement du prop_monster_box
-                local randVel = Vector(math.Rand(-50,50), math.Rand(-50,50), math.Rand(80,120))
-                local randAng = VectorRand(-1,1) * math.Rand(10, 40)
-                phys:SetVelocity(randVel)
-                phys:AddAngleVelocity(randAng)
-            end
-            -- Désactiver collisions avec tous les prop_dynamic et leurs enfants
-            for _, ent in ipairs(ents.FindByClass("prop_dynamic")) do
-                constraint.NoCollide(self, ent, 0, 0)
-                -- Désactiver aussi avec les enfants
-                for _, child in ipairs(ent:GetChildren()) do
-                    constraint.NoCollide(self, child, 0, 0)
-                end
-            end
-        end)
+             self:PhysicsInit(SOLID_VPHYSICS)
+        print("Prop Weighted Cube: Initialisation avec le modèle %s", self:GetModel())
+        -- timer.Simple(0, function()
+        --     if not IsValid(self) then return end
+        --     self:PhysicsInit(SOLID_VPHYSICS)
+        --     local phys = self:GetPhysicsObject()
+        --     -- Détection du portail sous le cube
+        --     local portal = nil
+        --     for _, ent in ipairs(ents.FindInSphere(self:GetPos(), 64)) do
+        --         if ent:GetClass() == "prop_portal" then
+        --             portal = ent
+        --             break
+        --         end
+        --     end
+        --     local applyImpulse = false
+        --     if IsValid(portal) then
+        --         local pitch = math.abs(portal:GetAngles().p)
+        --         -- Appliquer l'impulsion uniquement si le portail est au sol (≈270) ou au plafond (≈90)
+        --         if (pitch >= 80 and pitch <= 100) or (pitch >= 260 and pitch <= 280) then
+        --             applyImpulse = false
+        --         end
+        --     end
+        --     if IsValid(phys) and applyImpulse then
+        --         -- phys:Wake()
+        --         -- printf("Prop Weighted Cube: Appliquer une impulsion initiale")
+        --         -- -- DEBUG: Appliquer une impulsion aléatoire pour simuler le mouvement du prop_monster_box
+        --         -- local randVel = Vector(math.Rand(-50,50), math.Rand(-50,50), math.Rand(80,120))
+        --         -- local randAng = VectorRand(-1,1) * math.Rand(10, 40)
+        --         -- phys:SetVelocity(randVel)
+        --         -- phys:AddAngleVelocity(randAng)
+        --     end
+        --     -- Désactiver collisions avec tous les prop_dynamic et leurs enfants
+        --     for _, ent in ipairs(ents.FindByClass("prop_dynamic")) do
+        --         constraint.NoCollide(self, ent, 0, 0)
+        --         -- Désactiver aussi avec les enfants
+        --         for _, child in ipairs(ent:GetChildren()) do
+        --             constraint.NoCollide(self, child, 0, 0)
+        --         end
+        --     end
+        -- end)
     end
 end
 
@@ -178,14 +197,24 @@ function ENT:Think()
         if CurTime() > self._nextImpulse then
             local phys = self:GetPhysicsObject()
             if IsValid(phys) and phys:IsMotionEnabled() then
-                local tr = util.TraceLine({
-                    start = self:GetPos(),
-                    endpos = self:GetPos() - Vector(0,0,5),
-                    filter = self
-                })
-                if tr.Hit then
-                    local randVel = Vector(math.Rand(-10,10), math.Rand(-10,10), math.Rand(60,90))
-                    phys:AddVelocity(randVel)
+                -- Désactiver l'impulsion si on touche un prop_portal
+                local touchingPortal = false
+                for _, ent in ipairs(ents.FindInSphere(self:GetPos(), 5)) do
+                    if ent ~= self and ent:GetClass() == "prop_portal" then
+                        touchingPortal = true
+                        break
+                    end
+                end
+                if not touchingPortal then
+                    local tr = util.TraceLine({
+                        start = self:GetPos(),
+                        endpos = self:GetPos() - Vector(0,0,5),
+                        filter = self
+                    })
+                    if tr.Hit then
+                        local randVel = Vector(math.Rand(-10,10), math.Rand(-10,10), math.Rand(60,90))
+                        phys:AddVelocity(randVel)
+                    end
                 end
             end
             self._nextImpulse = CurTime() + math.Rand(0.3, 0.5)

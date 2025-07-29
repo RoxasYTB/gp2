@@ -136,6 +136,63 @@ end
 			phys:ApplyForceCenter(Vector(0,0,10))
 		end
 	end
+
+    -- Génération des caisses sous le portail
+    self.SpawnedCubes = {}
+    local groundZ = self:GetGroundZ()
+    local portalPos = self:GetPos()
+    local basePos = Vector(portalPos.x, portalPos.y, groundZ - 22) -- 30 unités en dessous du sol
+    local offsets = {
+        Vector(0,0,0), -- centre
+        Vector(40,0,0), Vector(-40,0,0), Vector(0,40,0), Vector(0,-40,0),
+        Vector(40,40,0), Vector(-40,40,0), Vector(40,-40,0), Vector(-40,-40,0)
+    }
+    for _, offset in ipairs(offsets) do
+        local cube = ents.Create("prop_physics")
+        if IsValid(cube) then
+            cube:SetModel("models/props_junk/wood_crate001a.mdl")
+            cube:SetPos(basePos + offset)
+            cube:Spawn()
+            cube:SetOwner(self)
+            cube.InPortalCube = true
+            cube.GP2_IsPortalCrate = true
+
+            -- Rendre la caisse complètement transparente
+            cube:SetColor(Color(255, 255, 255, 0))
+            cube:SetRenderMode(RENDERMODE_TRANSALPHA)
+
+            -- Désactiver collision avec tous les joueurs en rendant la caisse non-solide
+            cube:SetSolid(SOLID_NONE)
+            cube:SetCollisionGroup(COLLISION_GROUP_WORLD)
+
+            -- Alternative : physique pour les props mais pas pour les joueurs
+            timer.Simple(0.1, function()
+                if IsValid(cube) then
+                    cube:SetSolid(SOLID_VPHYSICS)
+                    cube:SetCollisionGroup(COLLISION_GROUP_DEBRIS_TRIGGER)
+                    -- Hook personnalisé pour cette caisse
+                    cube.StartTouch = function(self, ent)
+                        if ent:IsPlayer() then
+                            -- Ne rien faire, passer à travers
+                            return
+                        end
+                    end
+                end
+            end)
+
+            local phys = cube:GetPhysicsObject()
+            if IsValid(phys) then
+                phys:EnableMotion(false)
+                phys:EnableGravity(false)
+                phys:SetVelocity(Vector(0,0,0))
+                phys:AddAngleVelocity(-phys:GetAngleVelocity())
+                phys:SetAngleVelocity(Vector(0,0,0))
+                phys:Sleep()
+            end
+            cube:SetMoveType(MOVETYPE_NONE)
+            table.insert(self.SpawnedCubes, cube)
+        end
+    end
 end
 
 
@@ -347,12 +404,7 @@ elseif GetConVarNumber("portal_color_2") >=1 then
 else
 	ParticleEffect("portal_2_close_pbody",effectpos,ang,nil)
 end
-if !snd_portal2:GetBool() then
-			self:EmitSound("weapons/portalgun/portal_close"..math.random(1,2)..".wav",70)
-		else
-			self:EmitSound("weapons/portalgun/portal2/portal_close"..math.random(1,2)..".wav",70)
 end
-	end
 
 	self:SetPos( pos )
 
@@ -1021,6 +1073,14 @@ concommand.Add("CreateParticles", function(p,c,a)
 end)
 
 function ENT:OnRemove()
+    -- Suppression des caisses liées
+    if self.SpawnedCubes then
+        for _, cube in ipairs(self.SpawnedCubes) do
+            if IsValid(cube) then
+                cube:Remove()
+            end
+        end
+    end
 	for k,v in pairs(ents.GetAll())do
 		if v.InPortal == self then
 			umsg.Start( "Portal:ObjectLeftPortal" )
@@ -1030,3 +1090,33 @@ function ENT:OnRemove()
 		end
 	end
 end
+
+function ENT:GetGroundZ()
+    local startPos = self:GetPos()
+    local tr = util.TraceLine({
+        start = startPos,
+        endpos = startPos - Vector(0,0,10000),
+        filter = self
+    })
+    return tr.HitPos.z
+end
+
+function ENT:SpawnCratesBelow()
+    local groundZ = self:GetGroundZ()
+    local portalPos = self:GetPos()
+    local spawnZ = groundZ + 1
+    local centerPos = Vector(portalPos.x, portalPos.y, spawnZ)
+    local crate = ents.Create("prop_physics")
+    crate:SetModel("models/props/wood_crate001a.mdl")
+    crate:SetPos(centerPos)
+    crate:Spawn()
+    crate.GP2_IsPortalCrate = true -- Marqueur pour identification
+
+    -- Désactiver collision avec tous les joueurs existants
+    for _, ply in ipairs(player.GetAll()) do
+        constraint.NoCollide(crate, ply, 0, 0)
+    end
+
+    -- ... répéter pour les autres caisses autour ...
+end
+
