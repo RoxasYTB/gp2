@@ -139,9 +139,16 @@ end
 
     -- Génération des caisses sous le portail
     self.SpawnedCubes = {}
-    local groundZ = self:GetGroundZ()
-    local portalPos = self:GetPos()
-    local basePos = Vector(portalPos.x, portalPos.y, groundZ - 22) -- 30 unités en dessous du sol
+
+    -- Vérifier l'orientation du portail
+    local pitch = math.abs(self:GetAngles().p)
+    local isFloorOrCeiling = (pitch >= 80 and pitch <= 100) or (pitch >= 260 and pitch <= 280)
+
+    -- Ne spawner les caisses que si le portail n'est pas au sol/plafond
+    if not isFloorOrCeiling then
+        local groundZ = self:GetGroundZ()
+        local portalPos = self:GetPos()
+        local basePos = Vector(portalPos.x, portalPos.y, groundZ - 21) -- 30 unités en dessous du sol
     local offsets = {
         Vector(0,0,0), -- centre
         Vector(40,0,0), Vector(-40,0,0), Vector(0,40,0), Vector(0,-40,0),
@@ -193,6 +200,7 @@ end
             table.insert(self.SpawnedCubes, cube)
         end
     end
+    end -- Fermeture de la condition isFloorOrCeiling
 end
 
 
@@ -1073,13 +1081,23 @@ concommand.Add("CreateParticles", function(p,c,a)
 end)
 
 function ENT:OnRemove()
-    -- Suppression des caisses liées
+    -- Suppression des caisses liées avec un délai pour éviter le bug OOB
     if self.SpawnedCubes then
+        local cubesToRemove = {}
         for _, cube in ipairs(self.SpawnedCubes) do
             if IsValid(cube) then
-                cube:Remove()
+                table.insert(cubesToRemove, cube)
             end
         end
+
+        -- Supprimer les caisses après 1 seconde
+        timer.Simple(5, function()
+            for _, cube in ipairs(cubesToRemove) do
+                if IsValid(cube) then
+                  --   cube:Remove()
+                end
+            end
+        end)
     end
 	for k,v in pairs(ents.GetAll())do
 		if v.InPortal == self then
