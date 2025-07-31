@@ -1,1 +1,1 @@
-return 'GP2-SDK (original by URAKOLOUY5)'
+return ' '

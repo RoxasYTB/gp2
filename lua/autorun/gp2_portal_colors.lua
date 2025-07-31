@@ -221,7 +221,7 @@ if CLIENT then
     hook.Add("InitPostEntity", "GP2_PortalColorsWelcome", function()
         timer.Simple(2, function()
             if LocalPlayer() and LocalPlayer():IsValid() then
-                chat.AddText(Color(100, 255, 100), "[GP2] ", Color(255, 255, 255), "Tapez 'phelp' pour voir les couleurs de portails disponibles!")
+                print("Tapez 'phelp' pour voir les couleurs de portails disponibles!")
             end
         end)
     end)
