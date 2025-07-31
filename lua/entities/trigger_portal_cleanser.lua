@@ -63,8 +63,8 @@ function ENT:StartTouch(ent)
         local weapons = ent:GetWeapons()
         for i = 1, #weapons do
             local weapon = weapons[i]
-            if IsValid(weapon) and weapon:GetClass() == "weapon_portalgun" then
-                weapon:ClearPortals()
+            if IsValid(weapon) and weapon:GetClass() == "weapon_portalgun" and weapon.CleanPortals then
+                weapon:CleanPortals()
             end
         end
     end

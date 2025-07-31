@@ -382,6 +382,14 @@ function ENT:FireLaser()
     else
         self:SetShouldSpark(true)
     end
+
+    -- Suppression des portails non-joueur du même type lors de l’activation du laser
+    if SERVER then
+        -- TYPE_BLUE = 1, TYPE_ORANGE = 2
+        if self.PortalType then
+            RemoveNonPlayerPortalsOfType(self.PortalType)
+        end
+    end
 end
 
 --- Reflect laser on this entity (reflective cube)

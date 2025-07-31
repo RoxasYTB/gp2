@@ -516,6 +516,31 @@ end
 	return ball
 end
 
+-- Vérifie si un générateur de portail autre qu'un joueur est actif pour un type donné
+local function IsNonPlayerPortalGeneratorActive(portalType)
+    for _, portal in ipairs(ents.FindByClass("prop_portal")) do
+        if portal:GetType() == portalType then
+            local owner = portal:GetOwner()
+            if not IsValid(owner) or not owner:IsPlayer() then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+-- Blocage du tir de portail uniquement si c'est un joueur
+local oldShootPortal = SWEP.ShootPortal
+function SWEP:ShootPortal(type)
+    if IsValid(self.Owner) and self.Owner:IsPlayer() and IsNonPlayerPortalGeneratorActive and IsNonPlayerPortalGeneratorActive(type) then
+        if SERVER then
+            self.Owner:ChatPrint("Impossible de placer ce portail : un générateur est déjà actif.")
+        end
+        return
+    end
+    oldShootPortal(self, type)
+end
+
 function SWEP:ShootPortal( type )
 
 	self:SetNextPrimaryFire( CurTime() + self.Delay )

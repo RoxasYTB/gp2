@@ -1138,3 +1138,108 @@ function ENT:SpawnCratesBelow()
     -- ... répéter pour les autres caisses autour ...
 end
 
+-- Utilitaire : supprime tous les portails d’un type qui ne sont pas liés à un joueur
+function RemoveNonPlayerPortalsOfType(portalType)
+    for _, portal in ipairs(ents.FindByClass("prop_portal")) do
+        if portal:GetType() == portalType then
+            local owner = portal:GetOwner()
+            if not IsValid(owner) or not owner:IsPlayer() then
+                if portal.CleanMeUp then portal:CleanMeUp() else portal:Remove() end
+            end
+        end
+    end
+end
+
+-- Supprime les portails excédentaires d'une couleur (plus de 2), priorité à la suppression de ceux des joueurs
+function CleanupExcessPortalsOfType(portalType)
+    local portals = {}
+    for _, portal in ipairs(ents.FindByClass("prop_portal")) do
+        if portal:GetType() == portalType then
+            table.insert(portals, portal)
+        end
+    end
+    if #portals > 2 then
+        -- On trie : d'abord les portails de joueurs, puis les autres
+        table.sort(portals, function(a, b)
+            local aIsPlayer = IsValid(a:GetOwner()) and a:GetOwner():IsPlayer()
+            local bIsPlayer = IsValid(b:GetOwner()) and b:GetOwner():IsPlayer()
+            return aIsPlayer and not bIsPlayer
+        end)
+        -- Supprimer les portails excédentaires (en commençant par ceux des joueurs)
+        for i = 3, #portals do
+            if portals[i].CleanMeUp then portals[i]:CleanMeUp() else portals[i]:Remove() end
+        end
+    end
+end
+
+-- Supprime tous les portails d'une couleur sauf le plus récent (un seul bleu, un seul orange)
+function CleanupSinglePortalOfType(portalType)
+    local portals = {}
+    for _, portal in ipairs(ents.FindByClass("prop_portal")) do
+        if portal:GetType() == portalType then
+            table.insert(portals, portal)
+        end
+    end
+    if #portals > 1 then
+        -- Trie par date de création (le plus récent en dernier)
+        table.sort(portals, function(a, b)
+            return a:GetCreationTime() < b:GetCreationTime()
+        end)
+        -- Supprime tous sauf le plus récent
+        for i = 1, #portals - 1 do
+            if portals[i].CleanMeUp then portals[i]:CleanMeUp() else portals[i]:Remove() end
+        end
+    end
+end
+
+-- Retourne true si un générateur non-joueur possède déjà un portail de ce type
+function IsNonPlayerPortalGeneratorActive(portalType)
+    for _, portal in ipairs(ents.FindByClass("prop_portal")) do
+        if portal:GetType() == portalType then
+            local owner = portal:GetOwner()
+            if not IsValid(owner) or not owner:IsPlayer() then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+-- Lorsqu'un générateur non-joueur place un portail, supprimer tous les autres portails de ce type
+function OverwritePortalWithGenerator(portalType)
+    local portals = {}
+    for _, portal in ipairs(ents.FindByClass("prop_portal")) do
+        if portal:GetType() == portalType then
+            table.insert(portals, portal)
+        end
+    end
+    -- On garde UNIQUEMENT le portail du générateur non-joueur
+    for _, portal in ipairs(portals) do
+        local owner = portal:GetOwner()
+        if IsValid(owner) and owner:IsPlayer() then
+            if portal.CleanMeUp then portal:CleanMeUp() else portal:Remove() end
+        end
+    end
+end
+
+if SERVER then
+    hook.Add("Think", "GP2_CleanupSinglePortal", function()
+        CleanupSinglePortalOfType(TYPE_BLUE)
+        CleanupSinglePortalOfType(TYPE_ORANGE)
+    end)
+
+    -- Hook pour écraser les portails joueurs si un générateur non-joueur place un portail
+    hook.Add("OnEntityCreated", "GP2_OverwritePortalWithGenerator", function(ent)
+        if ent:GetClass() == "prop_portal" then
+            timer.Simple(0.1, function()
+                if IsValid(ent) then
+                    local owner = ent:GetOwner()
+                    if not IsValid(owner) or not owner:IsPlayer() then
+                        OverwritePortalWithGenerator(ent:GetType())
+                    end
+                end
+            end)
+        end
+    end)
+end
+

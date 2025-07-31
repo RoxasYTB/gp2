@@ -41,7 +41,7 @@ hook.Add("AcceptInput", "GP2::AcceptInput", function(ent, name, activator, calle
         for _, ply in ipairs(player.GetAll()) do
             ply:Give("weapon_portalgun")
         end
-    end 
+    end
 
     -- Hack for sp_a2_bts4
     if ent:GetClass() == "env_entity_maker" and name:lower() == "forcespawn" and ent:GetName() == "conveyor_turret_maker" then
@@ -55,7 +55,7 @@ hook.Add("AcceptInput", "GP2::AcceptInput", function(ent, name, activator, calle
                     local phys = turret:GetPhysicsObject()
                     local direction = ent:GetInternalVariable("PostSpawnDirection")
                     local vel = Angle(0, 205, 0)
-    
+
                     if IsValid(phys) then
                         phys:SetVelocity(vel:Forward() * 500)
                         turret:SetVelocity(vel:Forward() * 500)
@@ -81,7 +81,7 @@ hook.Add("AcceptInput", "GP2::AcceptInput", function(ent, name, activator, calle
                     end
                 end
             end
-        end         
+        end
     end
 
     if name == "O_OnCanceled" then
@@ -100,7 +100,7 @@ hook.Add("AcceptInput", "GP2::AcceptInput", function(ent, name, activator, calle
                     end
                 end
             end
-        end         
+        end
     end
 
     if name == "O_OnStart"  then
@@ -119,7 +119,7 @@ hook.Add("AcceptInput", "GP2::AcceptInput", function(ent, name, activator, calle
                     end
                 end
             end
-        end         
+        end
     end
 
     name = name:lower()
@@ -127,17 +127,19 @@ hook.Add("AcceptInput", "GP2::AcceptInput", function(ent, name, activator, calle
     if ent:GetClass() == "logic_playerproxy" then
         local potatoGunActions = {
             addpotatostoportalgun = true,
-            removepotatosfromportalgun = false
+            removepotatosfromportalgun = false,
+            upgrade_portalgun = false,
+            upgrade_potatogun = true
         }
-        
+
         if potatoGunActions[name] ~= nil then
             for _, ply in ipairs(player.GetAll()) do
                 if not ply:Alive() then continue end
-                
+
                 for _, wep in ipairs(ply:GetWeapons()) do
                     if wep:GetClass() == "weapon_portalgun" then
                         local isActive = ply:GetActiveWeapon() == wep
-                        wep:UpdatePotatoGun(isActive and potatoGunActions[name])
+                        wep:UpdatePotatoGun(potatoGunActions[name])
                         wep:SetIsPotatoGun(potatoGunActions[name])
                     end
                 end

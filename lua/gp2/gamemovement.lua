@@ -63,3 +63,12 @@ hook.Add("Move", "GP2::Move", function(ply, mv)
         end
     end
 end)
+
+hook.Add("Think", "GP2_DisableSprint", function()
+    for _, ply in ipairs(player.GetAll()) do
+        if ply.SetRunSpeed and ply.SetWalkSpeed then
+            local walk = ply:GetWalkSpeed()
+            ply:SetRunSpeed(walk)
+        end
+    end
+end)
