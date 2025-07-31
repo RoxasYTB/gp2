@@ -218,10 +218,10 @@ function ENT:RecursionLaserThroughPortals(data, recursionDepth, visitedPortals, 
     -- Correction spécifique pour les portails au plafond ou au sol
     local exitPortalPitch = linkedPortal:GetAngles().p
     if math.abs(exitPortalPitch - 90) < 10 then
-        -- Portail au sol (pitch ~90) : inverser pour aller vers le haut
+        -- Portail au plafond (pitch = 90°) : inverser pour aller vers le haut
         newAng = Angle(-newAng.p, newAng.y, newAng.r)
-    elseif math.abs(exitPortalPitch + 90) < 10 then
-        -- Portail au plafond (pitch ~-90) : inverser pour aller vers le bas
+    elseif math.abs(exitPortalPitch - 270) < 10 then
+        -- Portail au sol (pitch = -90°) : inverser pour aller vers le haut
         newAng = Angle(-newAng.p, newAng.y, newAng.r)
     end
 
@@ -618,8 +618,10 @@ function ENT:CalculatePortalExitSegments(startPos, direction)
             -- Correction spécifique pour les portails au plafond ou au sol
             local exitPortalPitch = exitPortal:GetAngles().p
             if math.abs(exitPortalPitch - 90) < 10 then
+                -- Portail au plafond (pitch = 90°) : inverser pour aller vers le haut
                 newAng = Angle(-newAng.p, newAng.y, newAng.r)
-            elseif math.abs(exitPortalPitch + 90) < 10 then
+            elseif math.abs(exitPortalPitch - 270) < 10 then
+                -- Portail au sol (pitch = -90°) : inverser pour aller vers le haut
                 newAng = Angle(-newAng.p, newAng.y, newAng.r)
             end
 
@@ -646,11 +648,11 @@ function ENT:CalculatePortalExitSegments(startPos, direction)
 
             -- Application de l'offset Z selon l'orientation du portail (exactement comme projected_wall_entity)
             if math.abs(exitPortalPitch - 90) < 10 then
-                -- Portail au sol : l'offset Z devient un offset sur l'axe Forward du portail
-                newPos = newPos + exitPortal:GetForward() * offsetZ
-            elseif math.abs(exitPortalPitch + 90) < 10 then
-                -- Portail au plafond : l'offset Z devient un offset sur l'axe Forward du portail (inversé)
-                newPos = newPos - exitPortal:GetForward() * offsetZ
+                -- Portail au plafond (pitch = 90°) : l'offset Z devient un offset sur l'axe Forward du portail
+                newPos = newPos - exitPortal:GetUp() * offsetZ
+            elseif math.abs(exitPortalPitch - 270) < 10 or math.abs(exitPortalPitch - 270) < 10 then
+                -- Portail au sol (pitch = 270°) : l'offset Z devient un offset sur l'axe Forward du portail (inversé)
+                newPos = newPos - exitPortal:GetUp() * offsetZ
             else
                 -- Mur : application normale de l'offset Z (soustraction comme dans projected_wall_entity)
                 newPos.z = newPos.z - offsetZ
@@ -691,10 +693,10 @@ function ENT:CalculatePortalExitSegments(startPos, direction)
 
             -- Appliquer les mêmes offsets Z que pour newPos mais au point d'entrée
             if math.abs(entryPortalPitch - 90) < 10 then
-                -- Portail au sol
+                -- Portail au plafond (pitch = 90°)
                 entryHitWithOffset = entryHitWithOffset + entryPortal:GetForward() * offsetZ
-            elseif math.abs(entryPortalPitch + 90) < 10 then
-                -- Portail au plafond
+            elseif math.abs(entryPortalPitch - 270) < 10 or math.abs(entryPortalPitch - 270) < 10 then
+                -- Portail au sol (pitch = 270°)
                 entryHitWithOffset = entryHitWithOffset - entryPortal:GetForward() * offsetZ
             else
                 -- Mur

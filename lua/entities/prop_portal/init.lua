@@ -82,6 +82,12 @@ end
 	self.Sides:SetPos( self:GetPos() + self:GetForward()*-0.1 )
 	self.Sides:SetAngles( self:GetAngles() )
 	self.Sides:Spawn()
+
+	-- Debug: Print portal pitch angle when placed
+	local portalAngles = self:GetAngles()
+	print(string.format("[GP2-Portal] Portal placé avec pitch: %.2f°, yaw: %.2f°, roll: %.2f°",
+		portalAngles.p, portalAngles.y, portalAngles.r))
+
 	self.Sides:Activate()
 	self.Sides:SetRenderMode( RENDERMODE_NONE )
 	self.Sides:PhysicsInit(SOLID_VPHYSICS)
@@ -1242,4 +1248,24 @@ if SERVER then
         end
     end)
 end
+
+function ENT:PostSpawn()
+    -- Affiche l'angle pitch du portail à chaque spawn
+    local ang = self:GetAngles()
+    print("[PORTAL] Placed portal with pitch:", ang.p, "(angles:", ang,")")
+end
+
+-- Appel automatique après le spawn
+function ENT:OnEntityCreated()
+    self:PostSpawn()
+end
+
+-- Ajout hook pour appeler PostSpawn après chaque création
+hook.Add("OnEntityCreated", "GP2_PrintPortalPitch", function(ent)
+    if IsValid(ent) and ent:GetClass() == "prop_portal" then
+        timer.Simple(0, function()
+            if IsValid(ent) and ent.PostSpawn then ent:PostSpawn() end
+        end)
+    end
+end)
 

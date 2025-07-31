@@ -179,12 +179,20 @@ function ENT:Think()
                     newAng = Angle(newAng.p, newAng.y + 180, newAng.r)
 
                     -- Correction spécifique pour les portails au plafond ou au sol
+                    -- ORIENTATIONS PORTAILS :
+                    -- Pitch 90° = Portail au PLAFOND qui pointe vers le sol
+                    -- Pitch -90° = Portail au SOL qui pointe vers le plafond
+                    -- Pitch 0° = Portail vertical (mur)
                     local exitPortalPitch = exitPortal:GetAngles().p
+                    print("Pitch du portail de sortie : " .. exitPortalPitch)
                     if math.abs(exitPortalPitch - 90) < 10 then
-                        -- Portail au sol (pitch ~90) : inverser pour aller vers le haut
+                        print("Là c'est un portail au plafond")
+                        -- Portail au plafond (pitch = 90°) : inverser pour aller vers le haut
                         newAng = Angle(-newAng.p, newAng.y, newAng.r)
-                    elseif math.abs(exitPortalPitch + 90) < 10 then
-                        -- Portail au plafond (pitch ~-90) : inverser pour aller vers le bas
+                    elseif exitPortalPitch == 270 then
+
+                        print("Là c'est un portail au sol")
+                        -- Portail au sol (pitch = -90°) : inverser pour aller vers le haut
                         newAng = Angle(-newAng.p, newAng.y, newAng.r)
                     end
                    bestPortalClonePos = newPos
@@ -207,8 +215,15 @@ function ENT:Think()
                     end
                     -- Appliquer l'offset X local sur l'axe Right du portail de sortie
                     bestPortalClonePos = bestPortalClonePos + exitPortal:GetRight() * (-(lastOffsetReceivedX  or 0))
-                    if exitPortal:GetAngles().p == 270 or exitPortal:GetAngles().p == 90 then
-                        bestPortalClonePos = bestPortalClonePos + exitPortal:GetUp() * (-(lastOffsetReceivedZ  or 0))
+                    -- Application de l'offset Z selon l'orientation du portail
+                    if math.abs(exitPortal:GetAngles().p - 270) < 10 then
+                        -- Portail au sol (pitch = 270°) : appliquer l'offset Z sur l'axe Up
+                        print("Application offset Z pour portail au sol: " .. (lastOffsetReceivedZ or 0))
+                        bestPortalClonePos = bestPortalClonePos + exitPortal:GetUp() * (-(lastOffsetReceivedZ or 0))
+                    elseif math.abs(exitPortal:GetAngles().p - 90) < 10 then
+                        -- Portail au plafond (pitch = 90°) : appliquer l'offset Z sur l'axe Up
+                        print("Application offset Z pour portail au plafond: " .. (lastOffsetReceivedZ or 0))
+                        bestPortalClonePos = bestPortalClonePos + exitPortal:GetUp() * (-(lastOffsetReceivedZ or 0))
                     end
                     -- Correction du gap : coller le mur exactement à la face du portail de sortie
                     local wallThickness = 1 -- épaisseur du mur projeté (voir PhysicsInitConvex)
@@ -223,12 +238,16 @@ function ENT:Think()
             currentAng = Angle(currentAng.p, currentAng.y + 180, currentAng.r)
 
             -- Correction spécifique pour les portails au plafond ou au sol
+            -- ORIENTATIONS PORTAILS :
+            -- Pitch 90° = Portail au PLAFOND qui pointe vers le sol
+            -- Pitch -90° = Portail au SOL qui pointe vers le plafond
+            -- Pitch 0° = Portail vertical (mur)
             local exitPortalPitch = exitPortal:GetAngles().p
             if math.abs(exitPortalPitch - 90) < 10 then
-                -- Portail au sol (pitch ~90) : inverser pour aller vers le haut
+                -- Portail au plafond (pitch = 90°) : inverser pour aller vers le haut
                 currentAng = Angle(-currentAng.p, currentAng.y, currentAng.r)
-            elseif math.abs(exitPortalPitch + 90) < 10 then
-                -- Portail au plafond (pitch ~-90) : inverser pour aller vers le bas
+            elseif exitPortalPitch == -90 then
+                -- Portail au sol (pitch = -90°) : inverser pour aller vers le haut
                 currentAng = Angle(-currentAng.p, currentAng.y, currentAng.r)
             end
 
@@ -303,10 +322,10 @@ function ENT:Think()
 
             if finalZ then
                 if math.abs(exitPortalPitch - 90) < 10 then
-                    -- Portail au sol : l'offset Z devient un offset sur l'axe Forward du portail
+                    -- Portail au plafond (pitch = 90°) : l'offset Z devient un offset sur l'axe Forward du portail
                     bestPortalClonePos = bestPortalClonePos + bestPortalCloneLinked:GetForward() * finalZ
-                elseif math.abs(exitPortalPitch + 90) < 10 then
-                    -- Portail au plafond : l'offset Z devient un offset sur l'axe Forward du portail (inversé)
+                elseif math.abs(exitPortalPitch - -90) < 10 then
+                    -- Portail au sol (pitch = -90°) : l'offset Z devient un offset sur l'axe Forward du portail (inversé)
                     bestPortalClonePos = bestPortalClonePos - bestPortalCloneLinked:GetForward() * finalZ
                 else
                     -- Mur : application normale de l'offset Z
@@ -324,10 +343,10 @@ function ENT:Think()
                     local exitPortalPitch = bestPortalCloneLinked:GetAngles().p
                     local cloneAng = bestPortalCloneAng
                     if math.abs(exitPortalPitch - 90) < 10 then
-                        -- Portail au sol : Up
+                        -- Portail au plafond (pitch = 90°) : orientation normale
                         clone:SetAngles(cloneAng)
-                    elseif math.abs(exitPortalPitch + 90) < 10 then
-                        -- Portail au plafond : Down (inverser pour aller vers le bas)
+                    elseif exitPortalPitch == 270 or exitPortalPitch == 90 then
+                        -- Portail au sol (pitch = -90°) : rotation de 180° autour de l'axe Right
                         cloneAng:RotateAroundAxis(cloneAng:Right(), 180)
                         clone:SetAngles(cloneAng)
                     else
@@ -350,18 +369,18 @@ function ENT:Think()
                 -- Appliquer la même correction d'orientation que lors de la création
                 local exitPortalPitch = bestPortalCloneLinked:GetAngles().p
                 local cloneAng = bestPortalCloneAng
-                print(string.format("Updating PortalClone position: %s", tostring(bestPortalClonePos)))
+                -- print(string.format("Updating PortalClone position: %s", tostring(bestPortalClonePos)))
                 print(string.format("exitPortalPitch: %s, exitPortalYaw: %s, exitPortalRoll: %s",
                     tostring(bestPortalCloneLinked:GetAngles().p),
                     tostring(bestPortalCloneLinked:GetAngles().y),
                     tostring(bestPortalCloneLinked:GetAngles().r)))
                 if exitPortalPitch == 90 then
+                    -- Portail au plafond (pitch = 90°)
                     cloneAng:RotateAroundAxis(cloneAng:Right(), 0)
                     self.PortalClone:SetAngles(cloneAng)
-                elseif exitPortalPitch == 270 then
-                    -- Portail au sol : Up
+                elseif exitPortalPitch == -90 then
+                    -- Portail au sol (pitch = -90°)
                     cloneAng:RotateAroundAxis(cloneAng:Right(), 180)
-
                     self.PortalClone:SetAngles(cloneAng)
                 else
                     -- Mur : Forward
@@ -410,6 +429,7 @@ function ENT:CreateWall()
     local angles = self:GetAngles()
     local fwd = angles:Forward()
     local right = angles:Right()
+    local up = angles:Up()
 
     local tr = util.TraceLine({
         start = startPos,
@@ -439,6 +459,7 @@ function ENT:CreateWall()
     }
 
     if CLIENT then
+        -- Correction : recalculer les points du mesh selon l'orientation réelle
         local verts = {
             { pos = startPos - right * halfWidth, u = 1, v = 0 },
             { pos = startPos - right * halfWidth + fwd * distance, u = 1, v = v },
@@ -447,7 +468,16 @@ function ENT:CreateWall()
             { pos = startPos + right * halfWidth, u = 0, v = 0 },
             { pos = startPos - right * halfWidth, u = 1, v = 0 },
         }
-
+        -- Si le mur est un clone et que l'angle est inversé (portail au sol/plafond), inverser le mesh
+        if self.IsPortalClone and self.InitialCloneAngle then
+            local pitch = self.InitialCloneAngle.p
+            if math.abs(pitch - 90) < 10 or math.abs(pitch - -90) < 10 then
+                -- Inverser le mesh sur l'axe Up
+                for k, vert in ipairs(verts) do
+                    vert.pos = vert.pos + up * 0 -- (optionnel, à ajuster si besoin)
+                end
+            end
+        end
         if self.Mesh and self.Mesh:IsValid() then
             self.Mesh:Destroy()
         end        self.Mesh = Mesh()

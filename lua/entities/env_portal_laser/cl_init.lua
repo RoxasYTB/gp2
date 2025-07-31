@@ -5,6 +5,8 @@
 
 include "shared.lua"
 
+ENT = ENT or {}
+
 -- Protection contre les erreurs de chargement
 local CalcClosestPointOnLineSegment = function(pos, start, endpos)
     if GP2 and GP2.Utils and GP2.Utils.CalcClosestPointOnLineSegment then
@@ -33,6 +35,35 @@ function EnvPortalLaser.RemoveFromRenderList(laser)
     EnvPortalLaser.RenderList[laser] = nil
 end
 
+-- Fonction pour créer des segments de laser depuis les données simples (pour compatibilité avec env_portal_laser.lua)
+function EnvPortalLaser.CreateSegmentsFromSimpleData(laser)
+    if not IsValid(laser) then return end
+
+    -- Si le laser a déjà des segments du serveur, les utiliser
+    if laser.LaserSegments and #laser.LaserSegments > 0 then
+        return
+    end
+
+    -- Sinon, créer un segment simple basé sur les données de base
+    local startPos = laser:GetPos()
+    local hitPos = laser:GetHitPos()
+
+    -- Vérifier si les données sont valides
+    local INVALID_HIT_POS = Vector(2 ^ 16, 2 ^ 16, 2 ^ 16)
+    if hitPos == INVALID_HIT_POS then
+        return
+    end
+
+    -- Créer un segment simple
+    laser.LaserSegments = {
+        {
+            start = startPos,
+            endpos = hitPos,
+            hitsPortal = false -- Pour simplifier, on assume qu'il n'y a pas de portail
+        }
+    }
+end
+
 -- Recevoir les segments de laser du serveur
 net.Receive("LaserSegments", function()
     local laser = net.ReadEntity()
@@ -44,9 +75,21 @@ net.Receive("LaserSegments", function()
     for i = 1, numSegments do
         local startPos = net.ReadVector()
         local endPos = net.ReadVector()
+
+        -- Détecter si ce segment termine sur un portail
+        local hitPortal = false
+        local entsAtEnd = ents.FindInSphere(endPos, 10)
+        for _, ent in ipairs(entsAtEnd) do
+            if IsValid(ent) and ent:GetClass() == "prop_portal" then
+                hitPortal = true
+                break
+            end
+        end
+
         table.insert(laser.LaserSegments, {
             start = startPos,
-            endpos = endPos
+            endpos = endPos,
+            hitsPortal = hitPortal
         })
     end
 end)
@@ -68,6 +111,9 @@ end
 function ENT:Think()
     -- Ajouter ce laser à la liste de rendu
     EnvPortalLaser.AddToRenderList(self)
+
+    -- S'assurer que le laser a des segments pour le rendu
+    EnvPortalLaser.CreateSegmentsFromSimpleData(self)
 
     self:ChangeVolumeByDistanceToBeam()
 
@@ -108,6 +154,41 @@ function ENT:DrawLaserSegments()
     for i, segment in ipairs(self.LaserSegments) do
         if not segment.start or not segment.endpos then continue end
 
+        local start = segment.start
+        local endpos = segment.endpos
+
+        -- Correction micro-coupure du halo : traitement spécial pour les collisions avec portails
+        if #self.LaserSegments > 1 then
+            local dir = (endpos - start):GetNormalized()
+
+            -- Premier segment : si il termine sur un portail, étendre davantage
+            if i == 1 then
+                local extension = segment.hitsPortal and 20 or 12
+                endpos = endpos + dir * extension
+            end
+
+            -- Segments intermédiaires : étendre dans les deux directions
+            if i > 1 and i < #self.LaserSegments then
+                start = start - dir * 8
+                local extension = segment.hitsPortal and 16 or 8
+                endpos = endpos + dir * extension
+            end
+
+            -- Dernier segment : si il part d'un portail, étendre vers l'arrière
+            if i == #self.LaserSegments then
+                local extension = 12
+                -- Si le segment précédent terminait sur un portail, étendre davantage
+                if i > 1 and self.LaserSegments[i-1].hitsPortal then
+                    extension = 20
+                end
+                start = start - dir * extension
+            end
+        elseif segment.hitsPortal then
+            -- Segment unique qui termine sur un portail
+            local dir = (endpos - start):GetNormalized()
+            endpos = endpos + dir * 15
+        end
+
         -- Largeur du laser principal
         local mainWidth = 8
         -- Largeur du glow
@@ -118,36 +199,45 @@ function ENT:DrawLaserSegments()
         -- Couleur du glow (plus clair, alpha dégradé)
         local glowColor = Color(255, 80, 80, 120)
 
-        -- Si c'est le segment de continuité (généralement le dernier)
-        if i == #self.LaserSegments then
-            -- Glow autour du beam
-            render.SetMaterial(glowMaterial)
-            render.DrawBeam(segment.start, segment.endpos, glowWidth, 0, 1, glowColor)
-            -- Beam principal
-            render.SetMaterial(material)
-            render.DrawBeam(segment.start, segment.endpos, mainWidth, 0, 1, color)
-        else
-            -- Segments normaux
-            render.SetMaterial(material)
-            render.DrawBeam(segment.start, segment.endpos, mainWidth, 0, 1, color)
-        end
+        -- Glow autour du beam (pour tous les segments)
+        render.SetMaterial(glowMaterial)
+        render.DrawBeam(start, endpos, glowWidth, 0, 1, glowColor)
+
+        -- Beam principal (pour tous les segments)
+        render.SetMaterial(material)
+        render.DrawBeam(start, endpos, mainWidth, 0, 1, color)
 
         -- Ligne blanche intérieure pour le style Portal
         render.SetMaterial(material)
-        render.DrawBeam(segment.start, segment.endpos, 2, 0, 1, Color(255, 255, 255, 180))
+        render.DrawBeam(start, endpos, 2, 0, 1, Color(255, 255, 255, 255))
     end
 end
 
 -- Hook pour le rendu global des lasers
-hook.Add("PostDrawOpaqueRenderables", "EnvPortalLaser_Render", function()
+hook.Add("PostDrawTranslucentRenderables", "EnvPortalLaser_Render", function()
     -- Protection contre les erreurs de rendu
     local success, err = pcall(function()
+        -- Rendu des lasers de la RenderList du système d'entité
         for laser, _ in pairs(EnvPortalLaser.RenderList) do
-            if IsValid(laser) and laser:GetState() and laser.DrawLaserSegments then
-                laser:DrawLaserSegments()
+            if IsValid(laser) and laser:GetState() then
+                if laser.DrawLaserSegments then
+                    laser:DrawLaserSegments()
+                end
             else
                 EnvPortalLaser.RenderList[laser] = nil
             end
+        end
+
+        -- Rendu des lasers du système env_portal_laser.lua (lasers clonés)
+        if EnvPortalLaser and EnvPortalLaser.Render then
+            -- Désactiver temporairement le rendu de base pour éviter la duplication
+            local originalRender = EnvPortalLaser.Render
+            EnvPortalLaser.Render = function() end
+
+            -- Restaurer après ce frame
+            timer.Simple(0, function()
+                EnvPortalLaser.Render = originalRender
+            end)
         end
     end)
 
@@ -245,8 +335,10 @@ local function RefreshAllPortalLasers()
     for _, ent in ipairs(ents.FindByClass("env_portal_laser")) do
         if IsValid(ent) then
             EnvPortalLaser.AddToRenderList(ent)
+            -- S'assurer que tous les lasers ont des segments compatibles
+            EnvPortalLaser.CreateSegmentsFromSimpleData(ent)
             if ent.LaserSegments and #ent.LaserSegments > 0 then
-                ent:DrawLaserSegments()
+                -- Le rendu sera géré par le hook PostDrawTranslucentRenderables
             end
         end
     end
