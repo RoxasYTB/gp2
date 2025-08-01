@@ -120,6 +120,7 @@ function ENT:Think()
         GP2.Print("EnvPortalLaser :: Think - execution time: %.6f seconds", os.clock() - time)
     end
 
+    -- Fréquence de mise à jour plus élevée pour les lasers réfléchis pour un rendu fluide
     if IsValid(self:GetParentLaser()) then
         self:NextThink(CurTime() + portal_laser_high_precision_update:GetFloat())
     else
@@ -346,17 +347,15 @@ function ENT:FireLaser()
         table.insert(allSegments, segment)
     end
 
-    -- Toujours envoyer les segments au client (seulement pour les lasers principaux)
-    if not IsValid(self:GetParentLaser()) then
-        net.Start("LaserSegments")
-        net.WriteEntity(self)
-        net.WriteUInt(#allSegments, 8)
-        for _, segment in ipairs(allSegments) do
-            net.WriteVector(segment.start)
-            net.WriteVector(segment.endpos)
-        end
-        net.Broadcast()
+    -- Toujours envoyer les segments au client (pour tous les lasers maintenant)
+    net.Start("LaserSegments")
+    net.WriteEntity(self)
+    net.WriteUInt(#allSegments, 8)
+    for _, segment in ipairs(allSegments) do
+        net.WriteVector(segment.start)
+        net.WriteVector(segment.endpos)
     end
+    net.Broadcast()
 
     -- Gérer les collisions uniquement pour les segments finaux (ceux envoyés au client)
     for _, segment in ipairs(allSegments) do
@@ -410,6 +409,20 @@ function ENT:ReflectLaserForEntity(reflector)
             reflector:SetChildLaser(laser)
             laser:SetParentLaser(self)
             self:SetChildLaser(laser)
+
+            -- Forcer la transmission réseau pour les lasers réfléchis
+            laser:SetTransmitWithParent(true)
+
+            -- Activer immédiatement le laser réfléchi
+            laser:SetState(self:GetState())
+
+            print("[GP2] Laser réfléchi créé: " .. tostring(laser) .. " pour cube: " .. tostring(reflector))
+        end
+    else
+        -- Si le laser réfléchi existe déjà, s'assurer qu'il est synchronisé
+        local childLaser = reflector:GetChildLaser()
+        if IsValid(childLaser) then
+            childLaser:SetState(self:GetState())
         end
     end
 end

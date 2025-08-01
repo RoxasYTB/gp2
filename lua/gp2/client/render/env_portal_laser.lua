@@ -40,6 +40,18 @@ function EnvPortalLaser.RefreshExistingLasers()
     end
 end
 
+-- Fonction pour scanner en continu les nouveaux lasers (lasers réfléchis)
+function EnvPortalLaser.ScanForNewLasers()
+    -- Scanner spécifiquement les lasers réfléchis qui peuvent être créés dynamiquement
+    for _, ent in ipairs(ents.FindByClass("env_portal_laser")) do
+        if IsValid(ent) and ent:GetState() and not laserLookups[ent] then
+            -- Nouveau laser trouvé, l'ajouter
+            EnvPortalLaser.AddToRenderList(ent)
+            print("[GP2-SDK] Nouveau laser réfléchi détecté et ajouté au rendu: " .. tostring(ent))
+        end
+    end
+end
+
 -- Initialiser automatiquement les lasers existants au chargement
 hook.Add("InitPostEntity", "GP2::RefreshExistingLasers", function()
     timer.Simple(0.1, function()
@@ -288,6 +300,10 @@ function EnvPortalLaser.Render()
     if EnvPortalLaser.RenderList then
         -- Le rendu est maintenant géré par le hook PostDrawTranslucentRenderables dans cl_init.lua
         -- On ajoute juste les lasers à la liste de rendu mais on ne les rend pas ici
+
+        -- Scanner en continu pour nouveaux lasers (notamment les lasers réfléchis)
+        EnvPortalLaser.ScanForNewLasers()
+
         for i = #laserRenderList, 1, -1 do
             local laser = laserRenderList[i]
 

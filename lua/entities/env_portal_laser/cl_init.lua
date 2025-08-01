@@ -35,6 +35,18 @@ function EnvPortalLaser.RemoveFromRenderList(laser)
     EnvPortalLaser.RenderList[laser] = nil
 end
 
+-- Fonction pour actualiser la liste de rendu avec tous les lasers actifs
+function EnvPortalLaser.RefreshRenderList()
+    -- Scanner tous les lasers existants à chaque frame pour capturer les lasers réfléchis
+    for _, ent in ipairs(ents.FindByClass("env_portal_laser")) do
+        if IsValid(ent) and ent:GetState() then
+            EnvPortalLaser.RenderList[ent] = true
+            -- S'assurer que tous les lasers ont des segments compatibles
+            EnvPortalLaser.CreateSegmentsFromSimpleData(ent)
+        end
+    end
+end
+
 -- Fonction pour créer des segments de laser depuis les données simples (pour compatibilité avec env_portal_laser.lua)
 function EnvPortalLaser.CreateSegmentsFromSimpleData(laser)
     if not IsValid(laser) then return end
@@ -115,6 +127,14 @@ function ENT:Think()
     -- S'assurer que le laser a des segments pour le rendu
     EnvPortalLaser.CreateSegmentsFromSimpleData(self)
 
+    -- Si c'est un laser réfléchi (avec un parent), forcer la mise à jour plus fréquente
+    if IsValid(self:GetParentLaser()) then
+        -- Forcer l'actualisation des segments depuis le serveur plus souvent
+        self:SetNextClientThink(CurTime() + 0.001) -- 1ms pour les lasers réfléchis
+    else
+        self:SetNextClientThink(CurTime() + 0.016) -- ~60 FPS pour les lasers principaux
+    end
+
     self:ChangeVolumeByDistanceToBeam()
 
     if self:GetShouldSpark() and self.LaserSegments and #self.LaserSegments > 0 then
@@ -133,6 +153,8 @@ function ENT:Think()
             self.SparksParticle = NULL
         end
     end
+
+    return true
 end
 
 -- Fonction de rendu des segments de laser
@@ -217,6 +239,9 @@ end
 hook.Add("PostDrawTranslucentRenderables", "EnvPortalLaser_Render", function()
     -- Protection contre les erreurs de rendu
     local success, err = pcall(function()
+        -- Actualiser la liste de rendu à chaque frame pour capturer tous les lasers
+        EnvPortalLaser.RefreshRenderList()
+
         -- Rendu des lasers de la RenderList du système d'entité
         for laser, _ in pairs(EnvPortalLaser.RenderList) do
             if IsValid(laser) and laser:GetState() then
@@ -354,7 +379,30 @@ hook.Add("PostCleanupMap", "GP2_RefreshPortalLasers_Cleanup", function()
     timer.Simple(0.5, RefreshAllPortalLasers)
 end)
 
--- Timer pour forcer l'actualisation régulière
+-- Hook pour détecter immédiatement la création de nouveaux lasers (notamment réfléchis)
+hook.Add("OnEntityCreated", "GP2_DetectNewLasers", function(ent)
+    if IsValid(ent) and ent:GetClass() == "env_portal_laser" then
+        -- Attendre que l'entité soit complètement initialisée
+        timer.Simple(0.1, function()
+            if IsValid(ent) then
+                EnvPortalLaser.AddToRenderList(ent)
+                EnvPortalLaser.CreateSegmentsFromSimpleData(ent)
+                print("[GP2] Nouveau laser détecté et ajouté au rendu: " .. tostring(ent))
+            end
+        end)
+    end
+end)
+
+-- Timer pour forcer l'actualisation régulière et détecter les nouveaux lasers
 if not timer.Exists("GP2_ForceLaserRefresh") then
-    timer.Create("GP2_ForceLaserRefresh", 1, 0, RefreshAllPortalLasers)
+    timer.Create("GP2_ForceLaserRefresh", 0.033, 0, function() -- ~30 FPS pour les scans
+        RefreshAllPortalLasers()
+        -- Scanner spécifiquement les lasers réfléchis qui peuvent apparaître dynamiquement
+        for _, ent in ipairs(ents.FindByClass("env_portal_laser")) do
+            if IsValid(ent) and ent:GetState() then
+                EnvPortalLaser.AddToRenderList(ent)
+                EnvPortalLaser.CreateSegmentsFromSimpleData(ent)
+            end
+        end
+    end)
 end
