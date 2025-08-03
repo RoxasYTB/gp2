@@ -1,4 +1,3 @@
-
 if SERVER then
 	AddCSLuaFile()
 end
@@ -16,9 +15,9 @@ function ENT:Initialize(  )
 	if CLIENT then
 		self:SetRenderClipPlaneEnabled(true)
 	end
-	
+
 	self:AddEffects( bit.bor(EF_BONEMERGE, EF_BONEMERGE_FASTCULL, EF_PARENT_ANIMATES) )
-	
+
 end
 
 -- function ENT:BuildBonePositions(numbones,numphys)
@@ -28,14 +27,14 @@ end
 -- end
 
 function ENT:Think( )
-	
+
 	self.ent = self:GetEnt()
 	self.Portal = self:GetPortal()
-	
+
 	if CLIENT then return end
-	
+
 	local portal = self.Portal
-	
+
 	if not self.ent.InPortal then
 		self:Remove()
 		return
@@ -44,98 +43,134 @@ function ENT:Think( )
 		self:Remove()
 		return
 	end
-	if self.ent.InPortal != portal then 
+	if self.ent.InPortal != portal then
 		self:Remove()
 		return
 	end
-	
+
 	//Adjust Pos
 	local origin = portal:GetPortalPosOffsets(portal:GetOther(),self.ent)
 	local angs = portal:GetPortalAngleOffsets(portal:GetOther(),self.ent)
 	origin.z = origin.z - 64
 	angs.p = 0
 	angs.r = 0
-	
+
 	self:SetPos(origin)
 	self:SetAngles(angs)
-	
+
 end
 
 function ENT:Draw()
 	if not self:IsValid() then return false end
 	if not self.Portal then return false end
 	if not self.Portal:IsValid() and self.Portal:GetOther():IsValid() then return false end
-	
+
 	if !RENDERING_PORTAL then
-	
+
 		local portal = self.Portal
-		
+
 		-- local origin = portal:GetPortalPosOffsets(portal:GetOther(),self.ent)
 		-- local angs = portal:GetPortalAngleOffsets(portal:GetOther(),self.ent)
 		-- origin.z = origin.z - 64
 		-- angs.p = 0
 		-- -- angs.y = 0
 		-- angs.r = 0
-		
+
 		-- self:SetPos(origin)
 		-- self:SetAngles(angs)
-		
+
 		if self:GetBoneCount() != self.ent:GetBoneCount() then
 			return false
 		end
-		
+
 		self:SetupBones()
-		
+
 		//DEBUG:
 		-- for i=0, self:GetBoneCount() - 1 do
 			-- print("Bone: "..i.." is '"..self:GetBoneName(i).."'. The following is what happens when you move it:")
 			-- self:SetBonePosition(i,Vector(100,100,100),Angle(0,0,0))
 			-- print("")
 		-- end
-		
+
+		-- Correction : remplacer tous les appels à math.VectorAngles par VectorAngles
 		for i=0,self:GetBoneCount()-1 do
 			if self:GetBoneName(i) == "__INVALIDBONE__" then continue end
-			
+
 			-- local i = self:LookupBone(v)
-			
+
 			local bpos,bang = self.ent:GetBonePosition(i)
-			
+
 			local normal = portal:GetForward()
 			local forward = bang:Forward()
 			local up = bang:Up()
-			
+
 			// reflect forward
 			local dot = forward:DotProduct( normal )
 			forward = forward + ( -2 * dot ) * normal
-			
-			// reflect up		
+
+			// reflect up
 			local dot = up:DotProduct( normal )
 			up = up + ( -2 * dot ) * normal
-			
+
 			// convert to angles
-			bang = math.VectorAngles( forward, up );
-			
+			bang = VectorAngles( forward, up );
+
 			local LocalAngles = portal:WorldToLocalAngles( bang );
-			
+
 			// repair
 			LocalAngles.y = -LocalAngles.y;
 			LocalAngles.r = -LocalAngles.r;
-			
+
 			bang = portal:GetOther():LocalToWorldAngles( LocalAngles )
-			
+
 			bpos = portal:WorldToLocal( bpos )
 			bpos.x = -bpos.x;
 			bpos.y = -bpos.y;
-			
+
 			bpos = portal:GetOther():LocalToWorld( bpos )
 			self:SetBonePosition(i,bpos,bang)
 		end
-		
+
 		local normal = portal:GetForward()
-		local distance = normal:Dot( portal:GetRenderOrigin() )
+		local distance = normal:Dot( portal:GetPos() )
 		self:SetRenderClipPlane(normal,distance)
-		
+
 		self:DrawModel()
-		
+
 	end
+end
+
+-- Fonction utilitaire globale pour VectorAngles (toujours disponible)
+function math.VectorAngles(forward, up)
+	local angles = Angle(0, 0, 0)
+	local left = up:Cross(forward)
+	left:Normalize()
+	local xydist = math.sqrt(forward.x * forward.x + forward.y * forward.y)
+	if xydist > 0.001 then
+		angles.y = math.deg(math.atan2(forward.y, forward.x))
+		angles.p = math.deg(math.atan2(-forward.z, xydist))
+		angles.r = math.deg(math.atan2(left.z, (left.y * forward.x) - (left.x * forward.y)))
+	else
+		angles.y = math.deg(math.atan2(-left.x, left.y))
+		angles.p = math.deg(math.atan2(-forward.z, xydist))
+		angles.r = 0
+	end
+	return angles
+end
+
+function VectorAngles(forward, up)
+	local angles = Angle(0, 0, 0)
+	local left = up:Cross(forward)
+	left:Normalize()
+	local xydist = math.sqrt(forward.x * forward.x + forward.y * forward.y)
+	if xydist > 0.001 then
+		angles.y = math.deg(math.atan2(forward.y, forward.x))
+		angles.p = math.deg(math.atan2(-forward.z, xydist))
+		angles.r = math.deg(math.atan2(left.z, (left.y * forward.x) - (left.x * forward.y)))
+	else
+		angles.y = math.deg(math.atan2(-left.x, left.y))
+		angles.p = math.deg(math.atan2(-forward.z, xydist))
+		angles.r = 0
+	end
+	return angles
 end

@@ -7,6 +7,7 @@ AddCSLuaFile()
 
 GP2.GameMovement = {}
 local playersInTB = {}
+local developer = GetConVar("developer")
 
 function GP2.GameMovement.PlayerEnteredToTractorBeam(ply, beam)
     playersInTB[ply] = beam
@@ -57,9 +58,17 @@ end
 hook.Add("Move", "GP2::Move", function(ply, mv)
     TractorBeamMovement(ply, mv)
     if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
-        PortalMovement.LookForPortalEnvironment(ply, mv)
-        if PortalMovement.Move(ply, mv) then
-            return true
+        -- Protection contre l'absence de PortalMovement
+        if PortalMovement and PortalMovement.LookForPortalEnvironment then
+            PortalMovement.LookForPortalEnvironment(ply, mv)
+            if PortalMovement.Move and PortalMovement.Move(ply, mv) then
+                return true
+            end
+        else
+            -- Fallback si PortalMovement n'est pas chargé
+            if developer and developer:GetBool() then
+                print("[GP2-SDK] Warning: PortalMovement not loaded, portal movement disabled")
+            end
         end
     end
 end)

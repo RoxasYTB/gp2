@@ -67,7 +67,3 @@ end )
 list.Set( "list_portalonly", "Two Portal Connect", { portal_portalonly = "0" } )
 list.Set( "list_portalonly", "One Portal (Blue)", { portal_portalonly = "1" } )
 list.Set( "list_portalonly", "One Portal (Orange)", { portal_portalonly = "2" } )
-
-list.Set( "list_portaltexFSB", "Chell", { portal_texFSB = "0" } )
-list.Set( "list_portaltexFSB", "Atlas", { portal_texFSB = "1" } )
-list.Set( "list_portaltexFSB", "P-Body", { portal_texFSB = "2" } )

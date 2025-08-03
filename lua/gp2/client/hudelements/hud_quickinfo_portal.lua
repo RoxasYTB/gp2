@@ -120,20 +120,25 @@ function PANEL:Paint(w, h)
         self.gp2_portal_color2 = GetConVar("gp2_portal_color2")
     end
 
-    local clr1 = (self.gp2_portal_color1 and self.gp2_portal_color1.GetString and self.gp2_portal_color1:GetString() or "255 255 255"):Split(" ")
-    local clr2 = (self.gp2_portal_color2 and self.gp2_portal_color2.GetString and self.gp2_portal_color2:GetString() or "255 255 255"):Split(" ")
+    -- Récupère la couleur des portails (bleu/orange) strictement, sans désaturation ni bright
+    local clr1 = (self.gp2_portal_color1 and self.gp2_portal_color1.GetString and self.gp2_portal_color1:GetString() or "10 60 160"):Split(" ")
+    local clr2 = (self.gp2_portal_color2 and self.gp2_portal_color2.GetString and self.gp2_portal_color2:GetString() or "210 114 2"):Split(" ")
 
-    local r1 = tonumber(clr1[1]) or 255
-    local g1 = tonumber(clr1[2]) or 255
-    local b1 = tonumber(clr1[3]) or 255
+    local r2 = tonumber(clr1[1]) or 10
+    local g2 = tonumber(clr1[2]) or 60
+    local b2 = tonumber(clr1[3]) or 160
 
-    local r2 = tonumber(clr2[1]) or 255
-    local g2 = tonumber(clr2[2]) or 255
-    local b2 = tonumber(clr2[3]) or 255
+    local r1 = tonumber(clr2[1]) or 210
+    local g1 = tonumber(clr2[2]) or 114
+    local b1 = tonumber(clr2[3]) or 2
 
-    r1, g1, b1 = desaturateAndBrighten(r1, g1, b1)
-    r2, g2, b2 = desaturateAndBrighten(r2, g2, b2)
+    -- On n'applique plus de désaturation/éclaircissement
+    -- r1, g1, b1 = desaturateAndBrighten(r1, g1, b1)
+    -- r2, g2, b2 = desaturateAndBrighten(r2, g2, b2)
 
+    -- Correction : s'assurer que la partie gauche (drawCrosshairPart 3/1) utilise gp2_portal_color1 (bleu) et la droite (4/2) gp2_portal_color2 (orange)
+    -- Avant : drawCrosshairPart(3, ..., r1, g1, b1, ...) et drawCrosshairPart(4, ..., r2, g2, b2, ...)
+    -- Si inversion détectée, on inverse ici :
     if can1 or can2 then
         if not can2 then
             r2 = r1
@@ -147,6 +152,8 @@ function PANEL:Paint(w, h)
             b1 = b2
         end
 
+        -- Correction : la partie gauche (drawCrosshairPart 3/1) doit TOUJOURS utiliser gp2_portal_color1 (bleu)
+        -- la partie droite (drawCrosshairPart 4/2) doit TOUJOURS utiliser gp2_portal_color2 (orange)
         if IsValid(placed1) then
             drawCrosshairPart(3, w / 2 - 29, h / 2 - 44, r1, g1, b1, 255)
         else

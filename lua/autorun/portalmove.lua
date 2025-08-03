@@ -8,13 +8,13 @@ local portal_prototype = CreateClientConVar("portal_prototype","1",true,false)
 local lastfootstep = 1
 local lastfoot = 0
 local function PlayFootstep(ply,level,pitch,volume)
-	
+
 	local sound = math.random(1,4)
 	while sound == lastfootstep do
 		sound = math.random(1,4)
-	end	
+	end
 	lastfoot = lastfoot == 0 and 1 or 0
-	
+
 	local filter = SERVER and RecipientFilter():AddPVS(ply:GetPos()) or nil
 	if GAMEMODE:PlayerFootstep( ply, pos, lastfoot, "player/footsteps/concrete"..sound..".wav", .6, filter ) then return end
 
@@ -22,15 +22,15 @@ local function PlayFootstep(ply,level,pitch,volume)
 end
 
 if( CLIENT ) then
-       
+
 	/*------------------------------------
 			CreateMove()
 	------------------------------------*/
 	local function CreateMove( cmd )
-   
+
 		local pl = LocalPlayer();
 		if( IsValid( pl ) ) then
-   
+
 			if( pl.InPortal and pl.InPortal:IsValid() and pl:GetMoveType() == MOVETYPE_NOCLIP) then
 				-- local localOrigin = pl.InPortal:WorldToLocal(pl:GetPos())
 				local right = 0;
@@ -39,7 +39,7 @@ if( CLIENT ) then
 				if pl:Crouching() then
 					maxspeed = pl:GetCrouchedWalkSpeed()*180
 				end
-			   
+
 				// forward/back
 				if( cmd:KeyDown( IN_FORWARD ) ) then
 					forward = forward + maxspeed;
@@ -47,7 +47,7 @@ if( CLIENT ) then
 				if( cmd:KeyDown( IN_BACK ) ) then
 					forward = forward - maxspeed;
 				end
-			   
+
 				// left/right
 				if( cmd:KeyDown( IN_MOVERIGHT ) ) then
 					right = right + maxspeed;
@@ -55,7 +55,7 @@ if( CLIENT ) then
 				if( cmd:KeyDown( IN_MOVELEFT ) ) then
 					right = right - maxspeed;
 				end
-				
+
 				if cmd:KeyDown(IN_JUMP) then
 					if pl.m_bSpacebarReleased and pl.InPortal:IsHorizontal() then
 						pl.m_bSpacebarReleased = false
@@ -66,20 +66,20 @@ if( CLIENT ) then
 				else
 					pl.m_bSpacebarReleased = true
 				end
-				
-				if cmd:KeyDown(IN_DUCK) then					
-						
+
+				if cmd:KeyDown(IN_DUCK) then
+
 							pl:SetViewOffset(Vector(0,0,0))
-						
+
 				end
-				
+
 				cmd:SetForwardMove( forward );
 				cmd:SetSideMove( right );
-				
+
 			end
-	   
+
 		end
-   
+
 	end
 	hook.Add( "CreateMove", "Noclip.CreateMove", CreateMove );
 
@@ -113,42 +113,42 @@ function ipMove( ply, mv )
 			-- ply:EmitSound("player/portal_exit".. portal.PortalType ..".wav",80,100 + (30 * (mv:GetVelocity():Length() - 450)/1000))
 			-- return false
 		-- end
-		
+
 		local deltaTime = FrameTime()
 		local curTime = CurTime()
-		
+
 		local noclipSpeed = 1.75
 		local noclipAccelerate = 5
-	   
+
 		local pos = mv:GetOrigin()
 		local pOrg = portal:GetPos()
-		
+
 		if portal:OnFloor() then
 			pOrg = pOrg - Vector(0,0,20)
 		end
 		local pAng = portal:GetAngles()
-		
+
 		// calculate acceleration for this frame.
 		local ang = mv:GetMoveAngles()
-		local acceleration = ( ang:Right() * mv:GetSideSpeed() ) 
+		local acceleration = ( ang:Right() * mv:GetSideSpeed() )
 		local forward = (ang + Angle(0,90,0)):Right()
 		acceleration = acceleration + forward*mv:GetForwardSpeed()
-		
+
 		-- acceleration.z = 0
-		
+
 		// clamp to our max speed, and take into account noclip speed
 		local accelSpeed = math.min( acceleration:Length2D(), ply:GetMaxSpeed() );
 		local accelDir = acceleration:GetNormal()
-		
+
 		acceleration = accelDir * accelSpeed * noclipSpeed
-		
+
 		if (accelSpeed > 0) and (pos.z <= pOrg.z-55) then
 			if curTime>nextFootStepTime then
 				nextFootStepTime = curTime + .4
 				PlayFootstep(ply,50,100,.4)
 			end
 		end
-		
+
 		//TODO: Gonna calculate these at some point.
 		-- local plyHeight = 72 --Player height
 		-- local bot, top = pOrg - pAng:Up()*55, pOrg + pAng:Up()*55 --bottom and top points of the portal
@@ -157,7 +157,7 @@ function ipMove( ply, mv )
 		-- local minZ, maxZ = -(portHeight/2), -(portHeight/2) + gap
 		-- print(portHeight)
 		-- print(minZ,maxZ)
-		
+
 		//Add gravity.
 		local gravity = Vector(0,0,0)
 		local g = GetConVarNumber("sv_gravity")
@@ -168,31 +168,31 @@ function ipMove( ply, mv )
 		else
 			gravity.z = -g
 		end
-		
-	   
+
+
 		// calculate final velocity with friction
 		local getvel = mv:GetVelocity()
 		local newVelocity = getvel + acceleration * deltaTime * noclipAccelerate;
 		newVelocity = newVelocity + (gravity * deltaTime)
-		newVelocity.z = math.max(newVelocity.z, -3000) --Clamp that fall speed. 
+		newVelocity.z = math.max(newVelocity.z, -3000) --Clamp that fall speed.
 		newVelocity.z = newVelocity.z * .9999 --Correct incrementing zvelocity
 		newVelocity.x = newVelocity.x * ( 0.98 - deltaTime * 5 )
 		newVelocity.y = newVelocity.y * ( 0.98 - deltaTime * 5 )
-		
+
 		if mv:KeyDown(IN_JUMP) then
 			if ply.m_bSpacebarReleased and portal:IsHorizontal() then
 				ply.m_bSpacebarReleased = false
 				if portal:WorldToLocal( pos ).z <= -54 then
 					newVelocity.z = ply:GetJumpPower()
 					GAMEMODE:DoAnimationEvent(ply,PLAYERANIMEVENT_JUMP)
-						
+
 					PlayFootstep(ply,40,100,.6)
 				end
 			end
 		else
 			ply.m_bSpacebarReleased = true
 		end
-		
+
 		local frontDist
 		if portal:IsHorizontal() then --Fix diagonal portal with OBB detection.
 			local OBBPos = util.ClosestPointInOBB(pOrg,ply:OBBMins(),ply:OBBMaxs(),ply:GetPos(),false)
@@ -200,9 +200,9 @@ function ipMove( ply, mv )
 		else
 			frontDist = math.min(pos:PlaneDistance(pOrg,pAng:Forward()), ply:GetHeadPos():PlaneDistance(pOrg,pAng:Forward()))
 		end
-		
+
 		local localOrigin = portal:WorldToLocal( pos + newVelocity * deltaTime ) --Apply movement, localize before clamping.
-		
+
 		local minY,maxY,minZ,maxZ
 		if portal:IsHorizontal() then
 			minY = -20
@@ -215,26 +215,26 @@ function ipMove( ply, mv )
 			minZ = -50
 			maxZ = 44
 		end
-		
-if !portal_prototype:GetBool() then 
+
+if !portal_prototype:GetBool() then
 		frontNum = 16
 		else
 		frontNum = 32
 end
-		
+
 		if frontDist < frontNum then
 		-- if frontDist < 25.29 then
 			localOrigin.z = math.Clamp(localOrigin.z,minZ,maxZ)
 			localOrigin.y = math.Clamp(localOrigin.y,minY,maxY)
 		else
-	
-	
+
+
 --			ply.PortalClone:Remove() Error Lua in Multiplayer
 			ply.PortalClone = nil
 			ply.InPortal = nil
-	
+
 -- Fixed Portals Roofs
-			
+
 			ply:SetMoveType(MOVETYPE_FLY)
 -- print("MOVETYPE_FLY")
 
@@ -246,21 +246,21 @@ end
 -- print("MOVETYPE_WALK")
 end)
 
-if !snd_portal2:GetBool() then 
+if !snd_portal2:GetBool() then
 			ply:EmitSound("player/portal_exit"..math.random(1,2)..".wav",80,100 + (30 * (newVelocity:Length() - 450)/1000))
 		else
 			ply:EmitSound("player/portal2/portal_exit"..math.random(1,2)..".wav",80,100 + (30 * (newVelocity:Length() - 450)/1000))
 end
 		end
-		
+
 		local newOrigin = portal:LocalToWorld(localOrigin)
 
 		// Apply our velocity change
 		mv:SetVelocity( newVelocity )
-	   
+
 	   //Move the player by the velocity.
 		mv:SetOrigin( newOrigin )
-	   
+
 		return true;
 	end
 end
@@ -272,9 +272,9 @@ function vec:PlaneDistance(plane,normal)
 end
 
 function math.YawBetweenPoints(a,b)
-	local xDiff = a.x - b.x; 
-	local yDiff = a.y - b.y; 
-	return math.atan2(yDiff, xDiff) * (180 / math.pi) 
+	local xDiff = a.x - b.x;
+	local yDiff = a.y - b.y;
+	return math.atan2(yDiff, xDiff) * (180 / math.pi)
 end
 
 // Returns the distance between a point and an OBB, defined by mins and maxs.
@@ -293,10 +293,10 @@ function util.ClosestPointInOBB(point,mins,maxs,center,Debug)
 	else
 		radius= 16/abs_sin_angle;
 	end
-	
+
 	radius = math.min(radius,math.Distance(center.x,center.y,point.x,point.y))
 	local x,y = math.cos(yaw)*radius, math.sin(yaw)*radius
-	
+
 	if Debug then
 		if not CLIENT then
 			umsg.Start("drawOBB")
@@ -312,12 +312,12 @@ function util.ClosestPointInOBB(point,mins,maxs,center,Debug)
 			debugoverlay.Cross(point,5,1,Color(30,200,30,255))
 		end
 	end
-	
-	
+
+
 	return Vector(x,y,0) + center
-	
+
 end
--- local lastStep = CurTime() 
+-- local lastStep = CurTime()
 -- hook.Add("PlayerFootstep", "Debug", function(ply,pos,foot,sound,volume,filter)
 	-- local delay = CurTime()-lastStep
 	-- lastStep = CurTime()
@@ -333,7 +333,7 @@ end
 if SERVER then
 	hook.Add("PreCleanupMap", "Remove portals individually", function()
 		for k,v in pairs(ents.FindByClass("prop_portal")) do
-			v:CleanMeUp()
+			v:Fizzle()
 		end
 	end)
 end
@@ -341,13 +341,13 @@ if SERVER then
 	hook.Add("DoPlayerDeath", "Remove Portals On Death", function(victim)
 		local blueportal = victim:GetNWEntity( "Portal:Blue" )
         local orangeportal = victim:GetNWEntity( "Portal:Orange" )
-       
+
         for k,v in ipairs( ents.FindByClass( "prop_portal" ) ) do
-   
-			if v == blueportal or v == orangeportal and v.CleanMeUp then
-				v:CleanMeUp()
+
+			if v == blueportal or v == orangeportal then
+				v:Fizzle()
 			end
-		   
+
         end
 	end)
 end

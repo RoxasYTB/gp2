@@ -84,19 +84,8 @@ include("gp2/particles.lua")
 include("gp2/entityextensions.lua")
 include("gp2/portalmanager.lua")
 include("gp2/portaldetours.lua")
--- Inclure le système de mouvement en fonction de la version
-local movementFile = "gp2/portalmovement" .. (PORTAL_USE_NEW_ENVIRONMENT_SYSTEM and "_new" or "_old") .. ".lua"
-if file.Exists(movementFile, "LUA") then
-    include(movementFile)
-else
-    print("[GP2] Avertissement: " .. movementFile .. " non trouvé")
-end
-
--- Ajouter les fichiers client
-local movementFileCS = "gp2/portalmovement" .. (PORTAL_USE_NEW_ENVIRONMENT_SYSTEM and "_new" or "_old") .. ".lua"
-if file.Exists(movementFileCS, "LUA") then
-    AddCSLuaFile(movementFileCS)
-end
+include("gp2/portalmovement" .. (PORTAL_USE_NEW_ENVIRONMENT_SYSTEM and "_new" or "_old") .. ".lua")
+AddCSLuaFile("gp2/portalmovement" .. (PORTAL_USE_NEW_ENVIRONMENT_SYSTEM and "_new" or "_old") .. ".lua")
 AddCSLuaFile("gp2/globals.lua")
 AddCSLuaFile("gp2/utils.lua")
 AddCSLuaFile("gp2/netmessages.lua")
@@ -122,7 +111,7 @@ AddCSLuaFile("gp2/client/render/env_portal_laser.lua")
 if SERVER then
     -- Load base_brush entity first to fix derivation errors
     include("entities/base_brush.lua")
-
+    
     -- Register all entity files for client download
     local entityFiles = file.Find("entities/*.lua", "LUA")
     for _, entFile in ipairs(entityFiles) do
@@ -130,15 +119,11 @@ if SERVER then
             AddCSLuaFile("entities/" .. entFile)
         end
     end
-
+    
     -- Ensure critical entities are specifically registered
-    if file.Exists("entities/prop_portal.lua", "LUA") then
-        AddCSLuaFile("entities/prop_portal.lua")
-    end
-    if file.Exists("entities/base_brush.lua", "LUA") then
-        AddCSLuaFile("entities/base_brush.lua")
-    end
-
+    AddCSLuaFile("entities/prop_portal.lua")
+    AddCSLuaFile("entities/base_brush.lua")
+    
     -- Register HUD element files to fix the empty file errors
     AddCSLuaFile("gp2/client/hudelements/base.lua")
     AddCSLuaFile("gp2/client/hudelements/hud_message.lua")
@@ -164,7 +149,7 @@ if SERVER then
         -- Force reload critical entities if they failed to register
         if not scripted_ents.Get("prop_portal") then
             GP2.Print("prop_portal not registered, attempting manual registration...")
-
+            
             -- Try to force reload the entity file
             local entPath = "entities/prop_portal.lua"
             if file.Exists(entPath, "LUA") then
@@ -199,7 +184,7 @@ if SERVER then
                         PORTAL_TYPE_FIRST = PORTAL_TYPE_FIRST,
                         PORTAL_TYPE_SECOND = PORTAL_TYPE_SECOND
                     }, {__index = _G})
-
+                    
                     local compiled = CompileString(entContent, entPath)
                     if compiled then
                         setfenv(compiled, env)
@@ -240,51 +225,6 @@ if SERVER then
             end
         end)
     end)
-
-    concommand.Add("gp2_print_collision_entity", function(ply)
-        if not IsValid(ply) then
-            print("Commande à utiliser en tant que joueur.")
-            return
-        end
-        local trace = util.TraceHull({
-            start = ply:GetPos(),
-            endpos = ply:GetPos() - Vector(0,0,5),
-            mins = ply:OBBMins(),
-            maxs = ply:OBBMaxs(),
-            filter = ply
-        })
-        if trace.Hit and IsValid(trace.Entity) then
-            ply:ChatPrint("[GP2] Collision avec : " .. trace.Entity:GetClass() .. " (" .. tostring(trace.Entity) .. ")")
-        else
-            ply:ChatPrint("[GP2] Aucune collision détectée sous le joueur.")
-        end
-    end, nil, "Affiche l'entité en collision sous le joueur.")
-    concommand.Add("gp2_print_object_height", function(ply)
-        if not IsValid(ply) then
-            print("Commande à utiliser en tant que joueur.")
-            return
-        end
-        local trace = ply:GetEyeTrace()
-        if trace.Hit and IsValid(trace.Entity) then
-            local pos = trace.Entity:GetPos()
-            local entName = trace.Entity:GetName() or "(aucun nom)"
-            -- Trace vers le bas depuis la position de l'objet
-            local tr = util.TraceLine({
-                start = pos,
-                endpos = pos - Vector(0,0,10000),
-                filter = trace.Entity
-            })
-            local solZ = tr.HitPos.z
-            local diff = math.Round(pos.z - solZ, 2)
-            local playerZ = math.Round(ply:GetPos().z, 2)
-            local diffPlayer = math.Round(pos.z - playerZ, 2)
-            ply:ChatPrint("[GP2] Hauteur (Z) de l'objet: " .. math.Round(pos.z, 2) .. " | Nom: " .. entName ..
-                "\n[GP2] Hauteur du sol sous l'objet: " .. math.Round(solZ, 2) .. " | Différence: " .. diff ..
-                "\n[GP2] Hauteur (Z) du joueur: " .. playerZ .. " | Différence objet-joueur: " .. diffPlayer)
-        else
-            ply:ChatPrint("[GP2] Aucun objet trouvé devant vous.")
-        end
-    end, nil, "Affiche la hauteur (Z) de l'objet visé par le joueur et celle du joueur.")
 end
 
 -- Cubes
@@ -335,12 +275,7 @@ if SERVER then
     include("gp2/mouthmanager.lua")
     include("gp2/gamemovement.lua")
     include("gp2/portalpvs.lua")
-    -- Inclure portalpropteleport seulement s'il existe
-    if file.Exists("gp2/portalpropteleport.lua", "LUA") then
-        include("gp2/portalpropteleport.lua")
-    else
-        print("[GP2] Avertissement: gp2/portalpropteleport.lua non trouvé")
-    end
+    include("gp2/portalpropteleport.lua")
     include("gp2/paint.lua")
     include("gp2/client/hud.lua")
 
@@ -381,24 +316,13 @@ if SERVER then
     function fixPortalColors()
         timer.Simple(2, function()
             for _, portal in ipairs(ents.FindByClass("prop_portal")) do
-                -- Vérifier si la méthode existe avant de l'appeler
-                local isMapPortal = false
-                if portal.GetPlacedByMap and isfunction(portal.GetPlacedByMap) then
-                    isMapPortal = portal:GetPlacedByMap()
-                end
-
-                if isMapPortal then
-                    local firstPlayer = Entity(1)
+                if portal:GetPlacedByMap() then
+                    local firstPlayer = Entity(1)				
                     if IsValid(firstPlayer) then
-                        local portalType = (portal.GetType and portal:GetType()) or 1
-                        local info = firstPlayer:GetInfo("gp2_portal_color" .. (portalType + 1))
-                        local colorString = info or "255 255 255"
-                        local colorTable = string.Split(colorString, " ")
-                        local r, g, b = tonumber(colorTable[1]) or 255, tonumber(colorTable[2]) or 255, tonumber(colorTable[3]) or 255
-
-                        if portal.SetPortalColor and isfunction(portal.SetPortalColor) then
-                            portal:SetPortalColor(r, g, b)
-                        end
+                        local info = firstPlayer:GetInfo("gp2_portal_color" .. portal:GetType() + 1)
+                        local r, g, b = unpack((info or "255 255 255"):Split(" "))
+        
+                        portal:SetPortalColor(r, g, b)
                     end
                 end
             end
@@ -525,39 +449,19 @@ if SERVER then
         end
     end)
 else
-    if CLIENT then
-        -- Initialize global tables early to prevent nil index errors in entities
-        -- These tables are normally defined in client render/vgui files but entities may load first
-        ProjectedWallEntity = ProjectedWallEntity or {}
-        PropTractorBeam = PropTractorBeam or {}
-        VguiMovieDisplay = VguiMovieDisplay or {}
-        VguiSPProgressSign = VguiSPProgressSign or {}
-
-        -- Basic stub functions to prevent immediate errors
-        ProjectedWallEntity.IsAdded = ProjectedWallEntity.IsAdded or function() return false end
-        ProjectedWallEntity.AddToRenderList = ProjectedWallEntity.AddToRenderList or function() end
-
-        PropTractorBeam.IsAdded = PropTractorBeam.IsAdded or function() return false end
-        PropTractorBeam.AddToRenderList = PropTractorBeam.AddToRenderList or function() end
-
-        VguiMovieDisplay.IsAddedDisplay = VguiMovieDisplay.IsAddedDisplay or function() return false end
-        VguiMovieDisplay.AddDisplay = VguiMovieDisplay.AddDisplay or function() end
-
-        VguiSPProgressSign.IsAddedSign = VguiSPProgressSign.IsAddedSign or function() return false end
-        VguiSPProgressSign.AddSign = VguiSPProgressSign.AddSign or function() end
-    end
-
     hook.Add("Initialize", "GP2::Initialize", function()
         SoundManager.Initialize()
-    end)      -- Protected includes for client-side files with pcall
+    end)
+      -- Protected includes for client-side files with pcall
     local clientFiles = {
         "gp2/client/render.lua",  -- Load render system first
-        "gp2/client/hud.lua",    -- Load HUD (includes fonts) before VGUI
-        "gp2/client/vgui.lua",
+        "gp2/paint.lua",
+        "gp2/client/vgui.lua", 
+        "gp2/client/hud.lua",
         "gp2/client/portalrendering.lua",
         "gp2/gamemovement.lua"
     }
-
+    
     -- Add a small delay to ensure networking is ready
     timer.Simple(0.1, function()
         for _, filePath in ipairs(clientFiles) do
@@ -574,7 +478,7 @@ else
         end    end)    hook.Add("Think", "GP2::Think", function()
         SoundManager.Think()
     end)
-
+    
     -- Hook pour s'assurer que les tractor beams sont correctement initialisés
     hook.Add("InitPostEntity", "GP2::InitTractorBeams", function()
         timer.Simple(1, function() -- Délai pour s'assurer que tout est chargé
@@ -584,47 +488,5 @@ else
                 end
             end
         end)
-    end)
-
-    -- Hook pour gérer l'intégration des portails avec PortalManager
-    hook.Add("OnEntityCreated", "GP2::Portal::OnEntityCreated", function(ent)
-        if IsValid(ent) and ent:GetClass() == "prop_portal" then
-            -- Petit délai pour laisser l'entité s'initialiser complètement
-            timer.Simple(0.1, function()
-                if IsValid(ent) and ent.GetType and ent.GetActivated then
-                    -- S'assurer que le portail est intégré au PortalManager
-                    if ent:GetActivated() then
-                        -- Utiliser linkage group 0 par défaut pour la compatibilité
-                        PortalManager.SetPortal(0, ent)
-                        GP2.Print("Portal integrated with PortalManager: %s (type %s)", tostring(ent), tostring(ent:GetType()))
-                    end
-                end
-            end)
-        end
-    end)
-
-    -- Fonction pour recharger les scripts clients critiques
-    local function ReloadClientScripts()
-        local clientFiles = {
-            "entities/env_portal_laser/cl_init.lua",
-            -- Ajouter ici d'autres fichiers à recharger si besoin
-        }
-        for _, file in ipairs(clientFiles) do
-            pcall(include, file)
-        end
-    end
-
-    -- Commande console pour forcer le reload
-    concommand.Add("gp2_reload_client_scripts", function()
-        ReloadClientScripts()
-    end, nil, "Recharge les scripts clients GP2 (visuel laser, etc.)")
-
-    -- Hook pour recharger automatiquement après le chargement des entités
-    hook.Add("InitPostEntity", "GP2_ReloadClientScripts", function()
-        timer.Simple(0.5, ReloadClientScripts)
-    end)
-    -- Hook pour recharger après nettoyage map
-    hook.Add("PostCleanupMap", "GP2_ReloadClientScripts_Cleanup", function()
-        timer.Simple(0.5, ReloadClientScripts)
     end)
 end

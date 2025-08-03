@@ -96,9 +96,8 @@ function ProjectedWallEntity.IsAdded(ent)
 end
 
 function ProjectedWallEntity.Render()
-    if not next(ProjectedWallEntity.Walls) then return end
     for entity, wall in pairs(ProjectedWallEntity.Walls) do
-        if not IsValid(entity) then
+        if not IsValid(entity)  then
             ProjectedWallEntity.Walls[entity] = nil
             return
         end
@@ -131,7 +130,6 @@ end
 -- Functions already defined above to prevent nil errors
 
 function ProjectedTractorBeamEntity.Render()
-    if not next(ProjectedTractorBeamEntity.Beams) then return end
     for entity, beam in pairs(ProjectedTractorBeamEntity.Beams) do
         if not IsValid(entity) then
             ProjectedTractorBeamEntity.Beams[entity] = nil
@@ -207,7 +205,6 @@ function PropTractorBeam.IsAdded(beam)
 end
 
 function PropTractorBeam.Render()
-    if not next(PropTractorBeam.Beams) then return end
     for beam in pairs(PropTractorBeam.Beams) do
         if not IsValid(beam) then
             PropTractorBeam.Beams[beam] = nil
@@ -267,7 +264,6 @@ function NpcPortalTurretFloor.AddToRenderList(turret)
 end
 
 function NpcPortalTurretFloor.Render()
-    if not next(NpcPortalTurretFloor.Turrets) then return end
     for turret in pairs(NpcPortalTurretFloor.Turrets) do
         if not IsValid(turret) then 
             NpcPortalTurretFloor.Turrets[turret] = nil
@@ -377,7 +373,6 @@ function PropPortal.IsAddedToRenderList(portal)
 end
 
 function PropPortal.Render()
-    if not next(PropPortal.Portals) then return end
     for portal in pairs(PropPortal.Portals) do
         if not IsValid(portal) then PropPortal.Portals[portal] = nil ; continue end
         if not portal:GetActivated() then continue end
