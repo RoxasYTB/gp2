@@ -7,6 +7,20 @@ include("shared.lua")
 
 -- Initialize global tables on CLIENT to prevent nil value errors in multiplayer
 if CLIENT then
+	-- Charger le fichier de particules personnalisé pour les effets colorés
+	if game and game.AddParticles then
+		game.AddParticles("particles/portals.pcf")
+		-- Précacher les effets custom avec couleur dynamique
+		PrecacheParticleSystem("gp2_portal_1_edge")
+		PrecacheParticleSystem("gp2_portal_2_edge")
+		PrecacheParticleSystem("gp2_portal_close")
+
+		-- Debug: Afficher les particules chargées
+		if GetConVar("developer") and GetConVar("developer"):GetInt() > 0 then
+			print("[GP2] Loaded custom particle file: particles/portals.pcf")
+		end
+	end
+
 	-- Ensure PortalRendering is loaded before trying to use it
 	if not PortalRendering then
 		-- Try to include portalrendering.lua if it hasn't been loaded
@@ -70,9 +84,24 @@ net.Receive(GP2.Net.SendPortalClose, function()
 
 	local forward, right, up = angle:Forward(), angle:Right(), angle:Up()
 
-	local particle = CreateParticleSystemNoEntity("portal_close", pos, angle)
+	-- Utilise l'effet de fermeture custom avec couleur dynamique
+	local particle = CreateParticleSystemNoEntity("gp2_portal_close", pos, angle)
 	if IsValid(particle) then
+		-- Assure-toi que la couleur est valide
+		if not color or (color.x == 0 and color.y == 0 and color.z == 0) then
+			color = Vector(100, 100, 255) -- Couleur par défaut
+		end
+
+		-- Application de la couleur sur le control point principal utilisé par les effets custom
+		local normalizedColor = Vector(color.x / 255, color.y / 255, color.z / 255)
+
+		-- Control points pour les effets de fermeture avec alpha
+		particle:SetControlPoint(1, normalizedColor)
 		particle:SetControlPoint(2, color)
+		particle:SetControlPoint(3, Vector(1, 1, 1)) -- Alpha = 1.0 (opaque)
+
+		-- Force le restart pour appliquer les changements
+		particle:Restart()
 	end
 end)
 
@@ -296,8 +325,8 @@ function ENT:Think()
 	end
 
 	if not IsValid(self.RingParticle) then
-		-- Create ring particle
-		local ringEffect = self:GetType() == PORTAL_TYPE_SECOND and "portal_2_edge" or "portal_1_edge"
+		-- Utilise les effets custom du pcf gp2
+		local ringEffect = self:GetType() == PORTAL_TYPE_SECOND and "gp2_portal_1_edge" or "gp2_portal_1_edge"
 		-- Création du ring avec les angles fixes
 		local ringAngles = Angle(RING_PITCH, RING_YAW, RING_ROLL)
 		self.RingParticle = CreateParticleSystem(self, ringEffect, PATTACH_CUSTOMORIGIN)
@@ -333,11 +362,37 @@ function ENT:Think()
 		local up = mat:GetUp()
 		self.RingParticle:SetControlPointOrientation(0, right, fwd, up)
 
-		-- Toujours utiliser la couleur exacte du portail sur tous les Control Points pour debug
+		-- === APPLICATION COULEUR DYNAMIQUE POUR LES EFFETS CUSTOM PCF ===
+		-- Récupère la couleur dynamique du portail
 		local color = self:GetColorVector()
-		for i=1,8 do
-			print("[GP2] Setting control point " .. i .. " color to: " .. tostring(color))
-			self.RingParticle:SetControlPoint(i, color)
+
+		-- Assure-toi que la couleur est valide
+		if not color or (color.x == 0 and color.y == 0 and color.z == 0) then
+			-- Couleur par défaut basée sur le type de portail
+			if self:GetType() == PORTAL_TYPE_SECOND then
+				color = Vector(255, 165, 0) -- Orange pour portail 2
+			else
+				color = Vector(0, 162, 255) -- Bleu pour portail 1
+			end
+		end
+
+		-- Applique la couleur sur le control point principal utilisé par les paramètres color des effets
+		-- Control Point 1: Couleur normalisée RGBA (0-1) - Format utilisé par les color initializers dans le PCF
+		local normalizedColor = Vector(color.x / 255, color.y / 255, color.z / 255)
+		self.RingParticle:SetControlPoint(1, normalizedColor)
+
+		-- Control Point spécial pour l'alpha (requis par le PCF)
+		self.RingParticle:SetControlPoint(3, Vector(1, 1, 1)) -- Alpha = 1.0 (opaque)
+
+		-- Control Point 2: Couleur RGB brute (0-255) - Format alternatif si nécessaire
+		self.RingParticle:SetControlPoint(2, color)
+
+		-- Force la mise à jour des particules pour appliquer la nouvelle couleur
+		self.RingParticle:Restart()
+
+		-- Debug: Affiche les couleurs appliquées
+		if GetConVar("developer") and GetConVar("developer"):GetInt() > 0 then
+			print("[GP2] Applied portal colors - Raw:", tostring(color), "Normalized:", tostring(normalizedColor))
 		end
 	end
 
