@@ -12,6 +12,42 @@ if CLIENT then
 		game.AddParticles("particles/portals.pcf")
 		-- Précacher les effets custom avec couleur dynamique
 		PrecacheParticleSystem("gp2_portal_1_edge")
+		  -- Couleurs principales
+		PrecacheParticleSystem("gp2_portal_1_edge_red")
+		PrecacheParticleSystem("gp2_portal_1_edge_orange")
+		PrecacheParticleSystem("gp2_portal_1_edge_yellow")
+		PrecacheParticleSystem("gp2_portal_1_edge_lime")
+		PrecacheParticleSystem("gp2_portal_1_edge_green")
+		PrecacheParticleSystem("gp2_portal_1_edge_cyan")
+		PrecacheParticleSystem("gp2_portal_1_edge_lightblue")
+		PrecacheParticleSystem("gp2_portal_1_edge_blue")
+		PrecacheParticleSystem("gp2_portal_1_edge_darkblue")
+		PrecacheParticleSystem("gp2_portal_1_edge_magenta")
+		PrecacheParticleSystem("gp2_portal_1_edge_pink")
+		PrecacheParticleSystem("gp2_portal_1_edge_black")
+		PrecacheParticleSystem("gp2_portal_1_edge_white")
+		PrecacheParticleSystem("gp2_portal_1_edge_gray")
+		PrecacheParticleSystem("gp2_portal_1_edge_darkgray")
+
+
+		PrecacheParticleSystem("gp2_portal_2_edge_red")
+		PrecacheParticleSystem("gp2_portal_2_edge_orange")
+		PrecacheParticleSystem("gp2_portal_2_edge_yellow")
+		PrecacheParticleSystem("gp2_portal_2_edge_lime")
+		PrecacheParticleSystem("gp2_portal_2_edge_green")
+		PrecacheParticleSystem("gp2_portal_2_edge_cyan")
+		PrecacheParticleSystem("gp2_portal_2_edge_lightblue")
+		PrecacheParticleSystem("gp2_portal_2_edge_blue")
+		PrecacheParticleSystem("gp2_portal_2_edge_darkblue")
+		PrecacheParticleSystem("gp2_portal_2_edge_magenta")
+		PrecacheParticleSystem("gp2_portal_2_edge_pink")
+		PrecacheParticleSystem("gp2_portal_2_edge_black")
+		PrecacheParticleSystem("gp2_portal_2_edge_white")
+		PrecacheParticleSystem("gp2_portal_2_edge_gray")
+		PrecacheParticleSystem("gp2_portal_2_edge_darkgray")
+
+
+
 		PrecacheParticleSystem("gp2_portal_2_edge")
 		PrecacheParticleSystem("gp2_portal_close")
 
@@ -316,24 +352,59 @@ function ENT:DrawGhost()
 	end
 end
 
+-- Table de correspondance RGB -> nom de couleur (pour preset)
+local GP2_PORTAL_COLOR_PRESETS = {
+    ["180,40,40"] = "red",
+    ["210,114,2"] = "orange",
+    ["200,200,60"] = "yellow",
+    ["90,180,30"] = "lime",
+    ["40,180,40"] = "green",
+    ["40,180,180"] = "cyan",
+    ["70,120,180"] = "lightblue",
+    ["2,114,210"] = "blue",
+    ["20,50,120"] = "darkblue",
+    ["180,40,180"] = "magenta",
+    ["180,80,120"] = "pink",
+    ["30,30,30"] = "black",
+    ["200,200,200"] = "white",
+    ["90,90,90"] = "gray",
+    ["60,60,60"] = "darkgray"
+}
+
+function ENT:GetPortalEdgePresetName()
+    local color = self:GetColorVector()
+    if not color then return nil end
+    local key = math.Round(color.x)..","..math.Round(color.y)..","..math.Round(color.z)
+    return GP2_PORTAL_COLOR_PRESETS[key]
+end
+
 function ENT:Think()
 	if not self:GetActivated() then return end
-
-	-- Ensure PropPortal is initialized
 	if PropPortal and PropPortal.AddToRenderList then
 		PropPortal.AddToRenderList(self)
 	end
 
-	if not IsValid(self.RingParticle) then
-		-- Utilise les effets custom du pcf gp2
-		local ringEffect = self:GetType() == PORTAL_TYPE_SECOND and "gp2_portal_1_edge" or "gp2_portal_1_edge"
-		-- Création du ring avec les angles fixes
+	-- Détermination du preset à utiliser
+	local preset = self:GetPortalEdgePresetName()
+	local portalType = self:GetType() == PORTAL_TYPE_SECOND and 2 or 1
+	local effectName = "gp2_portal_"..portalType.."_edge"
+	if preset then
+		effectName = effectName .. "_" .. preset
+	end
+
+	-- Création du système de particules uniquement si le preset change
+	if self._lastRingEffect ~= effectName or not IsValid(self.RingParticle) then
+		if IsValid(self.RingParticle) then
+			self.RingParticle:StopEmissionAndDestroyImmediately()
+			self.RingParticle = nil
+		end
 		local ringAngles = Angle(RING_PITCH, RING_YAW, RING_ROLL)
-		self.RingParticle = CreateParticleSystem(self, ringEffect, PATTACH_CUSTOMORIGIN)
+		self.RingParticle = CreateParticleSystem(self, effectName, PATTACH_CUSTOMORIGIN)
 		if IsValid(self.RingParticle) then
 			self.RingParticle:SetControlPoint(0, self:GetPos())
 			self.RingParticle:SetControlPointOrientation(0, ringAngles:Forward(), ringAngles:Right(), ringAngles:Up())
 		end
+		self._lastRingEffect = effectName
 	end
 
 	if IsValid(self.RingParticle) then
@@ -342,12 +413,9 @@ function ENT:Think()
 		else
 			self.RingParticle:SetControlPoint(0, self:GetPos() - self:GetAngles():Up() * 7)
 		end
-
-		-- Si RingParticle existe et est en customorigin, on met à jour sa position et son orientation à chaque frame
 		local ringAngles = Angle(RING_PITCH, RING_YAW, RING_ROLL)
 		self.RingParticle:SetControlPoint(0, self:GetPos())
 		self.RingParticle:SetControlPointOrientation(0, ringAngles:Forward(), ringAngles:Right(), ringAngles:Up())
-
 		-- Application correcte de la rotation personnalisée du ring
 		local pitch = 180
 		local yaw = 180
@@ -361,39 +429,6 @@ function ENT:Think()
 		local right = mat:GetRight()
 		local up = mat:GetUp()
 		self.RingParticle:SetControlPointOrientation(0, right, fwd, up)
-
-		-- === APPLICATION COULEUR DYNAMIQUE POUR LES EFFETS CUSTOM PCF ===
-		-- Récupère la couleur dynamique du portail
-		local color = self:GetColorVector()
-
-		-- Assure-toi que la couleur est valide
-		if not color or (color.x == 0 and color.y == 0 and color.z == 0) then
-			-- Couleur par défaut basée sur le type de portail
-			if self:GetType() == PORTAL_TYPE_SECOND then
-				color = Vector(255, 165, 0) -- Orange pour portail 2
-			else
-				color = Vector(0, 162, 255) -- Bleu pour portail 1
-			end
-		end
-
-		-- Applique la couleur sur le control point principal utilisé par les paramètres color des effets
-		-- Control Point 1: Couleur normalisée RGBA (0-1) - Format utilisé par les color initializers dans le PCF
-		local normalizedColor = Vector(color.x / 255, color.y / 255, color.z / 255)
-		self.RingParticle:SetControlPoint(1, normalizedColor)
-
-		-- Control Point spécial pour l'alpha (requis par le PCF)
-		self.RingParticle:SetControlPoint(3, Vector(1, 1, 1)) -- Alpha = 1.0 (opaque)
-
-		-- Control Point 2: Couleur RGB brute (0-255) - Format alternatif si nécessaire
-		self.RingParticle:SetControlPoint(2, color)
-
-		-- Force la mise à jour des particules pour appliquer la nouvelle couleur
-		self.RingParticle:Restart()
-
-		-- Debug: Affiche les couleurs appliquées
-		if GetConVar("developer") and GetConVar("developer"):GetInt() > 0 then
-			print("[GP2] Applied portal colors - Raw:", tostring(color), "Normalized:", tostring(normalizedColor))
-		end
 	end
 
 	-- Gestion dynamique de la recréation du ring si les angles changent
