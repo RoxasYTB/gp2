@@ -44,47 +44,47 @@ end
 
 function ENT:GetPortalAngleOffsets(portal,ent)
 	local angles = ent:GetAngles()
-	
+
 	local normal = self:GetForward()
 	local forward = angles:Forward()
 	local up = angles:Up()
-	
+
 	// reflect forward
 	local dot = forward:DotProduct( normal )
 	forward = forward + ( -2 * dot ) * normal
-	
-	// reflect up		
+
+	// reflect up
 	local dot = up:DotProduct( normal )
 	up = up + ( -2 * dot ) * normal
-	
+
 	// convert to angles
 	angles = math.VectorAngles( forward, up );
-	
+
 	local LocalAngles = self:WorldToLocalAngles( angles );
-	
+
 	// repair
 	LocalAngles.y = -LocalAngles.y;
 	LocalAngles.r = -LocalAngles.r;
-	
+
 	return portal:LocalToWorldAngles( LocalAngles )
 end
 
 function ENT:GetPortalPosOffsets(portal,ent)
 	local pos
-	if ent:IsPlayer() then 
-		pos = ent:GetHeadPos() 
-	else 
+	if ent:IsPlayer() then
+		pos = ent:GetHeadPos()
+	else
 		pos = ent:GetPos()
 	end
 	local offset = self:WorldToLocal(pos)
-	if ent:IsPlayer() then 
+	if ent:IsPlayer() then
 		offset.x = -offset.x;
 		offset.y = -offset.y;
-	else 
+	else
 		offset.x = -offset.x;
 		offset.y = -offset.y;
 	end
-	
+
 	local output = portal:LocalToWorld( offset )
 	if ent:IsPlayer() and SERVER then
 		return output + self:GetFloorOffset(output)
@@ -96,14 +96,14 @@ end
 function ENT:PlayerWithinBounds(ent,predicting)
 	local offset = Vector(0,0,0)
 	if predicting then offset = ent:GetVelocity()*FrameTime() end
-	
+
 	local pOrg = self:GetPos()
 	if self:OnFloor() then
 		self:SetPos(pOrg - Vector(0,0,20))
 		pOrg = pOrg - Vector(0,0,20)
 		offset = Vector(0,0,0)
 	end
-	
+
 	local plyPos = self:WorldToLocal(ent:GetPos()+offset)
 	local headPos = self:WorldToLocal(ent:GetHeadPos()+offset)
 	local frontDist
@@ -113,22 +113,22 @@ function ENT:PlayerWithinBounds(ent,predicting)
 	else
 		frontDist = math.min((ent:GetPos()+offset):PlaneDistance(self:GetPos(),self:GetForward()), (ent:GetHeadPos()+offset):PlaneDistance(self:GetPos(),self:GetForward()))
 	end
-	
+
 	if self:OnFloor() then
 		self:SetPos(pOrg + Vector(0,0,20))
 	end
-	
-	if frontDist > 32 then 
-		return false 
+
+	if frontDist > 32 then
+		return false
 	end
 	if self:IsHorizontal() then
 	--[[Check if the player is actually within the bounds of the portal.
 		Player's feet and head must be in the portal to enter.
 		portal dimensions: 64 wide, 104 tall]]
-		
+
 		//must be in the portal.
-		
-		
+
+
 		if headPos.z > 52 then return false end
 		-- print("Head is in Z.")
 		if (ent:OnGround() and plyPos.z+ent:GetStepSize() or plyPos.z) < -52 then return false end
@@ -139,12 +139,12 @@ function ENT:PlayerWithinBounds(ent,predicting)
 		-- print("Right is in x")
 	else
 		//must be in the portal.
-		
+
 		if plyPos.z > 44 then return false end
 		if plyPos.z < -44 then return false end
 		if plyPos.y > 20 then return false end
 		if plyPos.y < -20 then return false end
-		
+
 	end
 	return true
 end
@@ -152,7 +152,7 @@ end
 function ENT:SetType( int )
 	self:SetNWInt("Potal:PortalType",int)
 	self.PortalType = int
-	
+
 	if self.Activated == true then
 		if SERVER then
 			self:SetUpEffects(int)
@@ -174,7 +174,7 @@ function ENT:SetUpEffects(int)
 	ang:RotateAroundAxis(ang:Right(),-90)
 	ang:RotateAroundAxis(ang:Forward(),0)
 	ang:RotateAroundAxis(ang:Up(),90)
-	
+
 	local pos = self:GetPos()
 	if self:OnFloor() then pos.z = pos.z - 20 end
 
@@ -251,7 +251,7 @@ end
 	ent:Activate()
 	ent:SetParent(self)
 	self.EdgeEffect = ent
-	
+
 	local ent = ents.Create( "info_particle_system" )
 	ent:SetPos(pos)
 	ent:SetAngles(ang)
@@ -333,7 +333,7 @@ function ENT:GetFloorOffset(pos1)
 	local offset = Vector(0,0,0)
 	local pos = Vector(0,0,0)
 	pos:Set(pos1) --stupid pointers...
-	
+
 	pos.z = pos.z-64
 	pos = self:WorldToLocal(pos)
 	pos.x = pos.x+30
@@ -379,14 +379,14 @@ function ENT:OnRoof()
 	return p >= 0 and p <= 180 -- Fixed Portals
 end
 
-local function PlayerPickup( ply, ent )	
+local function PlayerPickup( ply, ent )
 	if ent:GetClass() == "prop_portal" or ent:GetModel() == "models/blackops/portal_sides.mdl" then
 		-- print("No Pickup.")
-		return false
+		return true
 	end
 	if ent:GetClass() == "prop_portal" or ent:GetModel() == "models/blackops/portal_sides_new.mdl" then
 		-- print("No Pickup.")
-		return false
+		return true
 	end
 end
 hook.Add( "PhysgunPickup", "NoPickupPortalssingleplayer", PlayerPickup )

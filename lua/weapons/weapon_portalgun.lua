@@ -891,52 +891,47 @@ function SWEP:ViewModelDrawn(vm)
 end
 
 function SWEP:DrawWorldModel(studio)
-	local lastPlacedPortal = self:GetLastPlacedPortal()
-	local lightColor
+    local lastPlacedPortal = self:GetLastPlacedPortal()
+    local lightColor
 
-	if not IsValid(lastPlacedPortal) then
-		lightColor = vector_origin
-	else
-		-- Verify this is actually a portal entity with GetColorVector method
-		if IsValid(lastPlacedPortal) and lastPlacedPortal:GetClass() == "prop_portal" and lastPlacedPortal.GetColorVector then
-			lightColor = lastPlacedPortal:GetColorVector() * 0.2
-			lightColor.g = lightColor.g * 1.05
-		else
-			-- Fallback to default color if entity is invalid or not a portal
-			lightColor = vector_origin
-		end
-	end
+    if not IsValid(lastPlacedPortal) then
+        lightColor = vector_origin
+    else
+        -- Verify this is actually a portal entity with GetColorVector method
+        if IsValid(lastPlacedPortal) and lastPlacedPortal:GetClass() == "prop_portal" and lastPlacedPortal.GetColorVector then
+            lightColor = lastPlacedPortal:GetColorVector() * 0.2
+            lightColor.g = lightColor.g * 1.05
+        else
+            -- Fallback to default color if entity is invalid or not a portal
+            lightColor = vector_origin
+        end
+    end
 
-	if not self.TopLightThirdPersonAttachment then
-		self.TopLightThirdPersonAttachment = self:LookupAttachment("Body_light")
-	end
+    if not self.TopLightThirdPersonAttachment then
+        self.TopLightThirdPersonAttachment = self:LookupAttachment("Body_light")
+    end
 
-	if not self.TopLightColor then
-		self.TopLightColor = Vector()
-	end
+    if not self.TopLightColor then
+        self.TopLightColor = Vector()
+    end
 
-	-- Top light particle (and beam) - world model
-	if not IsValid(self.TopLightThirdPerson) then
-		self.TopLightThirdPerson = CreateParticleSystem(self, "portalgun_top_light_thirdperson", PATTACH_POINT_FOLLOW,
-			self.TopLightThirdPersonAttachment)
-		if IsValid(self.TopLightThirdPerson) then
-			self.TopLightThirdPerson:AddControlPoint(4, self, PATTACH_POINT_FOLLOW, "Beam_point5")
-		end
-	else
-		self.TopLightThirdPerson:Render()
+    -- Top light particle (and beam) - world model
+    if not IsValid(self.TopLightThirdPerson) then
+        self.TopLightThirdPerson = CreateParticleSystem(self, "portalgun_top_light_thirdperson", PATTACH_POINT_FOLLOW,
+            self.TopLightThirdPersonAttachment)
+        if IsValid(self.TopLightThirdPerson) then
+            self.TopLightThirdPerson:AddControlPoint(4, self, PATTACH_POINT_FOLLOW, "Beam_point5")
+        end
+    else
+        self.TopLightThirdPerson:Render()
+        -- On ne met à jour que le control point 1 (couleur)
+        self.TopLightThirdPerson:SetControlPoint(1, lightColor)
+        if self.TopLightColor ~= lightColor then
+            self.TopLightColor = lightColor
+        end
+    end
 
-		-- Set color to current portal placed
-		self.TopLightThirdPerson:SetControlPoint(1, lightColor)
-		local att = self:GetAttachment(self.TopLightThirdPersonAttachment)
-		if att then
-			self.TopLightThirdPerson:SetControlPoint(0, att.Pos)
-		end
-		if self.TopLightColor ~= lightColor then
-			self.TopLightColor = lightColor
-		end
-	end
-
-	self:DrawModel(studio)
+    self:DrawModel(studio)
 end
 
 function SWEP:Reload()
