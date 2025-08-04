@@ -799,39 +799,34 @@ function SWEP:ViewModelDrawn(vm)
 		self.TopLightColor = Vector()
 	end
 
-	-- Top light particle (and beam)
-	if not IsValid(self.TopLightFirstPerson) then
+	-- Top light particle (and beam) for first viewmodel
+	if not IsValid(self.TopLightFirstPerson) and IsValid(vm0) then
+		self.TopLightFirstPerson = CreateParticleSystem(vm0, "portalgun_beam_toplight_FP", PATTACH_POINT_FOLLOW, self.TopLightFirstPersonAttachment or 0)
 		if IsValid(self.TopLightFirstPerson) then
 			self.TopLightFirstPerson:SetIsViewModelEffect(true)
 			self.TopLightFirstPerson:SetShouldDraw(false)
-
-			-- Beam particles
 			self.TopLightFirstPerson:AddControlPoint(2, owner, PATTACH_CUSTOMORIGIN)
 			self.TopLightFirstPerson:AddControlPoint(3, vm0, PATTACH_POINT_FOLLOW, "Beam_point1")
 			self.TopLightFirstPerson:AddControlPoint(4, vm0, PATTACH_POINT_FOLLOW, "Beam_point5")
 		end
-	else
-		if vm == vm0 then
-			self.TopLightFirstPerson:Render()
-		end
+	end
+	if IsValid(self.TopLightFirstPerson) and vm == vm0 then
+		self.TopLightFirstPerson:Render()
 	end
 
-	-- Top light particle (and beam) for second vm
-	if not IsValid(self.TopLightFirstPerson2) then
-
+	-- Top light particle (and beam) for second viewmodel (copie du premier)
+	if not IsValid(self.TopLightFirstPerson2) and IsValid(vm1) then
+		self.TopLightFirstPerson2 = CreateParticleSystem(vm1, "portalgun_beam_toplight_FP", PATTACH_POINT_FOLLOW, self.TopLightFirstPerson2Attachment or 0)
 		if IsValid(self.TopLightFirstPerson2) then
 			self.TopLightFirstPerson2:SetIsViewModelEffect(true)
 			self.TopLightFirstPerson2:SetShouldDraw(false)
-
-			-- Beam particles
 			self.TopLightFirstPerson2:AddControlPoint(2, owner, PATTACH_CUSTOMORIGIN)
 			self.TopLightFirstPerson2:AddControlPoint(3, vm1, PATTACH_POINT_FOLLOW, "Beam_point1")
 			self.TopLightFirstPerson2:AddControlPoint(4, vm1, PATTACH_POINT_FOLLOW, "Beam_point5")
 		end
-	else
-		if vm == vm1 then
-			self.TopLightFirstPerson2:Render()
-		end
+	end
+	if IsValid(self.TopLightFirstPerson2) and vm == vm1 then
+		self.TopLightFirstPerson2:Render()
 	end
 
 	if vm0:GetModel() != vm1:GetModel() then return end // Fix stupid holding particle bug
@@ -862,12 +857,10 @@ function SWEP:ViewModelDrawn(vm)
 				self.HoldingParticleFirstPersonDieTime = CurTime() + 0.5
 			end
 		elseif CurTime() > self.HoldingParticleFirstPersonDieTime then
-			self.HoldingParticleFirstPerson:StopEmission()
 			self.HoldingParticleFirstPerson = NULL
 		end
 	else
 		if IsValid(self.HoldingParticleFirstPerson) then
-			self.HoldingParticleFirstPerson:StopEmission(false, true)
 			self.HoldingParticleFirstPerson = NULL
 		end
 	end
