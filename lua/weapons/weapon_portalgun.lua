@@ -586,50 +586,53 @@ function SWEP:ClearSpawn()
 end
 
 function SWEP:PlacePortal(type, owner)
-	local r, g, b
+    local r, g, b
+    local key = (type == PORTAL_TYPE_FIRST) and "gp2_portal_color1" or "gp2_portal_color2"
+    local str
+    if CLIENT then
+        str = GetConVarString(key)
+    else
+        str = owner and owner.GetInfo and owner:GetInfo(key) or nil
+    end
+    local clr = str and string.Split(str, " ") or nil
 
-	if type == PORTAL_TYPE_FIRST then
-		r, g, b = 0, 80, 180 -- Bleu plus foncé
-	elseif type == PORTAL_TYPE_SECOND then
-		r, g, b = 255, 154, 0 -- Orange
-	else
-		r, g, b = 255, 255, 255 -- Fallback blanc
-	end
 
-	if IsValid(owner) and owner:IsPlayer() then
-		local colorConvar = owner:GetInfo("gp2_portal_color" .. (type + 1))
-		if colorConvar and colorConvar ~= "" then
-			local split = string.Split(colorConvar, " ")
-			if #split == 3 then
-				r = tonumber(split[1]) or r
-				g = tonumber(split[2]) or g
-				b = tonumber(split[3]) or b
-			end
-		end
-	end
+	rc1 = GetConVarString("gp2_portal_color1"):Split(" ")[1]
+	gc1 = GetConVarString("gp2_portal_color1"):Split(" ")[2]
+	bc1 = GetConVarString("gp2_portal_color1"):Split(" ")[3]
+	rc2 = GetConVarString("gp2_portal_color2"):Split(" ")[1]
+	gc2 = GetConVarString("gp2_portal_color2"):Split(" ")[2]
+	bc2 = GetConVarString("gp2_portal_color2"):Split(" ")[3]
+        -- fallback couleur par défaut (bleu/orange)
+        if type == PORTAL_TYPE_FIRST then
+            r, g, b = rc1, gc1, bc1
+        else
+            r, g, b = rc2, gc2, bc2
+        end
 
-	local portal = ents.Create("prop_portal")
-	if not IsValid(portal) then return end
 
-	portal:SetPlacedByMap(false)
-	portal:SetPortalColor(r, g, b)
-	portal:SetType(type or 0)
-	portal:SetLinkageGroup(self:GetLinkageGroup())
-	local placementStatus, traceResult, pos, ang
+    local portal = ents.Create("prop_portal")
+    if not IsValid(portal) then return end
 
-	if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
-		placementStatus, traceResult, pos, ang = setPortalPlacementNew(self:GetOwner(), portal)
-	else
-		placementStatus, traceResult, pos, ang = setPortalPlacementOld(self:GetOwner(), portal)
-	end
+    portal:SetPlacedByMap(false)
+    portal:SetPortalColor(r, g, b)
+    portal:SetType(type or 0)
+    portal:SetLinkageGroup(self:GetLinkageGroup())
+    local placementStatus, traceResult, pos, ang
 
-	--local effectData = EffectData()
-	--effectData:SetNormal(Vector(r, g, b)) -- color
-	--effectData:SetOrigin(traceResult.StartPos)
-	--effectData:SetStart(traceResult.HitPos)
-	--effectData:SetEntity(owner)
+    if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
+        placementStatus, traceResult, pos, ang = setPortalPlacementNew(self:GetOwner(), portal)
+    else
+        placementStatus, traceResult, pos, ang = setPortalPlacementOld(self:GetOwner(), portal)
+    end
 
-	--util.Effect("portal_blast", effectData)
+    --local effectData = EffectData()
+    --effectData:SetNormal(Vector(r, g, b)) -- color
+    --effectData:SetOrigin(traceResult.StartPos)
+    --effectData:SetStart(traceResult.HitPos)
+    --effectData:SetEntity(owner)
+
+    --util.Effect("portal_blast", effectData)
 	if placementStatus == PORTAL_PLACEMENT_BAD_SURFACE
 		or placementStatus == PORTAL_PLACEMENT_FIZZLER_HIT then
 		net.Start(GP2.Net.SendPortalPlacementNotPortalable)
@@ -801,7 +804,7 @@ function SWEP:ViewModelDrawn(vm)
 
 	-- Top light particle (and beam) for first viewmodel
 	if not IsValid(self.TopLightFirstPerson) and IsValid(vm0) then
-		self.TopLightFirstPerson = CreateParticleSystem(vm0, "portalgun_beam_toplight_FP", PATTACH_POINT_FOLLOW, self.TopLightFirstPersonAttachment or 0)
+		self.TopLightFirstPerson = CreateParticleSystem(vm0, "portalgun_top_light_firstperson", PATTACH_POINT_FOLLOW, self.TopLightFirstPersonAttachment or 0)
 		if IsValid(self.TopLightFirstPerson) then
 			self.TopLightFirstPerson:SetIsViewModelEffect(true)
 			self.TopLightFirstPerson:SetShouldDraw(false)
@@ -816,7 +819,7 @@ function SWEP:ViewModelDrawn(vm)
 
 	-- Top light particle (and beam) for second viewmodel (copie du premier)
 	if not IsValid(self.TopLightFirstPerson2) and IsValid(vm1) then
-		self.TopLightFirstPerson2 = CreateParticleSystem(vm1, "portalgun_beam_toplight_FP", PATTACH_POINT_FOLLOW, self.TopLightFirstPerson2Attachment or 0)
+		self.TopLightFirstPerson2 = CreateParticleSystem(vm1, "portalgun_top_light_firstperson", PATTACH_POINT_FOLLOW, self.TopLightFirstPerson2Attachment or 0)
 		if IsValid(self.TopLightFirstPerson2) then
 			self.TopLightFirstPerson2:SetIsViewModelEffect(true)
 			self.TopLightFirstPerson2:SetShouldDraw(false)
@@ -866,7 +869,8 @@ function SWEP:ViewModelDrawn(vm)
 	end
 end
 
-function SWEP:DrawWorldModel(studio)	local lastPlacedPortal = self:GetLastPlacedPortal()
+function SWEP:DrawWorldModel(studio)
+	local lastPlacedPortal = self:GetLastPlacedPortal()
 	local lightColor
 
 	if not IsValid(lastPlacedPortal) then
@@ -892,31 +896,21 @@ function SWEP:DrawWorldModel(studio)	local lastPlacedPortal = self:GetLastPlaced
 
 	-- Top light particle (and beam) - world model
 	if not IsValid(self.TopLightThirdPerson) then
-
+		self.TopLightThirdPerson = CreateParticleSystem(self, "portalgun_top_light_thirdperson", PATTACH_POINT_FOLLOW,
+			self.TopLightThirdPersonAttachment)
 		if IsValid(self.TopLightThirdPerson) then
-			self.TopLightThirdPerson:SetShouldDraw(false)
-
-			-- Beam particles
-			self.TopLightThirdPerson:AddControlPoint(2, self:GetOwner(), PATTACH_CUSTOMORIGIN)
-			self.TopLightThirdPerson:AddControlPoint(3, self, PATTACH_POINT_FOLLOW, "Beam_point1")
 			self.TopLightThirdPerson:AddControlPoint(4, self, PATTACH_POINT_FOLLOW, "Beam_point5")
 		end
 	else
 		self.TopLightThirdPerson:Render()
 
 		-- Set color to current portal placed
-		-- TODO: Make portals recolorable, since this code sucks
 		self.TopLightThirdPerson:SetControlPoint(1, lightColor)
-		self.TopLightThirdPerson:SetControlPoint(0, self:GetAttachment(self.TopLightThirdPersonAttachment).Pos)
-
+		local att = self:GetAttachment(self.TopLightThirdPersonAttachment)
+		if att then
+			self.TopLightThirdPerson:SetControlPoint(0, att.Pos)
+		end
 		if self.TopLightColor ~= lightColor then
-			lightColor.x = lightColor.x * 0.5
-			lightColor.y = lightColor.y * 0.5
-			lightColor.z = lightColor.z * 0.5
-
-			-- Set color to current portal placed
-			self.TopLightThirdPerson:SetControlPoint(1, lightColor)
-
 			self.TopLightColor = lightColor
 		end
 	end
@@ -940,7 +934,7 @@ function SWEP:Reload()
 	self.NextIdleTime = CurTime() + 0.5
 end
 
-// Viewbob Code, because why not? (Ported from P2ASW)
+-- Viewbob Code, because why not? (Ported from P2ASW)
 local g_lateralBob, g_verticalBob = 0,0
 local HL2_BOB_CYCLE_MIN,HL2_BOB_CYCLE_MAX,HL2_BOB,HL2_BOB_UP = 1,.45,.002,.5
 local bobtime,lastbobtime = 0,0

@@ -333,10 +333,11 @@ function ENT:Think()
 		local up = mat:GetUp()
 		self.RingParticle:SetControlPointOrientation(0, right, fwd, up)
 
-		if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
-			self.RingParticle:SetControlPoint(7, self:GetColorVector())
-		else
-			self.RingParticle:SetControlPoint(7, self:GetColorVector() * 0.4)
+		-- Toujours utiliser la couleur exacte du portail sur tous les Control Points pour debug
+		local color = self:GetColorVector()
+		for i=1,8 do
+			print("[GP2] Setting control point " .. i .. " color to: " .. tostring(color))
+			self.RingParticle:SetControlPoint(i, color)
 		end
 	end
 

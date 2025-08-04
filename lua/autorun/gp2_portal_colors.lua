@@ -56,21 +56,21 @@ local COLOR_NAMES = {
 
 -- Couleurs d'affichage pour le menu d'aide
 local DISPLAY_COLORS = {
-    [0] = Color(255, 100, 100),   -- Red
-    [1] = Color(255, 150, 50),    -- Orange
-    [2] = Color(255, 255, 100),   -- Yellow
-    [3] = Color(150, 255, 50),    -- Lime
-    [4] = Color(100, 255, 100),   -- Green
-    [5] = Color(100, 255, 255),   -- Cyan
-    [6] = Color(150, 200, 255),   -- Light Blue
-    [7] = Color(100, 150, 255),   -- Blue
-    [8] = Color(50, 100, 200),    -- Dark Blue
-    [9] = Color(255, 100, 255),   -- Magenta
-    [10] = Color(255, 150, 200),  -- Pink
-    [11] = Color(50, 50, 50),     -- Black
-    [12] = Color(255, 255, 255),  -- White
-    [13] = Color(150, 150, 150),  -- Gray
-    [14] = Color(100, 100, 100),  -- Dark Gray
+    [0] = Color(180, 40, 40),     -- Red
+    [1] = Color(210, 114, 2),      -- Orange
+    [2] = Color(200, 200, 60),    -- Yellow
+    [3] = Color(90, 180, 30),     -- Lime
+    [4] = Color(40, 180, 40),     -- Green
+    [5] = Color(40, 180, 180),    -- Cyan
+    [6] = Color(70, 120, 180),    -- Light Blue
+    [7] = Color(2, 114, 210),     -- Blue
+    [8] = Color(20, 50, 120),     -- Dark Blue
+    [9] = Color(180, 40, 180),    -- Magenta
+    [10] = Color(180, 80, 120),   -- Pink
+    [11] = Color(30, 30, 30),     -- Black
+    [12] = Color(200, 200, 200),  -- White
+    [13] = Color(90, 90, 90),     -- Gray
+    [14] = Color(60, 60, 60),     -- Dark Gray
 }
 
 -- Fonction pour afficher le menu d'aide
@@ -98,6 +98,16 @@ local function ShowPortalColorsHelp(ply)
     ply:PrintMessage(HUD_PRINTTALK, "  portal_color1 green")
 end
 
+-- Ajout : ConVars client pour la couleur de crosshair
+if CLIENT then
+    if not ConVarExists("gp2_crosshair_color_1") then
+        CreateClientConVar("gp2_crosshair_color_1", "0", true, false, "Couleur de la crosshair du portail 1 (numéro)")
+    end
+    if not ConVarExists("gp2_crosshair_color_2") then
+        CreateClientConVar("gp2_crosshair_color_2", "1", true, false, "Couleur de la crosshair du portail 2 (numéro)")
+    end
+end
+
 -- Fonction pour changer la couleur du portail 1
 local function ChangePortalColor1(ply, cmd, args)
     if not IsValid(ply) then return end
@@ -110,9 +120,15 @@ local function ChangePortalColor1(ply, cmd, args)
     local colorInput = string.lower(args[1])
     local colorNumber = PORTAL_COLORS[colorInput]
 
-    if colorNumber then
-        RunConsoleCommand("portal_color_1", tostring(colorNumber))
+     if colorNumber then
+        -- MAJ crosshair et couleur portail côté client
+
         local colorName = COLOR_NAMES[colorNumber]
+         RunConsoleCommand("gp2_crosshair_color_1", tostring(colorNumber))
+            local col = DISPLAY_COLORS[colorNumber] or Color(255,255,255)
+            local cmd = string.format("gp2_portal_color1 %d %d %d", col.r, col.g, col.b)
+            print("[GP2] " .. cmd)
+            RunConsoleCommand("gp2_portal_color1", string.format("%d %d %d", col.r, col.g, col.b))
         ply:PrintMessage(HUD_PRINTTALK, string.format("Couleur du portail 1 changée en: %s (%d)", colorName, colorNumber))
     else
         ply:PrintMessage(HUD_PRINTTALK, "Couleur invalide! Tapez 'portal_color1 help' pour voir les couleurs disponibles.")
@@ -132,8 +148,14 @@ local function ChangePortalColor2(ply, cmd, args)
     local colorNumber = PORTAL_COLORS[colorInput]
 
     if colorNumber then
-        RunConsoleCommand("portal_color_2", tostring(colorNumber))
+        -- MAJ crosshair et couleur portail côté client
+
         local colorName = COLOR_NAMES[colorNumber]
+         RunConsoleCommand("gp2_crosshair_color_2", tostring(colorNumber))
+            local col = DISPLAY_COLORS[colorNumber] or Color(255,255,255)
+            local cmd = string.format("gp2_portal_color2 %d %d %d", col.r, col.g, col.b)
+            print("[GP2] " .. cmd)
+            RunConsoleCommand("gp2_portal_color2", string.format("%d %d %d", col.r, col.g, col.b))
         ply:PrintMessage(HUD_PRINTTALK, string.format("Couleur du portail 2 changée en: %s (%d)", colorName, colorNumber))
     else
         ply:PrintMessage(HUD_PRINTTALK, "Couleur invalide! Tapez 'portal_color2 help' pour voir les couleurs disponibles.")
@@ -144,8 +166,12 @@ end
 local function ShowCurrentColors(ply, cmd, args)
     if not IsValid(ply) then return end
 
-    local color1 = GetConVarNumber("portal_color_1") or 0
-    local color2 = GetConVarNumber("portal_color_2") or 1
+    local color1 = 0
+    local color2 = 1
+    if CLIENT and ply == LocalPlayer() then
+        color1 = GetConVar("gp2_crosshair_color_1"):GetInt()
+        color2 = GetConVar("gp2_crosshair_color_2"):GetInt()
+    end
 
     local name1 = COLOR_NAMES[color1] or "Inconnue"
     local name2 = COLOR_NAMES[color2] or "Inconnue"

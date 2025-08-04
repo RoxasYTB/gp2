@@ -113,58 +113,41 @@ function PANEL:Paint(w, h)
     local placed2 = can2 and group[1] or group[0]
 
 
-    if not self.gp2_portal_color1 or not IsValid(self.gp2_portal_color1) then
+    -- Récupère la couleur RGB des ConVars (toujours à jour avec pc1/pc2)
+    if not self.gp2_portal_color1 then
         self.gp2_portal_color1 = GetConVar("gp2_portal_color1")
     end
-    if not self.gp2_portal_color2 or not IsValid(self.gp2_portal_color2) then
+    if not self.gp2_portal_color2 then
         self.gp2_portal_color2 = GetConVar("gp2_portal_color2")
     end
 
-    -- Récupère la couleur des portails (bleu/orange) strictement, sans désaturation ni bright
-    local clr1 = (self.gp2_portal_color1 and self.gp2_portal_color1.GetString and self.gp2_portal_color1:GetString() or "10 60 160"):Split(" ")
-    local clr2 = (self.gp2_portal_color2 and self.gp2_portal_color2.GetString and self.gp2_portal_color2:GetString() or "210 114 2"):Split(" ")
+    local clr1 = (self.gp2_portal_color1 and self.gp2_portal_color1.GetString and self.gp2_portal_color1:GetString() or "100 255 100"):Split(" ")
+    local clr2 = (self.gp2_portal_color2 and self.gp2_portal_color2.GetString and self.gp2_portal_color2:GetString() or "255 150 50"):Split(" ")
 
-    local r2 = tonumber(clr1[1]) or 10
-    local g2 = tonumber(clr1[2]) or 60
-    local b2 = tonumber(clr1[3]) or 160
+    local r1 = tonumber(clr1[1]) or 100
+    local g1 = tonumber(clr1[2]) or 255
+    local b1 = tonumber(clr1[3]) or 100
 
-    local r1 = tonumber(clr2[1]) or 210
-    local g1 = tonumber(clr2[2]) or 114
-    local b1 = tonumber(clr2[3]) or 2
+    local r2 = tonumber(clr2[1]) or 255
+    local g2 = tonumber(clr2[2]) or 150
+    local b2 = tonumber(clr2[3]) or 50
 
     -- On n'applique plus de désaturation/éclaircissement
     -- r1, g1, b1 = desaturateAndBrighten(r1, g1, b1)
     -- r2, g2, b2 = desaturateAndBrighten(r2, g2, b2)
 
-    -- Correction : s'assurer que la partie gauche (drawCrosshairPart 3/1) utilise gp2_portal_color1 (bleu) et la droite (4/2) gp2_portal_color2 (orange)
-    -- Avant : drawCrosshairPart(3, ..., r1, g1, b1, ...) et drawCrosshairPart(4, ..., r2, g2, b2, ...)
-    -- Si inversion détectée, on inverse ici :
-    if can1 or can2 then
-        if not can2 then
-            r2 = r1
-            g2 = g1
-            b2 = b1
-        end
+    -- Crosshair gauche (portail 1)
+    if IsValid(placed1) then
+        drawCrosshairPart(3, w / 2 - 29, h / 2 - 44, r1, g1, b1, 255)
+    else
+        drawCrosshairPart(1, w / 2 - 31, h / 2 - 44, r1, g1, b1, 196)
+    end
 
-        if not can1 then
-            r1 = r2
-            g1 = g2
-            b1 = b2
-        end
-
-        -- Correction : la partie gauche (drawCrosshairPart 3/1) doit TOUJOURS utiliser gp2_portal_color1 (bleu)
-        -- la partie droite (drawCrosshairPart 4/2) doit TOUJOURS utiliser gp2_portal_color2 (orange)
-        if IsValid(placed1) then
-            drawCrosshairPart(3, w / 2 - 29, h / 2 - 44, r1, g1, b1, 255)
-        else
-            drawCrosshairPart(1, w / 2 - 31, h / 2 - 44, r1, g1, b1, 196)
-        end
-
-        if IsValid(placed2) then
-            drawCrosshairPart(4, w / 2 - 17, h / 2 - 22, r2, g2, b2, 255)
-        else
-            drawCrosshairPart(2, w / 2 - 18, h / 2 - 22, r2, g2, b2, 196)
-        end
+    -- Crosshair droite (portail 2)
+    if IsValid(placed2) then
+        drawCrosshairPart(4, w / 2 - 17, h / 2 - 22, r2, g2, b2, 255)
+    else
+        drawCrosshairPart(2, w / 2 - 18, h / 2 - 22, r2, g2, b2, 196)
     end
 
     surface_SetDrawColor(255,255,255,255)

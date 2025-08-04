@@ -12,10 +12,10 @@ local function InitializePortalCompatibility()
     if SERVER then
         -- Register portal color convars if not already present
         if not ConVarExists("gp2_portal_color1") then
-            CreateConVar("gp2_portal_color1", "255 175 0", {FCVAR_ARCHIVE, FCVAR_REPLICATED}, "Portal 1 color (orange)")
+            CreateConVar("gp2_portal_color1", "0 175 255", {FCVAR_ARCHIVE, FCVAR_REPLICATED}, "Portal 1 color (blue)")
         end
         if not ConVarExists("gp2_portal_color2") then
-            CreateConVar("gp2_portal_color2", "0 175 255", {FCVAR_ARCHIVE, FCVAR_REPLICATED}, "Portal 2 color (blue)")
+            CreateConVar("gp2_portal_color2", "255 175 0", {FCVAR_ARCHIVE, FCVAR_REPLICATED}, "Portal 2 color (orange)")
         end
     end
 
