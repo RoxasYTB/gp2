@@ -135,7 +135,7 @@ local function DebugSurfaceInfo(tr)
 
     table.insert(info, "========================")
 
-    print(table.concat(info, "\n"))
+    -- print(table.concat(info, "\n"))
 end
 
 -- Hook into weapon fire to debug surfaces

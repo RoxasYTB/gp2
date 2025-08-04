@@ -142,7 +142,7 @@ function PortalMovement.Move(ply, mv)
 	if not (gp2_portal_movement:GetBool() and ply.PortalEnvironment) then
 		return false
 	end
-	
+
 	local plyPos = ply:GetPos()
 	local mins, maxs = ply:GetHull()
 	local portalEnvironment = ply.PortalEnvironment
@@ -155,20 +155,72 @@ function PortalMovement.Move(ply, mv)
 	print(dot)
 
 	if dot < 0.1 then
-		local transformedPos, transformedAngles = PortalManager.TransformPortal(portal, linkedPortal, plyPos, ply:EyeAngles())
+		-- Téléportation avec transformation correcte des angles de caméra
+		local plyVel = mv:GetVelocity()
+		local eyePos = ply:EyePos()
 
-		--mv:SetOrigin(transformedPos)
-		--ply:SetEyeAngles(transformedAngles)
+		-- Transformation de position
+		local editedPos, _ = PortalManager.TransformPortal(portal, linkedPortal, eyePos, ply:EyeAngles(), true)
+
+		-- Transformation des angles de caméra (logique exacte de old_prop_portal.lua)
+		local localEyeAngles = portal:WorldToLocalAngles(ply:EyeAngles())
+		localEyeAngles.p = -localEyeAngles.p  -- Miroir du pitch
+		localEyeAngles.y = localEyeAngles.y + 180  -- +180° sur le yaw
+		local editedAng = linkedPortal:LocalToWorldAngles(localEyeAngles)
+
+		-- Transformation de la vélocité
+		local _, editedVelocity = PortalManager.TransformPortal(portal, linkedPortal, nil, plyVel:Angle())
+		local max = math.Max(plyVel:Length(), linkedPortal:GetUp():Dot(-physenv.GetGravity() / 3))
+
+		-- Calcul de la position finale
+		local eyeHeight = (ply:EyePos() - ply:GetPos())
+		local finalPos = editedPos - eyeHeight + Vector(0, 0, 0.1)
+
+		-- Application de la téléportation
+		mv:SetOrigin(finalPos)
+		mv:SetVelocity(editedVelocity:Forward() * max)
+
+		-- Application FORCÉE des angles de caméra
+		ply:SetEyeAngles(editedAng)
+
+		-- Force la mise à jour des angles côté client avec un petit délai
+		if CLIENT then
+			timer.Simple(0, function()
+				if IsValid(ply) then
+					ply:SetEyeAngles(editedAng)
+				end
+			end)
+		end
+
+		-- Gestion spéciale pour singleplayer
+		if game.SinglePlayer() then
+			ply:SetPos(finalPos)
+			ply:SetEyeAngles(editedAng)
+			-- Double application pour singleplayer
+			timer.Simple(0.01, function()
+				if IsValid(ply) then
+					ply:SetEyeAngles(editedAng)
+				end
+			end)
+		end
+
+		-- Son de téléportation
+		if SERVER then
+			local filter = RecipientFilter()
+			filter:AddPlayer(ply)
+			ply:EmitSound("PortalPlayer.ExitPortal", nil, nil, nil, nil, nil, nil, filter)
+		end
 
 		ply.PortalEnvironment = nil
+		print("Player teleported with angle correction - New angles: " .. tostring(editedAng))
 
-		print("Ready to tp")
+		return true
 	end
 
 	local transformedPos, transformedAngles = PortalManager.TransformPortal(portal, linkedPortal, plyPos, ply:EyeAngles())
 
 	debugoverlay.Box(transformedPos, mins, maxs, 0.1, DEBUG_COLOR_IN_PORTAL)
-	
+
 	ply:SetMoveType(MOVETYPE_NOCLIP)
 
 	local vel = mv:GetVelocity()

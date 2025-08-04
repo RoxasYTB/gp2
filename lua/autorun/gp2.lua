@@ -111,7 +111,7 @@ AddCSLuaFile("gp2/client/render/env_portal_laser.lua")
 if SERVER then
     -- Load base_brush entity first to fix derivation errors
     include("entities/base_brush.lua")
-    
+
     -- Register all entity files for client download
     local entityFiles = file.Find("entities/*.lua", "LUA")
     for _, entFile in ipairs(entityFiles) do
@@ -119,11 +119,11 @@ if SERVER then
             AddCSLuaFile("entities/" .. entFile)
         end
     end
-    
+
     -- Ensure critical entities are specifically registered
     AddCSLuaFile("entities/prop_portal.lua")
     AddCSLuaFile("entities/base_brush.lua")
-    
+
     -- Register HUD element files to fix the empty file errors
     AddCSLuaFile("gp2/client/hudelements/base.lua")
     AddCSLuaFile("gp2/client/hudelements/hud_message.lua")
@@ -149,7 +149,7 @@ if SERVER then
         -- Force reload critical entities if they failed to register
         if not scripted_ents.Get("prop_portal") then
             GP2.Print("prop_portal not registered, attempting manual registration...")
-            
+
             -- Try to force reload the entity file
             local entPath = "entities/prop_portal.lua"
             if file.Exists(entPath, "LUA") then
@@ -184,7 +184,7 @@ if SERVER then
                         PORTAL_TYPE_FIRST = PORTAL_TYPE_FIRST,
                         PORTAL_TYPE_SECOND = PORTAL_TYPE_SECOND
                     }, {__index = _G})
-                    
+
                     local compiled = CompileString(entContent, entPath)
                     if compiled then
                         setfenv(compiled, env)
@@ -317,11 +317,11 @@ if SERVER then
         timer.Simple(2, function()
             for _, portal in ipairs(ents.FindByClass("prop_portal")) do
                 if portal:GetPlacedByMap() then
-                    local firstPlayer = Entity(1)				
+                    local firstPlayer = Entity(1)
                     if IsValid(firstPlayer) then
                         local info = firstPlayer:GetInfo("gp2_portal_color" .. portal:GetType() + 1)
                         local r, g, b = unpack((info or "255 255 255"):Split(" "))
-        
+
                         portal:SetPortalColor(r, g, b)
                     end
                 end
@@ -456,12 +456,12 @@ else
     local clientFiles = {
         "gp2/client/render.lua",  -- Load render system first
         "gp2/paint.lua",
-        "gp2/client/vgui.lua", 
+        "gp2/client/vgui.lua",
         "gp2/client/hud.lua",
         "gp2/client/portalrendering.lua",
         "gp2/gamemovement.lua"
     }
-    
+
     -- Add a small delay to ensure networking is ready
     timer.Simple(0.1, function()
         for _, filePath in ipairs(clientFiles) do
@@ -478,7 +478,7 @@ else
         end    end)    hook.Add("Think", "GP2::Think", function()
         SoundManager.Think()
     end)
-    
+
     -- Hook pour s'assurer que les tractor beams sont correctement initialisés
     hook.Add("InitPostEntity", "GP2::InitTractorBeams", function()
         timer.Simple(1, function() -- Délai pour s'assurer que tout est chargé

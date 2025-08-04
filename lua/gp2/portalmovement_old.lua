@@ -21,7 +21,7 @@ end
 local freezePly = false
 local function updateCalcViews(finalPos, finalVel)
 	timer.Remove("portals_eye_fix_delay")	--just in case you enter the portal while the timer is running
-	
+
 	local addAngle = 1
 	finalPos = finalPos - finalVel * FrameTime()	-- why does this work? idk but it feels nice, could be a source prediction thing
 	hook.Add("CalcView", "GP2::PortalFix", function(ply, origin, angle, fov)
@@ -37,7 +37,7 @@ local function updateCalcViews(finalPos, finalVel)
 			finalPos = ply:EyePos()
 			PortalRendering.DrawPlayerInView = false
 		end
-		
+
 		local wep = ply:GetActiveWeapon()
 		if wep:IsValid() and isfunction(wep.CalcView) then
 			local origin, angles, fov = wep:CalcView(ply, Vector(finalPos), Angle(angle), fov)
@@ -59,13 +59,13 @@ local function updateCalcViews(finalPos, finalVel)
 		return finalPos, ang
 	end)
 
-    -- finish eyeangle lerp
-	timer.Create("portals_eye_fix_delay", 0.5, 1, function()
-		local ang = LocalPlayer():EyeAngles()
-		ang.r = 0
-		LocalPlayer():SetEyeAngles(ang)
-		hook.Remove("CalcView", "GP2::PortalFix")
-		hook.Remove("CalcViewModelView", "GP2::PortalFix")
+    -- finish eyeangle lerp and ensure angles are properly set
+	timer.Create("portals_eye_fix_delay", 0.3, 1, function()
+		if IsValid(LocalPlayer()) then
+			-- Remove the roll compensation and let the server angles take over
+			hook.Remove("CalcView", "GP2::PortalFix")
+			hook.Remove("CalcViewModelView", "GP2::PortalFix")
+		end
 	end)
 end
 
@@ -75,7 +75,7 @@ if SERVER then
     util.AddNetworkString("PORTALS_FREEZE")
 else
     net.Receive("PORTALS_FREEZE", function()
-		if game.SinglePlayer() then 
+		if game.SinglePlayer() then
 			updateCalcViews(Vector(), Vector())
 			if net.ReadBool() then
 				--PortalRendering.ToggleMirror(!PortalRendering.ToggleMirror())
@@ -114,7 +114,7 @@ local function editPlayerCollision(mv, ply, t)
 				ply.PORTAL_STUCK_OFFSET = nil
 				mv:SetOrigin(tr.HitPos)
 				ply:ResetHull()
-				return 
+				return
 			end
 		end
 	end
@@ -156,19 +156,19 @@ local function editPlayerCollision(mv, ply, t)
 		ply:ResetHull()
 		ply.PORTAL_STUCK_OFFSET = nil
 	end
-	
+
 	traceTable.ignoreworld = false
 end
 
 -- teleport players
 local seamless_check2 = function(e) return e:GetClass() == "prop_portal" end
 hook.Add("Move", "seamless_portal_teleport", function(ply, mv)
-    if !PortalManager or PortalManager.PortalIndex < 1 then 
+    if !PortalManager or PortalManager.PortalIndex < 1 then
 		if ply.PORTAL_STUCK_OFFSET then
 			ply:ResetHull()
 			ply.PORTAL_STUCK_OFFSET = nil
 		end
-		return 
+		return
 	end
 
 	editPlayerCollision(mv, ply)
@@ -222,13 +222,15 @@ hook.Add("Move", "seamless_portal_teleport", function(ply, mv)
 		mv:SetVelocity(editedVelocity:Forward() * max * exitSize)
 
 		-- send the client that the new position is valid
-		if SERVER then 
+		if SERVER then
+			-- Apply transformed angles to the player on server
+			ply:SetEyeAngles(editedAng)
+
 			-- lerp fix for singleplayer
 			if game.SinglePlayer() then
 				ply:SetPos(finalPos)
-				ply:SetEyeAngles(editedAng)
 			end
-			
+
 			// infinite map support
 			if InfMap then
 				local final_pos_offset, chunk_offset = InfMap.localize_vector(finalPos)
@@ -237,7 +239,7 @@ hook.Add("Move", "seamless_portal_teleport", function(ply, mv)
 			end
 
 			mv:SetOrigin(finalPos)
-			
+
 			net.Start("PORTALS_FREEZE")
 			net.WriteBool(hitPortal == linkedPartner)
 			net.Send(ply)
@@ -265,6 +267,37 @@ hook.Add("Move", "seamless_portal_teleport", function(ply, mv)
 			ply.PORTAL_TELEPORTING = false
 		end)
 
+		-- Correction du roll et du pitch pour éviter une vision penchée ou trop inclinée
+		editedAng.r = 0
+		editedAng.p = math.Clamp(editedAng.p, -89, 89)
+
 		return true
 	end
 end)
+
+if CLIENT then
+    local lastRoll = 0
+    hook.Add("Think", "GP2_PrintEyeAngles", function()
+        local ply = LocalPlayer()
+        if not IsValid(ply) then return end
+        local ang = ply:EyeAngles()
+      --   print(string.format("Yaw: %.2f | Pitch: %.2f | Roll: %.2f", ang.y, ang.p, ang.r))
+        -- Correction linéaire du roll (temps ajustable via la cvar gp2_roll_return_time)
+        local rollReturnTime = 0.75
+        if math.abs(ang.r) > 0.01 then
+            if math.abs(lastRoll) < 0.01 or math.abs(ang.r) > math.abs(lastRoll) then
+                lastRoll = ang.r -- nouvelle correction, on mémorise la valeur de départ
+            end
+            local sign = ang.r > 0 and 1 or -1
+            local step = (math.abs(lastRoll) * FrameTime()) / rollReturnTime
+            if math.abs(ang.r) <= step then
+                ang.r = 0
+            else
+                ang.r = ang.r - sign * step
+            end
+            ply:SetEyeAngles(ang)
+        else
+            lastRoll = 0
+        end
+    end)
+end
