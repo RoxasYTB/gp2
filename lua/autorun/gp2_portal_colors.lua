@@ -120,15 +120,20 @@ local function ChangePortalColor1(ply, cmd, args)
     local colorInput = string.lower(args[1])
     local colorNumber = PORTAL_COLORS[colorInput]
 
-     if colorNumber then
-        -- MAJ crosshair et couleur portail côté client
-
+    if colorNumber then
         local colorName = COLOR_NAMES[colorNumber]
-         RunConsoleCommand("gp2_crosshair_color_1", tostring(colorNumber))
-            local col = DISPLAY_COLORS[colorNumber] or Color(255,255,255)
-            local cmd = string.format("gp2_portal_color1 %d %d %d", col.r, col.g, col.b)
-            print("[GP2] " .. cmd)
+        local col = DISPLAY_COLORS[colorNumber] or Color(255,255,255)
+
+        if SERVER then
+            -- Côté serveur : utiliser le nouveau système par joueur
+            local currentColors = GP2.GetPlayerPortalColors(ply)
+            GP2.SetPlayerPortalColors(ply, col.r, col.g, col.b, currentColors.r2, currentColors.g2, currentColors.b2)
+        else
+            -- Côté client : encore compatible avec les anciens ConVars pour la transition
+            RunConsoleCommand("gp2_crosshair_color_1", tostring(colorNumber))
             RunConsoleCommand("gp2_portal_color1", string.format("%d %d %d", col.r, col.g, col.b))
+        end
+
         ply:PrintMessage(HUD_PRINTTALK, string.format("Couleur du portail 1 changée en: %s (%d)", colorName, colorNumber))
     else
         ply:PrintMessage(HUD_PRINTTALK, "Couleur invalide! Tapez 'portal_color1 help' pour voir les couleurs disponibles.")
@@ -148,14 +153,19 @@ local function ChangePortalColor2(ply, cmd, args)
     local colorNumber = PORTAL_COLORS[colorInput]
 
     if colorNumber then
-        -- MAJ crosshair et couleur portail côté client
-
         local colorName = COLOR_NAMES[colorNumber]
-         RunConsoleCommand("gp2_crosshair_color_2", tostring(colorNumber))
-            local col = DISPLAY_COLORS[colorNumber] or Color(255,255,255)
-            local cmd = string.format("gp2_portal_color2 %d %d %d", col.r, col.g, col.b)
-            print("[GP2] " .. cmd)
+        local col = DISPLAY_COLORS[colorNumber] or Color(255,255,255)
+
+        if SERVER then
+            -- Côté serveur : utiliser le nouveau système par joueur
+            local currentColors = GP2.GetPlayerPortalColors(ply)
+            GP2.SetPlayerPortalColors(ply, currentColors.r1, currentColors.g1, currentColors.b1, col.r, col.g, col.b)
+        else
+            -- Côté client : encore compatible avec les anciens ConVars pour la transition
+            RunConsoleCommand("gp2_crosshair_color_2", tostring(colorNumber))
             RunConsoleCommand("gp2_portal_color2", string.format("%d %d %d", col.r, col.g, col.b))
+        end
+
         ply:PrintMessage(HUD_PRINTTALK, string.format("Couleur du portail 2 changée en: %s (%d)", colorName, colorNumber))
     else
         ply:PrintMessage(HUD_PRINTTALK, "Couleur invalide! Tapez 'portal_color2 help' pour voir les couleurs disponibles.")
@@ -187,10 +197,154 @@ concommand.Add("portal_color2", ChangePortalColor2, nil, "Change la couleur du p
 concommand.Add("portal_colors", ShowCurrentColors, nil, "Affiche les couleurs actuelles des portails")
 concommand.Add("portal_colors_help", ShowPortalColorsHelp, nil, "Affiche l'aide des couleurs de portails")
 
+-- NOUVELLES COMMANDES PC1/PC2 ET GLOBAL_PC1/GLOBAL_PC2
+
+-- Fonction pour changer la couleur locale du portail 1 (pc1)
+local function ChangeLocalPortalColor1(ply, cmd, args)
+    if not IsValid(ply) then return end
+
+    if not args[1] or args[1] == "" or args[1] == "help" or args[1] == "aide" then
+        ShowPortalColorsHelp(ply)
+        return
+    end
+
+    local colorInput = string.lower(args[1])
+    local colorNumber = PORTAL_COLORS[colorInput]
+
+    if colorNumber then
+        local colorName = COLOR_NAMES[colorNumber]
+        local col = DISPLAY_COLORS[colorNumber] or Color(255,255,255)
+
+        if SERVER then
+            local currentColors = GP2.GetPlayerPortalColors(ply)
+            GP2.SetPlayerPortalColors(ply, col.r, col.g, col.b, currentColors.r2, currentColors.g2, currentColors.b2)
+            ply:PrintMessage(HUD_PRINTTALK, string.format("Votre couleur de portail 1 changée en: %s", colorName))
+        end
+    else
+        ply:PrintMessage(HUD_PRINTTALK, "Couleur invalide! Tapez 'pc1 help' pour voir les couleurs disponibles.")
+    end
+end
+
+-- Fonction pour changer la couleur locale du portail 2 (pc2)
+local function ChangeLocalPortalColor2(ply, cmd, args)
+    if not IsValid(ply) then return end
+
+    if not args[1] or args[1] == "" or args[1] == "help" or args[1] == "aide" then
+        ShowPortalColorsHelp(ply)
+        return
+    end
+
+    local colorInput = string.lower(args[1])
+    local colorNumber = PORTAL_COLORS[colorInput]
+
+    if colorNumber then
+        local colorName = COLOR_NAMES[colorNumber]
+        local col = DISPLAY_COLORS[colorNumber] or Color(255,255,255)
+
+        if SERVER then
+            local currentColors = GP2.GetPlayerPortalColors(ply)
+            GP2.SetPlayerPortalColors(ply, currentColors.r1, currentColors.g1, currentColors.b1, col.r, col.g, col.b)
+            ply:PrintMessage(HUD_PRINTTALK, string.format("Votre couleur de portail 2 changée en: %s", colorName))
+        end
+    else
+        ply:PrintMessage(HUD_PRINTTALK, "Couleur invalide! Tapez 'pc2 help' pour voir les couleurs disponibles.")
+    end
+end
+
+-- Fonction pour changer globalement la couleur du portail 1 d'un joueur (global_pc1)
+local function ChangeGlobalPortalColor1(ply, cmd, args)
+    if not IsValid(ply) then return end
+
+    if not args[1] or not args[2] or args[1] == "help" then
+        ply:PrintMessage(HUD_PRINTTALK, "Usage: global_pc1 <nom_joueur> <couleur>")
+        ply:PrintMessage(HUD_PRINTTALK, "Exemple: global_pc1 Player1 red")
+        return
+    end
+
+    if SERVER then
+        local targetName = args[1]
+        local colorInput = string.lower(args[2])
+        local colorNumber = PORTAL_COLORS[colorInput]
+
+        if not colorNumber then
+            ply:PrintMessage(HUD_PRINTTALK, "Couleur invalide! Utilisez une couleur valide.")
+            return
+        end
+
+        local targetPlayer = nil
+        for _, p in ipairs(player.GetAll()) do
+            if string.find(string.lower(p:Nick()), string.lower(targetName)) then
+                targetPlayer = p
+                break
+            end
+        end
+
+        if not IsValid(targetPlayer) then
+            ply:PrintMessage(HUD_PRINTTALK, "Joueur '" .. targetName .. "' introuvable!")
+            return
+        end
+
+        local colorName = COLOR_NAMES[colorNumber]
+        local col = DISPLAY_COLORS[colorNumber] or Color(255,255,255)
+        local currentColors = GP2.GetPlayerPortalColors(targetPlayer)
+
+        GP2.SetPlayerPortalColors(targetPlayer, col.r, col.g, col.b, currentColors.r2, currentColors.g2, currentColors.b2)
+
+        ply:PrintMessage(HUD_PRINTTALK, string.format("Couleur du portail 1 de %s changée en: %s", targetPlayer:Nick(), colorName))
+        targetPlayer:PrintMessage(HUD_PRINTTALK, string.format("%s a changé votre couleur de portail 1 en: %s", ply:Nick(), colorName))
+    end
+end
+
+-- Fonction pour changer globalement la couleur du portail 2 d'un joueur (global_pc2)
+local function ChangeGlobalPortalColor2(ply, cmd, args)
+    if not IsValid(ply) then return end
+
+    if not args[1] or not args[2] or args[1] == "help" then
+        ply:PrintMessage(HUD_PRINTTALK, "Usage: global_pc2 <nom_joueur> <couleur>")
+        ply:PrintMessage(HUD_PRINTTALK, "Exemple: global_pc2 Player1 orange")
+        return
+    end
+
+    if SERVER then
+        local targetName = args[1]
+        local colorInput = string.lower(args[2])
+        local colorNumber = PORTAL_COLORS[colorInput]
+
+        if not colorNumber then
+            ply:PrintMessage(HUD_PRINTTALK, "Couleur invalide! Utilisez une couleur valide.")
+            return
+        end
+
+        local targetPlayer = nil
+        for _, p in ipairs(player.GetAll()) do
+            if string.find(string.lower(p:Nick()), string.lower(targetName)) then
+                targetPlayer = p
+                break
+            end
+        end
+
+        if not IsValid(targetPlayer) then
+            ply:PrintMessage(HUD_PRINTTALK, "Joueur '" .. targetName .. "' introuvable!")
+            return
+        end
+
+        local colorName = COLOR_NAMES[colorNumber]
+        local col = DISPLAY_COLORS[colorNumber] or Color(255,255,255)
+        local currentColors = GP2.GetPlayerPortalColors(targetPlayer)
+
+        GP2.SetPlayerPortalColors(targetPlayer, currentColors.r1, currentColors.g1, currentColors.b1, col.r, col.g, col.b)
+
+        ply:PrintMessage(HUD_PRINTTALK, string.format("Couleur du portail 2 de %s changée en: %s", targetPlayer:Nick(), colorName))
+        targetPlayer:PrintMessage(HUD_PRINTTALK, string.format("%s a changé votre couleur de portail 2 en: %s", ply:Nick(), colorName))
+    end
+end
+
 -- Aliases pour faciliter l'utilisation
-concommand.Add("pc1", ChangePortalColor1)
-concommand.Add("pc2", ChangePortalColor2)
+concommand.Add("pc1", ChangeLocalPortalColor1)
+concommand.Add("pc2", ChangeLocalPortalColor2)
 concommand.Add("pcolors", ShowCurrentColors)
+concommand.Add("global_pc1", ChangeGlobalPortalColor1)
+concommand.Add("global_pc2", ChangeGlobalPortalColor2)
 
 -- Fonction utilitaire pour obtenir le nom d'une couleur
 function GP2_GetPortalColorName(colorNumber)
@@ -253,9 +407,59 @@ if CLIENT then
     end)
 end
 
+-- Enregistrer les commandes
+concommand.Add("portal_color1", ChangePortalColor1, nil, "Change la couleur du portail 1. Usage: portal_color1 <couleur> ou portal_color1 help")
+concommand.Add("portal_color2", ChangePortalColor2, nil, "Change la couleur du portail 2. Usage: portal_color2 <couleur> ou portal_color2 help")
+concommand.Add("portal_colors", ShowCurrentColors, nil, "Affiche les couleurs actuelles des portails")
+
+-- Commande pour définir les couleurs rapidement (format: r1 g1 b1 r2 g2 b2)
+concommand.Add("portal_colors_set", function(ply, cmd, args)
+    if not IsValid(ply) then return end
+
+    if #args < 6 then
+        ply:PrintMessage(HUD_PRINTTALK, "Usage: portal_colors_set <r1> <g1> <b1> <r2> <g2> <b2>")
+        return
+    end
+
+    local r1, g1, b1 = tonumber(args[1]), tonumber(args[2]), tonumber(args[3])
+    local r2, g2, b2 = tonumber(args[4]), tonumber(args[5]), tonumber(args[6])
+
+    if not (r1 and g1 and b1 and r2 and g2 and b2) then
+        ply:PrintMessage(HUD_PRINTTALK, "Toutes les valeurs doivent être des nombres!")
+        return
+    end
+
+    if SERVER then
+        GP2.SetPlayerPortalColors(ply, r1, g1, b1, r2, g2, b2)
+        ply:PrintMessage(HUD_PRINTTALK, string.format("Couleurs définies: Portail 1 (%d,%d,%d) - Portail 2 (%d,%d,%d)", r1, g1, b1, r2, g2, b2))
+    end
+end, nil, "Définit les couleurs des portails par RGB. Usage: portal_colors_set <r1> <g1> <b1> <r2> <g2> <b2>")
+
 -- Message de confirmation de chargement
 if SERVER then
     print("[GP2] Système de couleurs des portails chargé avec succès!")
 else
     print("[GP2] Interface couleurs des portails chargée côté client!")
 end
+
+-- Affichage d'aide pour les nouvelles commandes
+local function ShowPC_Help(ply, cmd, args)
+    if not IsValid(ply) then return end
+
+    ply:PrintMessage(HUD_PRINTTALK, "=== COMMANDES COULEURS PORTAILS ===")
+    ply:PrintMessage(HUD_PRINTTALK, "COMMANDES LOCALES:")
+    ply:PrintMessage(HUD_PRINTTALK, "  pc1 <couleur> - Change votre couleur de portail 1")
+    ply:PrintMessage(HUD_PRINTTALK, "  pc2 <couleur> - Change votre couleur de portail 2")
+    ply:PrintMessage(HUD_PRINTTALK, "")
+    ply:PrintMessage(HUD_PRINTTALK, "COMMANDES GLOBALES:")
+    ply:PrintMessage(HUD_PRINTTALK, "  global_pc1 <joueur> <couleur> - Change la couleur de portail 1 d'un joueur")
+    ply:PrintMessage(HUD_PRINTTALK, "  global_pc2 <joueur> <couleur> - Change la couleur de portail 2 d'un joueur")
+    ply:PrintMessage(HUD_PRINTTALK, "")
+    ply:PrintMessage(HUD_PRINTTALK, "COULEURS DISPONIBLES:")
+    ply:PrintMessage(HUD_PRINTTALK, "  red, orange, yellow, lime, green, cyan, lightblue,")
+    ply:PrintMessage(HUD_PRINTTALK, "  blue, darkblue, magenta, pink, black, white, gray, darkgray")
+end
+
+-- Commandes d'aide
+concommand.Add("pc_help", ShowPC_Help, nil, "Affiche l'aide des commandes de couleurs de portails")
+concommand.Add("help_portals", ShowPC_Help, nil, "Affiche l'aide des commandes de couleurs de portails")

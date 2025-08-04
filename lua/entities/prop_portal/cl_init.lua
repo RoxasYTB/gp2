@@ -371,11 +371,46 @@ local GP2_PORTAL_COLOR_PRESETS = {
     ["60,60,60"] = "darkgray"
 }
 
+-- Fonction pour obtenir les couleurs du portail du joueur propriétaire
+function ENT:GetPlayerPortalColors()
+    -- Trouver le joueur propriétaire du portail via le linkage group
+    local linkageGroup = self:GetLinkageGroup()
+    local owner = nil
+
+    -- Chercher le joueur avec ce linkage group (basé sur EntIndex - 1)
+    for _, ply in ipairs(player.GetAll()) do
+        if ply:EntIndex() - 1 == linkageGroup then
+            owner = ply
+            break
+        end
+    end
+
+    if IsValid(owner) and GP2 and GP2.GetClientPlayerPortalColors then
+        local colors = GP2.GetClientPlayerPortalColors(owner)
+        return {
+            color1 = Vector(colors.r1, colors.g1, colors.b1),
+            color2 = Vector(colors.r2, colors.g2, colors.b2)
+        }
+    end
+
+    -- Couleurs par défaut si aucun propriétaire trouvé
+    return {color1 = Vector(2, 114, 210), color2 = Vector(210, 114, 2)}
+end
+
 function ENT:GetPortalEdgePresetName()
-    local color = self:GetColorVector()
+    local playerColors = self:GetPlayerPortalColors()
+    local color = self:GetType() == PORTAL_TYPE_SECOND and playerColors.color2 or playerColors.color1
+
     if not color then return nil end
     local key = math.Round(color.x)..","..math.Round(color.y)..","..math.Round(color.z)
     return GP2_PORTAL_COLOR_PRESETS[key]
+end
+
+-- Fonction pour récupérer la couleur du portail selon le joueur propriétaire
+function ENT:GetPlayerBasedColor()
+    local playerColors = self:GetPlayerPortalColors()
+    local color = self:GetType() == PORTAL_TYPE_SECOND and playerColors.color2 or playerColors.color1
+    return color or Vector(2, 114, 210) -- Couleur par défaut
 end
 
 function ENT:Think()
@@ -384,15 +419,15 @@ function ENT:Think()
 		PropPortal.AddToRenderList(self)
 	end
 
-	-- Détermination du preset à utiliser
-	local preset = self:GetPortalEdgePresetName()
-	local portalType = self:GetType() == PORTAL_TYPE_SECOND and 2 or 1
-	local effectName = "gp2_portal_"..portalType.."_edge"
-	if preset then
-		effectName = effectName .. "_" .. preset
-	end
+    -- Détermination du preset à utiliser BASÉ SUR LE LINKAGE GROUP DU JOUEUR
+    local preset = self:GetPortalEdgePresetName()
+    local portalType = self:GetType() == PORTAL_TYPE_SECOND and 2 or 1
+    local effectName = "gp2_portal_"..portalType.."_edge"
+    if preset then
+        effectName = effectName .. "_" .. preset
+    end
 
-	-- Création du système de particules uniquement si le preset change
+    -- Création du système de particules uniquement si le preset change
 	if self._lastRingEffect ~= effectName or not IsValid(self.RingParticle) then
 		if IsValid(self.RingParticle) then
 			self.RingParticle:StopEmissionAndDestroyImmediately()

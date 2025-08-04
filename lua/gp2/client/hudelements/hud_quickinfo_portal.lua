@@ -113,24 +113,10 @@ function PANEL:Paint(w, h)
     local placed2 = can2 and group[1] or group[0]
 
 
-    -- Récupère la couleur RGB des ConVars (toujours à jour avec pc1/pc2)
-    if not self.gp2_portal_color1 then
-        self.gp2_portal_color1 = GetConVar("gp2_portal_color1")
-    end
-    if not self.gp2_portal_color2 then
-        self.gp2_portal_color2 = GetConVar("gp2_portal_color2")
-    end
-
-    local clr1 = (self.gp2_portal_color1 and self.gp2_portal_color1.GetString and self.gp2_portal_color1:GetString() or "100 255 100"):Split(" ")
-    local clr2 = (self.gp2_portal_color2 and self.gp2_portal_color2.GetString and self.gp2_portal_color2:GetString() or "255 150 50"):Split(" ")
-
-    local r1 = tonumber(clr1[1]) or 100
-    local g1 = tonumber(clr1[2]) or 255
-    local b1 = tonumber(clr1[3]) or 100
-
-    local r2 = tonumber(clr2[1]) or 255
-    local g2 = tonumber(clr2[2]) or 150
-    local b2 = tonumber(clr2[3]) or 50
+    -- Récupère la couleur RGB des couleurs par joueur (nouveau système)
+    local colors = GP2.GetClientPlayerPortalColors(LocalPlayer())
+    local r1, g1, b1 = colors.r1, colors.g1, colors.b1
+    local r2, g2, b2 = colors.r2, colors.g2, colors.b2
 
     -- On n'applique plus de désaturation/éclaircissement
     -- r1, g1, b1 = desaturateAndBrighten(r1, g1, b1)

@@ -587,28 +587,31 @@ end
 
 function SWEP:PlacePortal(type, owner)
     local r, g, b
-    local key = (type == PORTAL_TYPE_FIRST) and "gp2_portal_color1" or "gp2_portal_color2"
-    local str
-    if CLIENT then
-        str = GetConVarString(key)
-    else
-        str = owner and owner.GetInfo and owner:GetInfo(key) or nil
-    end
-    local clr = str and string.Split(str, " ") or nil
 
-
-	rc1 = GetConVarString("gp2_portal_color1"):Split(" ")[1]
-	gc1 = GetConVarString("gp2_portal_color1"):Split(" ")[2]
-	bc1 = GetConVarString("gp2_portal_color1"):Split(" ")[3]
-	rc2 = GetConVarString("gp2_portal_color2"):Split(" ")[1]
-	gc2 = GetConVarString("gp2_portal_color2"):Split(" ")[2]
-	bc2 = GetConVarString("gp2_portal_color2"):Split(" ")[3]
-        -- fallback couleur par défaut (bleu/orange)
+    if SERVER and IsValid(owner) then
+        -- Utiliser le nouveau système par joueur côté serveur
+        local colors = GP2.GetPlayerPortalColors(owner)
         if type == PORTAL_TYPE_FIRST then
-            r, g, b = rc1, gc1, bc1
+            r, g, b = colors.r1, colors.g1, colors.b1
         else
-            r, g, b = rc2, gc2, bc2
+            r, g, b = colors.r2, colors.g2, colors.b2
         end
+    elseif CLIENT then
+        -- Côté client, utiliser les couleurs du joueur local
+        local colors = GP2.GetClientPlayerPortalColors(LocalPlayer())
+        if type == PORTAL_TYPE_FIRST then
+            r, g, b = colors.r1, colors.g1, colors.b1
+        else
+            r, g, b = colors.r2, colors.g2, colors.b2
+        end
+    else
+        -- Fallback aux couleurs par défaut
+        if type == PORTAL_TYPE_FIRST then
+            r, g, b = 2, 114, 210  -- Bleu
+        else
+            r, g, b = 210, 114, 2  -- Orange
+        end
+    end
 
 
     local portal = ents.Create("prop_portal")
@@ -618,6 +621,11 @@ function SWEP:PlacePortal(type, owner)
     portal:SetPortalColor(r, g, b)
     portal:SetType(type or 0)
     portal:SetLinkageGroup(self:GetLinkageGroup())
+
+    -- Définir le propriétaire du portail pour les couleurs par joueur
+    if IsValid(owner) then
+        portal:SetOwner(owner)
+    end
     local placementStatus, traceResult, pos, ang
 
     if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
