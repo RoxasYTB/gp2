@@ -852,6 +852,10 @@ function SWEP:ViewModelDrawn(vm)
 			self.FirstPersonMuzzleAttachment2 = vm1:LookupAttachment("muzzle")
 		end
 
+		local entityInUse = owner:GetEntityInUse()
+
+
+
 		self.HoldingParticleFirstPersonDieTime = self.HoldingParticleFirstPersonDieTime or CurTime() + 0.5
 
 		if not IsValid(self.HoldingParticleFirstPerson) then
@@ -864,14 +868,23 @@ function SWEP:ViewModelDrawn(vm)
 				self.HoldingParticleFirstPerson:AddControlPoint(3, vm1, PATTACH_POINT_FOLLOW, "Arm3_attach3")
 				self.HoldingParticleFirstPerson:AddControlPoint(4, owner, PATTACH_CUSTOMORIGIN)
 				self.HoldingParticleFirstPerson:SetControlPointEntity(4, vm1)
-				--self.HoldingParticleFirstPerson:AddControlPoint(5, owner:GetEntityInUse(), PATTACH_ABSORIGIN_FOLLOW, 0)
+				if IsValid(entityInUse) then
+					self.HoldingParticleFirstPerson:AddControlPoint(5, entityInUse, PATTACH_ABSORIGIN_FOLLOW, 0)
+				else
+					self.HoldingParticleFirstPerson:AddControlPoint(5, vm1, PATTACH_POINT_FOLLOW, "muzzle")
+				end
 				self.HoldingParticleFirstPersonDieTime = CurTime() + 0.5
 			end
 		elseif CurTime() > self.HoldingParticleFirstPersonDieTime then
+			if IsValid(self.HoldingParticleFirstPerson) then
+				self.HoldingParticleFirstPerson:StopEmission(false, true)
+			end
 			self.HoldingParticleFirstPerson = NULL
 		end
+
 	else
 		if IsValid(self.HoldingParticleFirstPerson) then
+			self.HoldingParticleFirstPerson:StopEmission(false, true)
 			self.HoldingParticleFirstPerson = NULL
 		end
 	end
