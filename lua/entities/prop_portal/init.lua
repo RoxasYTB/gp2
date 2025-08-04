@@ -165,22 +165,19 @@ function ENT:StartTouch(ent)
 	-- Gestion différente pour joueurs vs props
 	if ent:IsPlayer() then
 		self:HandlePlayerTouch(ent)
-	elseif self:CanPortEntity(ent) then
-		self:HandlePropTouch(ent)
+	elseif self:CanPort(ent) then
+		local phys = ent:GetPhysicsObject()
+		constraint.AdvBallsocket(ent, game.GetWorld(), 0, 0, Vector(0,0,0), Vector(0,0,0), 0, 0, -180, -180, -180, 180, 180, 180, 0, 0, 1, 1, 1)
+		self:MakeClone(ent)
 	end
 end
 
 function ENT:Touch(ent)
-	if ent.InPortal ~= self then
-		self:StartTouch(ent)
-	end
-
-	if not self:CanPortEntity(ent) then return end
+	if ent.InPortal ~= self then self:StartTouch(ent) end
+	if not self:CanPort(ent) then return end
 	if not self:IsLinked() or not self:GetActivated() then return end
-
-	local partner = self:GetLinkedPartner()
-
-	if IsValid(partner) then
+	local portal = self:GetLinkedPartner()
+	if portal and portal:IsValid() then
 		if ent:IsPlayer() then
 			self:HandlePlayerMovement(ent)
 		else
@@ -194,7 +191,7 @@ function ENT:EndTouch(ent)
 	if ent.AlreadyPorted then
 		ent.AlreadyPorted = false
 	else
-		self:DoPortalTransport(ent)
+		self:DoPort(ent)
 	end
 end
 
@@ -296,6 +293,76 @@ function ENT:HandlePropTouch(ent)
 								0, 0, -180, -180, -180, 180, 180, 180, 0, 0, 1, 1, 1)
 		self:MakeClone(ent)
 	end
+end
+
+-- === Système de clonage et téléportation des props (hérité, adapté) ===
+function ENT:CanPort(ent)
+    local c = ent:GetClass()
+    if ent:IsPlayer() or (ent ~= nil and ent:IsValid() and not ent.isClone and ent:GetPhysicsObject() and c ~= "noportal_pillar" and c ~= "prop_dynamic" and c ~= "rpg_missile" and string.sub(c,1,5) ~= "func_" and string.sub(c,1,9) ~= "prop_door") then
+        return true
+    else
+        return false
+    end
+end
+
+function ENT:MakeClone(ent)
+    if not self:IsLinked() or not self:GetActivated() then return end
+    local portal = self:GetLinkedPartner()
+    if not IsValid(portal) then return end
+    if ent.clone ~= nil then return end
+    local clone = ents.Create("prop_physics")
+    clone:SetSolid(SOLID_NONE)
+    clone:SetPos(self:GetPortalPosOffsets(portal, ent))
+    clone:SetAngles(self:GetPortalAngleOffsets(portal, ent))
+    clone.isClone = true
+    clone.daddyEnt = ent
+    clone:SetModel(ent:GetModel())
+    clone:Spawn()
+    clone:SetSkin(ent:GetSkin())
+    clone:SetMaterial(ent:GetMaterial())
+    ent:DeleteOnRemove(clone)
+    local phy = clone:GetPhysicsObject()
+    if phy:IsValid() then
+        phy:EnableCollisions(false)
+        phy:EnableGravity(false)
+        phy:EnableDrag(false)
+    end
+    ent.clone = clone
+    clone.InPortal = portal
+end
+
+function ENT:SyncClone(ent)
+    local clone = ent.clone
+    if not self:IsLinked() or not self:GetActivated() then return end
+    if clone == nil then return end
+    local portal = self:GetLinkedPartner()
+    clone:SetPos(self:GetPortalPosOffsets(portal, ent))
+    clone:SetAngles(self:GetPortalAngleOffsets(portal, ent))
+end
+
+function ENT:DoPort(ent)
+    if not self:CanPort(ent) then return end
+    if not ent or not ent:IsValid() then return end
+    if SERVER then
+        constraint.RemoveConstraints(ent, "AdvBallsocket")
+    end
+    if not self:IsLinked() or not self:GetActivated() then return end
+    local portal = self:GetLinkedPartner()
+    --Mahalis code
+    local vel = ent:GetVelocity()
+    if not vel then return end
+    local nuVel = self:TransformOffset(vel, self:GetAngles(), portal:GetAngles()) * -1
+    local phys = ent:GetPhysicsObject()
+    if portal and portal:IsValid() and phys:IsValid() and ent.clone and IsValid(ent.clone) and not ent:IsPlayer() then
+        if not self:IsBehind(ent:GetPos(), self:GetPos(), self:GetForward()) then
+            ent:SetPos(ent.clone:GetPos())
+            ent:SetAngles(ent.clone:GetAngles())
+            phys:SetVelocity(nuVel)
+        end
+        ent.InPortal = nil
+        ent.clone:Remove()
+        ent.clone = nil
+    end
 end
 
 -- Fonctions utilitaires
@@ -416,41 +483,6 @@ end
 
 function ENT:IsHorizontal()
 	return self:GetAngles().p == 0
-end
-
--- Gestion des clones (pour les props)
-function ENT:MakeClone(ent)
-	if ent.clone and IsValid(ent.clone) then return end
-
-	local partner = self:GetLinkedPartner()
-	if not IsValid(partner) then return end
-
-	local clone = ents.Create(ent:GetClass())
-	if not IsValid(clone) then return end
-
-	clone:SetModel(ent:GetModel())
-	clone:SetPos(partner:GetPos() + partner:GetForward() * 50)
-	clone:SetAngles(ent:GetAngles())
-	clone:Spawn()
-
-	ent.clone = clone
-	ent.InPortal = self
-end
-
-function ENT:SyncClone(ent)
-	if not ent.clone or not IsValid(ent.clone) then
-		self:MakeClone(ent)
-		return
-	end
-
-	local partner = self:GetLinkedPartner()
-	if not IsValid(partner) then return end
-
-	-- Synchronisation de la position du clone
-	local offset = ent:GetPos() - self:GetPos()
-	local newOffset = self:TransformOffset(offset, self:GetAngles(), partner:GetAngles())
-	ent.clone:SetPos(partner:GetPos() + newOffset)
-	ent.clone:SetAngles(ent:GetAngles())
 end
 
 -- Sons de téléportation

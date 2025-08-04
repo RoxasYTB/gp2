@@ -123,8 +123,14 @@ function ENT:SetLinkedPartner(partner)
 	GP2.Print("Setting partner for " .. tostring(partner) .. " on portal " .. tostring(self))
 end
 
+-- Version robuste de GetLinkedPartner
 function ENT:GetLinkedPartner()
-	return self:GetLinkedPartnerInternal()
+    -- Utilise la méthode générée par NetworkVar si elle existe
+    if self.GetLinkedPartnerInternal then
+        return self:GetLinkedPartnerInternal()
+    end
+    -- Fallback : retourne nil si la méthode n’existe pas
+    return nil
 end
 
 function ENT:GetColorVector()
@@ -342,4 +348,3 @@ if GetConVar("developer") and GetConVar("developer"):GetInt() > 0 then
               tostring(self:GetActivated())))
     end
 end
- 
