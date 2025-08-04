@@ -305,7 +305,9 @@ function ENT:Think()
 			self.RingParticle:SetControlPoint(0, self:GetPos())
 			self.RingParticle:SetControlPointOrientation(0, ringAngles:Forward(), ringAngles:Right(), ringAngles:Up())
 		end
-	else
+	end
+
+	if IsValid(self.RingParticle) then
 		if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
 			self.RingParticle:SetControlPoint(0, self:GetPos())
 		else
@@ -313,16 +315,14 @@ function ENT:Think()
 		end
 
 		-- Si RingParticle existe et est en customorigin, on met à jour sa position et son orientation à chaque frame
-		if IsValid(self.RingParticle) then
-			local ringAngles = Angle(RING_PITCH, RING_YAW, RING_ROLL)
-			self.RingParticle:SetControlPoint(0, self:GetPos())
-			self.RingParticle:SetControlPointOrientation(0, ringAngles:Forward(), ringAngles:Right(), ringAngles:Up())
-		end
+		local ringAngles = Angle(RING_PITCH, RING_YAW, RING_ROLL)
+		self.RingParticle:SetControlPoint(0, self:GetPos())
+		self.RingParticle:SetControlPointOrientation(0, ringAngles:Forward(), ringAngles:Right(), ringAngles:Up())
 
 		-- Application correcte de la rotation personnalisée du ring
-		local pitch = GetConVar("gp2_ring_pitch"):GetFloat()
-		local yaw = GetConVar("gp2_ring_yaw"):GetFloat()
-		local roll = GetConVar("gp2_ring_roll"):GetFloat()
+		local pitch = 180
+		local yaw = 180
+		local roll = 180
 		local baseAngles = self:GetAngles()
 		local ringAngles = Angle(pitch, yaw, roll)
 		local mat = Matrix()
@@ -344,9 +344,9 @@ function ENT:Think()
 	self._lastRingPitch = self._lastRingPitch or 0
 	self._lastRingYaw = self._lastRingYaw or 0
 	self._lastRingRoll = self._lastRingRoll or 0
-	local pitch = GetConVar("gp2_ring_pitch"):GetFloat()
-	local yaw = GetConVar("gp2_ring_yaw"):GetFloat()
-	local roll = GetConVar("gp2_ring_roll"):GetFloat()
+	local pitch = 180
+	local yaw = 180
+	local roll = 180
 	if pitch ~= self._lastRingPitch or yaw ~= self._lastRingYaw or roll ~= self._lastRingRoll then
 		if IsValid(self.RingParticle) then
 			self.RingParticle:StopEmissionAndDestroyImmediately()
@@ -395,8 +395,3 @@ if game.SinglePlayer() then
 		if bit.band(mask, CONTENTS_GRATE) ~= 0 then return true end
 	end
 end
-
--- Suppression des ConVars et debug, angles fixes pour le ring
-local RING_PITCH = 180
-local RING_YAW = 180
-local RING_ROLL = 180
