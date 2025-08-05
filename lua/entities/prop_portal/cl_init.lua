@@ -393,8 +393,8 @@ function ENT:GetPlayerPortalColors()
         }
     end
 
-    -- Couleurs par défaut si aucun propriétaire trouvé
-    return {color1 = Vector(2, 114, 210), color2 = Vector(210, 114, 2)}
+    -- Si aucun propriétaire trouvé, retourner blanc
+    return {color1 = Vector(255,255,255), color2 = Vector(255,255,255)}
 end
 
 function ENT:GetPortalEdgePresetName()

@@ -95,6 +95,9 @@ local function UpdatePortalsAndSky()
 			if p == a then idx_a = i end
 			if p == b then idx_b = i end
 		end
+		if not idx_a or not idx_b then
+			return false -- Si un portail n'est pas trouvé, ne pas échanger
+		end
 		return distances[idx_a] < distances[idx_b]
 	end)
 
