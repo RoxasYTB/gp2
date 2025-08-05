@@ -354,7 +354,14 @@ function ENT:StartTouch(ent)
 	if ent.InPortal then return end
 
 	if ent:IsPlayer() then
-		local pos = ent:GetPos() + self:GetUp()
+		-- Cooldown d'entrée dans le portail pour les joueurs
+		local pos
+		if not (ent.GP2_PortalCooldown and ent.GP2_PortalCooldown > CurTime()) then
+			ent.GP2_PortalCooldown = CurTime() + 1
+			pos = ent:GetPos() + self:GetUp() * 20
+		else
+			pos = ent:GetPos()
+		end
 		ent:SetPos(pos)
 		-- Garder le nouveau système pour les joueurs
 		if not self:PlayerWithinBounds(ent) then return end
