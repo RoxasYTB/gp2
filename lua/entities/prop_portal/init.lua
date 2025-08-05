@@ -94,41 +94,48 @@ end
 function ENT:Initialize()
 	if SERVER then
 		self:SetModel("models/hunter/plates/plate2x2.mdl")
+
+		-- Sauvegarder les angles d'origine AVANT transformation pour la détection d'orientation
+		self.OriginalAngles = self:GetAngles()
+
 		local angles = self:GetAngles() + Angle(90, 0, 0)
 		angles:RotateAroundAxis(angles:Up(), 180)
-
 		self:SetColor(Color(0, 0, 0, 200))
 		self:SetAngles(angles)
-
-		-- Configuration similaire à l'ancien système pour permettre le passage des props
-		self:PhysicsInit(SOLID_VPHYSICS) -- Utiliser SOLID_VPHYSICS comme l'ancien
+		self:PhysicsInit(SOLID_VPHYSICS)
 		self:SetSolid(SOLID_VPHYSICS)
-		self:SetTrigger(true) -- CRUCIAL : Permet aux props de passer à travers !
-		self:SetCollisionGroup(COLLISION_GROUP_PASSABLE_DOOR) -- Groupe de collision passable
+		self:SetTrigger(true)
+		self:SetCollisionGroup(COLLISION_GROUP_PASSABLE_DOOR)
 		self:SetMoveType(MOVETYPE_NONE)
 		self:DrawShadow(false)
-
 		if not PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
 			self:SetPos(self:GetPos() + self:GetAngles():Up() * 7.1)
 		end
 		PortalManager.PortalIndex = PortalManager.PortalIndex + 1
 
-		-- Delay physics mesh creation to ensure entity is fully initialized
+		-- Stocker position et orientation initiales après 0.3 secondes (inspiré de l'ancien système)
+		timer.Simple(0.3, function()
+			if IsValid(self) then
+				self.StablePos = self:GetPos()
+				self.StableAngles = self:GetAngles()
+				print("[GP2][PORTAL][DEBUG] Position portail:", self.StablePos)
+				print("[GP2][PORTAL][DEBUG] Angles portail:", self.StableAngles)
+				print("[GP2][PORTAL][DEBUG] Pitch:", self.StableAngles.p, "Yaw:", self.StableAngles.y, "Roll:", self.StableAngles.r)
+			end
+		end)
+
 		timer.Simple(0.1, function()
 			if IsValid(self) then
 				self:UpdatePhysmesh()
-				-- Configurer le portail comme trigger pour permettre le passage
 				self:SetSolid(SOLID_VPHYSICS)
 				self:SetTrigger(true)
 				self:SetCollisionGroup(COLLISION_GROUP_PASSABLE_DOOR)
 				print("COLLISION_GROUP_PASSABLE_DOOR appliqué au portail:", self)
-
-				-- Configurer la physique pour être passable mais détecter les triggers
 				local phys = self:GetPhysicsObject()
 				if IsValid(phys) then
 					phys:EnableMotion(false)
-					phys:EnableCollisions(false) -- Pas de collisions physiques solides
-					phys:SetContents(CONTENTS_TRIGGER) -- Contenu trigger uniquement
+					phys:EnableCollisions(false)
+					phys:SetContents(_G.CONTENTS_TRIGGER or 0)
 				end
 			end
 		end)
@@ -140,13 +147,18 @@ function ENT:Initialize()
 		end
 	end
 
-	-- Override portal in LinkageGroup
 	PortalManager.SetPortal(self:GetLinkageGroup(), self)
 	PortalManager.Portals[self] = true
-
-	-- Initialisation de la téléportation des props
 	self.PropTeleportEnabled = true
 	self.ClonedEntities = {}
+	self.SpawnedCubes = {}
+	print("[GP2][PORTAL] Portail initialisé avec ID de groupe de liaison:", self:GetLinkageGroup())
+	-- Appel différé pour garantir la bonne position
+	-- timer.Simple(0, function()
+	-- 	if IsValid(self) then
+	-- 		self:SpawnWoodenCratesBelow()
+	-- 	end
+	-- end)
 end
 
 if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
@@ -166,6 +178,25 @@ function ENT:OnRemove()
 
 	-- Nettoyer les joueurs dans le portail
 	self:BootAllPlayers()
+
+	-- Suppression des caisses liées avec un délai pour éviter le bug OOB (wooden crate system)
+	if self.SpawnedCubes then
+		local cubesToRemove = {}
+		for _, cube in ipairs(self.SpawnedCubes) do
+			if IsValid(cube) then
+				table.insert(cubesToRemove, cube)
+			end
+		end
+
+		-- Supprimer les caisses après 5 secondes
+		timer.Simple(1, function()
+			for _, cube in ipairs(cubesToRemove) do
+				if IsValid(cube) then
+					cube:Remove() -- Commenté volontairement comme dans l'ancien système
+				end
+			end
+		end)
+	end
 
 	if SERVER and self.PORTAL_REMOVE_EXIT then
 		SafeRemoveEntity(self:GetLinkedPartner())
@@ -250,6 +281,16 @@ function ENT:StartTouch(ent)
 	if ent:GetModel() == "models/blackops/portal_sides.mdl" then return end
 	if ent:GetModel() == "models/blackops/portal_sides_new.mdl" then return end
 
+	-- Système d'immunité temporaire après téléportation (1 seconde)
+	if ent.GP2_PortalImmunity and ent.GP2_PortalImmunity > CurTime() then
+		return
+	end
+
+	-- Détection clone touche portail sans original
+	if ent.isClone and ent.daddyEnt and IsValid(ent.daddyEnt) and not ent.daddyEnt.InPortal then
+		print("KAWABUNGA")
+	end
+
 	-- Système de filtrage PHX props (de l'ancien système)
 	if hitprop:GetBool() then
 		local path = ent:GetModel()
@@ -305,7 +346,7 @@ function ENT:StartTouch(ent)
 		-- Système props amélioré basé sur l'ancien système
 		local phys = ent:GetPhysicsObject()
 		if IsValid(phys) then
-			print("[GP2][PORTAL] Prop entre dans le portail:", ent, "- Trigger activé, passage libre!")
+			-- print("[GP2][PORTAL] Prop entre dans le portail:", ent, "- Trigger activé, passage libre!")
 			-- Contraindre le prop au monde pour éviter qu'il tombe
 			constraint.AdvBallsocket(ent, game.GetWorld(), 0, 0, Vector(0,0,0), Vector(0,0,0),
 								0, 0, -180, -180, -180, 180, 180, 180, 0, 0, 1, 1, 1)
@@ -316,17 +357,25 @@ function ENT:StartTouch(ent)
 			end
 			-- Créer immédiatement le clone
 			self:MakeClone(ent)
+			if ent.clone and IsValid(ent.clone) then
+				ent.clone.TouchingPortalsCount = (ent.clone.TouchingPortalsCount or 0) + 1
+			end
 		end
 	end
 end
 
 function ENT:Touch(ent)
+	-- Système d'immunité temporaire après téléportation (1 seconde)
+	if ent.GP2_PortalImmunity and ent.GP2_PortalImmunity > CurTime() then
+		return
+	end
+
 	-- Éviter les touches multiples sur le même portail
 	if ent.InPortal ~= self then
 		self:StartTouch(ent)
 	end
 
-	print("[GP2][PORTAL] Touch détectée pour l'entité:", ent)
+	-- print("[GP2][PORTAL] Touch détectée pour l'entité:", ent)
 
 	-- Vérifier si l'entité peut être téléportée
 	if not self:CanPort(ent) then return end
@@ -338,19 +387,17 @@ function ENT:Touch(ent)
 	if not IsValid(portal) then return end
 
 	if ent:IsPlayer() then
-		-- Système joueur (nouveau système gardé)
+		-- Garder le nouveau système pour les joueurs
 		if not ent.InPortal then
 			if not self:PlayerWithinBounds(ent) then return end
 			ent.JustEntered = true
 			self:PlayerEnterPortal(ent)
 		else
 			ent:SetGroundEntity(self)
-			local eyepos = ent:EyePos()
-			-- Utiliser la fonction IsBehind locale
-			if not IsBehind(eyepos, self:GetPos(), self:GetForward()) then
-				self:DoPort(ent)
-				ent.AlreadyPorted = true
-			end
+			-- On ignore la logique IsEntityPassingThrough pour les joueurs
+			self:DoPort(ent)
+			ent.AlreadyPorted = true
+			self:SyncClone(ent)
 		end
 	else
 		-- Système props - Synchroniser le clone en continu
@@ -360,32 +407,86 @@ function ENT:Touch(ent)
 end
 
 function ENT:EndTouch(ent)
-	-- Gérer la logique de fin de contact comme dans l'ancien système
-	if not self:CanPort(ent) then return end
-	if not ent or not ent:IsValid() then return end
+    if not self:CanPort(ent) then return end
+    if not ent or not ent:IsValid() then return end
+    -- Ignorer les joueurs pour la logique EndTouch
+    if ent:IsPlayer() then return end
+    -- Ne pas swap si l'entité est tenue par un joueur (physgun ou gravity gun)
+    if ent:IsPlayerHolding() then return end
+    print("[GP2][PORTAL] EndTouch pour l'entité:", ent)
+    -- Ajout : détection si l'objet est en dessous du portail
+    if ent:GetPos().z < self:GetPos().z then
+        print("[GP2][PORTAL] téléportation maximal")
+        if ent.clone and IsValid(ent.clone) then
+            -- Swap original <-> clone avec immunité temporaire
+            local clone = ent.clone
+            local phys = ent:GetPhysicsObject()
+            local oldVel = phys and phys:IsValid() and phys:GetVelocity() or nil
+            print("oldVel:", oldVel)
+            oldVel.z = -oldVel.z
+		oldVel.y = -oldVel.y
+            print("oldVel:", oldVel)
+            ent:SetPos(clone:GetPos())
+            ent:SetAngles(clone:GetAngles())
+            phys:SetVelocity(oldVel)
 
-	-- Vérifier si le prop a traversé le plan du portail avant de téléporter
-	if ent.clone and IsValid(ent.clone) then
-		if not self:IsBehind(ent:GetPos(), self:GetPos(), self:GetForward()) then
-			self:DoPort(ent)
-			print("[GP2][PORTAL] Prop téléporté via EndTouch:", ent)
-		end
-		-- Nettoyer le clone après la téléportation ou la sortie
-		if ent.clone and IsValid(ent.clone) then
-			ent.clone:Remove()
-			ent.clone = nil
-		end
-	end
-	-- Reset le flag InPortal
-	ent.InPortal = nil
-	-- Restaurer le CollisionGroup d'origine si besoin
-	if ent.OriginalCollisionGroup then
-		print("COLLISION_GROUP_PASSABLE_DOOR retiré du portail:", self)
-		-- Remettre le CollisionGroup original
-		ent:SetCollisionGroup(ent.OriginalCollisionGroup)
-		print("[GP2][PORTAL] CollisionGroup restauré pour l'entité:", ent, "à", ent.OriginalCollisionGroup)
-		ent.OriginalCollisionGroup = nil
-	end
+            -- Appliquer l'immunité temporaire pour éviter les zigzags
+            ent.GP2_PortalImmunity = CurTime() + 0 -- 1 seconde d'immunité
+
+            clone:Remove()
+            ent.clone = nil
+            print("[GP2][PORTAL] Swap original/clone effectué (téléportation maximal) avec immunité")
+        end
+    end
+    -- Nettoyer les contraintes AdvBallsocket pour éviter l'accumulation
+    if SERVER then
+        constraint.RemoveConstraints(ent, "AdvBallsocket")
+    end
+    if ent.clone and IsValid(ent.clone) then
+        ent.clone.TouchingPortalsCount = (ent.clone.TouchingPortalsCount or 1) - 1
+        if ent.clone.TouchingPortalsCount <= 0 then
+            local clone = ent.clone
+            -- Si le prop d'origine doit être remplacé par un nouveau prop (logique de téléportation)
+            if ent.GP2_ShouldRespawnAfterPortal then
+                -- Le clone devient le nouvel original
+                if IsValid(clone) then
+                    -- Transférer les propriétés importantes
+                    clone:SetPos(ent:GetPos())
+                    clone:SetAngles(ent:GetAngles())
+                    local phys = clone:GetPhysicsObject()
+                    if IsValid(phys) then
+                        local origPhys = ent:GetPhysicsObject()
+                        if IsValid(origPhys) then
+                            phys:SetVelocity(origPhys:GetVelocity())
+                        end
+                        phys:EnableCollisions(true)
+                        phys:EnableGravity(true)
+                        phys:EnableMotion(true)
+                    end
+                    clone.isClone = nil
+                    clone.daddyEnt = nil
+                    clone.InPortal = nil
+                    clone:SetSolid(SOLID_VPHYSICS)
+                    clone:SetCollisionGroup(COLLISION_GROUP_NONE)
+                    -- Nettoyer la référence clone
+                    ent.clone = nil
+                    -- Supprimer l'original
+                    if ent:IsValid() then ent:Remove() end
+                end
+            else
+                -- Sinon, juste supprimer le clone
+                if IsValid(clone) then clone:Remove() end
+                ent.clone = nil
+            end
+        end
+    end
+    ent.InPortal = nil
+    if ent.OriginalCollisionGroup then
+        GP2.SendChatMessage(nil, Color(200, 200, 200), "COLLISION_GROUP_PASSABLE_DOOR retiré du portail: ", tostring(self))
+        ent:SetCollisionGroup(ent.OriginalCollisionGroup)
+        GP2.SendChatMessage(nil, Color(200, 200, 200), "[GP2][PORTAL] CollisionGroup restauré pour l'entité: ", tostring(ent), " à ", tostring(ent.OriginalCollisionGroup))
+        ent.OriginalCollisionGroup = nil
+    end
 end
 
 -- === Système de clonage et téléportation des props (hérité, adapté) ===
@@ -436,14 +537,8 @@ function ENT:MakeClone(ent)
 	ent.clone = clone
 	clone.InPortal = portal
 
-	-- Envoyer un message réseau pour le rendu côté client (si nécessaire)
-	if SERVER then
-		-- Vous pouvez ajouter ici une notification réseau si le côté client en a besoin
-		-- umsg.Start("Portal:ObjectInPortal")
-		-- umsg.Entity(portal)
-		-- umsg.Entity(clone)
-		-- umsg.End()
-	end
+	-- Ajout d'un compteur de frames sans sync pour le clone
+	clone.GP2_NoSyncFrames = 0
 end
 
 function ENT:SyncClone(ent)
@@ -454,14 +549,35 @@ function ENT:SyncClone(ent)
 	local portal = self:GetLinkedPartner()
 	if not IsValid(portal) then return end
 
-	-- Mettre à jour la position et les angles du clone en temps réel
-	local newPos = self:GetPortalPosOffsets(portal, ent)
+	-- Correction : inverser l'offset latéral pour la symétrie gauche/droite
+	local offset = self:WorldToLocal(ent:GetPos())
+	offset.x = offset.x
+	offset.y = -offset.y
+	offset.z = -offset.z
+	local newPos = portal:LocalToWorld(offset)
 	local newAngles = self:GetPortalAngleOffsets(portal, ent)
 
 	clone:SetPos(newPos)
+	print("Yaw:", newAngles.y, "Pitch:", newAngles.p, "Roll:", newAngles.r)
+	newAngles.y =  newAngles.y
+	newAngles.p =  newAngles.p
+	newAngles.r = -newAngles.r
+	print("[GP2][PORTAL] Synchronisation du clone:", clone, "avec la position:", newPos, "et les angles:", newAngles)
 	clone:SetAngles(newAngles)
 
-	-- Synchroniser les propriétés visuelles si elles ont changé
+	-- Appliquer la vélocité de l'original au clone, transformée selon l'orientation des portails
+	if SERVER then
+		local origPhys = ent:GetPhysicsObject()
+		local clonePhys = clone:GetPhysicsObject()
+		if IsValid(origPhys) and IsValid(clonePhys) then
+			local origVel = origPhys:GetVelocity()
+			local transformedVel = self:TransformVelocityBetweenPortals(origVel, portal)
+			clonePhys:SetVelocity(transformedVel)
+		end
+	end
+
+	clone.GP2_NoSyncFrames = 0
+
 	if clone:GetSkin() ~= ent:GetSkin() then
 		clone:SetSkin(ent:GetSkin())
 	end
@@ -473,366 +589,269 @@ function ENT:SyncClone(ent)
 	end
 end
 
+-- Supprimer l'ancienne fonction CheckCloneImmobile qui créait des plastic crates
+
+-- Ajout d'un hook Think pour incrémenter le compteur de frames sans sync
+hook.Add("Think", "GP2_CloneSyncCheck", function()
+	for _, ent in ipairs(ents.GetAll()) do
+		if ent.isClone and ent.GP2_NoSyncFrames ~= nil then
+			ent.GP2_NoSyncFrames = ent.GP2_NoSyncFrames + 1
+		end
+	end
+end)
+
 function ENT:DoPort(ent)
-	if not self:CanPort(ent) then return end
-	if not ent or not ent:IsValid() then return end
+    if not self:CanPort(ent) then return end
+    if not ent or not ent:IsValid() then return end
 
-	if SERVER then
-		constraint.RemoveConstraints(ent, "AdvBallsocket")
-	end
+    if SERVER then
+        constraint.RemoveConstraints(ent, "AdvBallsocket")
+    end
 
-	if not self:IsLinked() or not self:GetActivated() then return end
+    if not self:IsLinked() or not self:GetActivated() then return end
 
-	local portal = self:GetLinkedPartner()
-	if not IsValid(portal) then return end
+    local portal = self:GetLinkedPartner()
+    if not IsValid(portal) then return end
 
-	if ent:IsPlayer() then
-		-- Système joueur (adapté avec logique de l'ancien système)
-		local eyepos = ent:EyePos()
+    if ent:IsPlayer() then
+        -- Système joueur (adapté avec logique de l'ancien système)
+        local eyepos = ent:EyePos()
 
-		if not self:IsBehind(eyepos, self:GetPos(), self:GetForward()) then
-			-- Téléportation du joueur
-			local newPos = self:GetPortalPosOffsets(portal, ent)
-			ent:SetPos(newPos - Vector(0, 0, 64)) -- Ajuster pour la position des pieds
+        -- Utiliser directement la position stable pour la détection IsBehind des joueurs
+        local portalPos = self.StablePos or self:GetPos()
+        local portalNormal = self.StableAngles and self.StableAngles:Forward() or self:GetForward()
+        local isPlayerBehind = (eyepos - portalPos):Dot(portalNormal) < 0
 
-			-- Transformation des angles
-			local newang = self:GetPortalAngleOffsets(portal, ent)
-			ent:SetEyeAngles(newang)
+      --   if not isPlayerBehind then
+      --       print("[GP2][PORTAL] Joueur derrière le portail, téléportation!")
+      --       -- Téléportation du joueur
+      --       local newPos = self:GetPortalPosOffsets(portal, ent)
+      --       ent:SetPos(newPos - Vector(0, 0, 64)) -- Ajuster pour la position des pieds
 
-			-- Transformation de la vélocité
-			local vel = ent:GetVelocity()
-			if vel then
-				local nuVel = self:TransformOffset(vel, self:GetAngles(), portal:GetAngles()) * -1
-				ent:SetLocalVelocity(nuVel)
-			end
+      --       -- Transformation des angles
+      --       local newang = self:GetPortalAngleOffsets(portal, ent)
+      --       ent:SetEyeAngles(newang)
 
-			-- Gestion du mouvement
-			ent:SetMoveType(MOVETYPE_FLY)
-			timer.Create("Walk_" .. ent:EntIndex(), 0.05, 1, function()
-				if IsValid(ent) then
-					ent:SetMoveType(MOVETYPE_WALK)
-					ent:ResetHull()
-				end
-			end)
+      --       -- Transformation de la vélocité améliorée
+      --       local vel = ent:GetVelocity()
+      --       if vel then
+      --           local nuVel = self:TransformVelocityBetweenPortals(vel, portal)
+      --           ent:SetLocalVelocity(nuVel)
+      --       end
 
-			-- Sons de téléportation
-			if SERVER then
-				local snd_portal2 = GetConVar("portal_sound") or CreateConVar("portal_sound", "0", FCVAR_ARCHIVE)
-				if not snd_portal2:GetBool() then
-					ent:EmitSound("player/portal_exit" .. math.random(1,2) .. ".wav", 80,
-								 100 + (30 * (vel:Length() - 450) / 1000))
-				else
-					ent:EmitSound("player/portal2/portal_exit" .. math.random(1,2) .. ".wav", 80,
-								 100 + (30 * (vel:Length() - 450) / 1000))
-				end
-			end
+      --       -- Appliquer l'immunité temporaire pour éviter les zigzags
+      --       ent.GP2_PortalImmunity = CurTime() + 1.0 -- 1 seconde d'immunité
+      --       print("[GP2][PORTAL] Immunité portail appliquée pendant 1 seconde pour le joueur:", ent)
 
-			-- Flags et nettoyage
-			ent.JustEntered = false
-			ent.JustPorted = true
-			portal:PlayerEnterPortal(ent)
-		elseif ent.InPortal == self then
-			-- Sortie du portail sans téléportation
-			ent.InPortal = nil
-			ent:SetMoveType(MOVETYPE_FLY)
+      --       -- Gestion du mouvement
+      --       ent:SetMoveType(MOVETYPE_FLY)
+      --       timer.Create("Walk_" .. ent:EntIndex(), 0.05, 1, function()
+      --           if IsValid(ent) then
+      --               ent:SetMoveType(MOVETYPE_WALK)
+      --               ent:ResetHull()
+      --           end
+      --       end)
 
-			timer.Create("Walk_" .. ent:EntIndex(), 0.05, 1, function()
-				if IsValid(ent) then
-					ent:SetMoveType(MOVETYPE_WALK)
-					ent:ResetHull()
-				end
-			end)
+      --       -- Sons de téléportation
+      --       if SERVER then
+      --           local snd_portal2 = GetConVar("portal_sound") or CreateConVar("portal_sound", "0", FCVAR_ARCHIVE)
+      --           if not snd_portal2:GetBool() then
+      --               ent:EmitSound("player/portal_exit" .. math.random(1,2) .. ".wav", 80,
+	-- 							 100 + (30 * (vel:Length() - 450) / 1000))
+      --           else
+      --               ent:EmitSound("player/portal2/portal_exit" .. math.random(1,2) .. ".wav", 80,
+	-- 							 100 + (30 * (vel:Length() - 450) / 1000))
+      --           end
+      --       end
 
-			-- Nettoyer le clone joueur
-			if ent.PortalClone and IsValid(ent.PortalClone) then
-				ent.PortalClone:Remove()
-				ent.PortalClone = nil
-			end
-		end
-	else
-		-- Système props (logique exacte de l'ancien système)
-		local vel = ent:GetVelocity()
-		if not vel then return end
+      --       -- Flags et nettoyage
+      --       ent.JustEntered = false
+      --       ent.JustPorted = true
+      --       portal:PlayerEnterPortal(ent)
+      --   else
+		if ent.InPortal == self then
+            -- Sortie du portail sans téléportation
+            ent.InPortal = nil
+            ent:SetMoveType(MOVETYPE_FLY)
 
-		-- Transformation de vélocité exacte de l'ancien système
-		local nuVel = self:TransformOffset(vel, self:GetAngles(), portal:GetAngles()) * -1
-		local phys = ent:GetPhysicsObject()
+            timer.Create("Walk_" .. ent:EntIndex(), 0.05, 1, function()
+                if IsValid(ent) then
+                    ent:SetMoveType(MOVETYPE_WALK)
+                    ent:ResetHull()
+                end
+            end)
 
-		if IsValid(phys) and ent.clone and IsValid(ent.clone) then
-			-- Vérifier si le prop a traversé le portail (utilise fonction locale IsBehind)
-			if not self:IsBehind(ent:GetPos(), self:GetPos(), self:GetForward()) then
-				-- Téléportation effective
-				ent:SetPos(ent.clone:GetPos())
-				ent:SetAngles(ent.clone:GetAngles())
+            -- Nettoyer le clone joueur
+            if ent.PortalClone and IsValid(ent.PortalClone) then
+                ent.PortalClone:Remove()
+                ent.PortalClone = nil
+            end
+        end
+    else
+        -- Système props avec vélocité améliorée
+        local vel = ent:GetVelocity()
+        if not vel then return end
+        local nuVel = self:TransformVelocityBetweenPortals(vel, portal)
+        local phys = ent:GetPhysicsObject()
+        if IsValid(phys) and ent.clone and IsValid(ent.clone) then
+            if not self:IsBehind(ent:GetPos(), self:GetPos(), self:GetForward()) then
+                -- Téléportation effective avec vélocité améliorée
+                ent:SetPos(ent.clone:GetPos())
+                ent:SetAngles(ent.clone:GetAngles())
+                phys:SetVelocity(nuVel)
 
-				-- Ajuster la vélocité selon l'orientation du portail
-				local adjustedVel = self:AdjustVelocityForPortalType(nuVel, portal)
-				phys:SetVelocity(adjustedVel)
+                -- Appliquer l'immunité temporaire pour éviter les zigzags
+                ent.GP2_PortalImmunity = CurTime() + 1.0 -- 1 seconde d'immunité
+                print("[GP2][PORTAL] Immunité portail appliquée pendant 1 seconde pour:", ent)
 
-				print("[GP2][PORTAL] Prop téléporté:", ent, "vers", ent.clone:GetPos(), "avec vélocité:", adjustedVel)
-
-				-- Restaurer immédiatement la collision solide avec le monde
-				if ent.OriginalCollisionGroup then
-					ent:SetCollisionGroup(ent.OriginalCollisionGroup)
-					print("[GP2][PORTAL] Collision restaurée pour prop:", ent, "à", ent.OriginalCollisionGroup)
-				else
-					-- Par défaut, collision normale avec le monde (solide)
-					ent:SetCollisionGroup(COLLISION_GROUP_NONE)
-					print("[GP2][PORTAL] Collision normale restaurée pour prop:", ent)
-				end
-				ent.OriginalCollisionGroup = nil
-			end
-
-			-- Nettoyer après téléportation
-			ent.InPortal = nil
-			ent.clone:Remove()
-			ent.clone = nil
-		end
-	end
+                ent.InPortal = nil
+                ent.clone:Remove()
+                ent.clone = nil
+            end
+        end
+    end
 end
 
--- === Fonctions utilitaires héritées de l'ancien système ===
-function ENT:TransformOffset(v, a1, a2)
-	return (v:Dot(a1:Right()) * a2:Right() + v:Dot(a1:Up()) * (-a2:Up()) + v:Dot(a1:Forward()) * a2:Forward())
+-- === Transformation de vélocité améliorée entre portails ===
+function ENT:IsHorizontal(angles)
+	angles = angles or (self.OriginalAngles or self:GetAngles())
+	local pitch = math.Round(math.NormalizeAngle(angles.p))
+	return math.abs(pitch) < 15
 end
 
-function ENT:GetPortalAngleOffsets(portal, ent)
-	local angles = ent:GetAngles()
-
-	local normal = self:GetForward()
-	local forward = angles:Forward()
-	local up = angles:Up()
-
-	-- reflect forward
-	local dot = forward:DotProduct(normal)
-	forward = forward + (-2 * dot) * normal
-
-	-- reflect up
-	local dot = up:DotProduct(normal)
-	up = up + (-2 * dot) * normal
-
-	-- convert to angles
-	angles = math.VectorAngles(forward, up)
-
-	local LocalAngles = self:WorldToLocalAngles(angles)
-
-	-- repair
-	LocalAngles.y = -LocalAngles.y
-	LocalAngles.r = -LocalAngles.r
-
-	return portal:LocalToWorldAngles(LocalAngles)
+-- === Détection précise du type de surface du portail (sol, plafond, mur) ===
+function ENT:IsFloor(angles)
+	angles = angles or (self.OriginalAngles or self:GetAngles())
+	local pitch = math.Round(math.NormalizeAngle(angles.p))
+	local roll = math.Round(math.NormalizeAngle(angles.r))
+	return math.abs(pitch) < 15 and math.abs(roll) < 15
 end
 
-function ENT:GetPortalPosOffsets(portal, ent)
-	local pos
-	if ent:IsPlayer() then
-		pos = ent:EyePos() -- Utiliser EyePos pour les joueurs
-	else
-		pos = ent:GetPos()
-	end
-
-	local offset = self:WorldToLocal(pos)
-
-	if ent:IsPlayer() then
-		offset.x = -offset.x
-		offset.y = -offset.y
-	else
-		offset.x = -offset.x
-		offset.y = -offset.y
-	end
-
-	local output = portal:LocalToWorld(offset)
-
-	-- Ajustement pour les joueurs si nécessaire
-	if ent:IsPlayer() and SERVER then
-		-- Ajouter un offset de sol si nécessaire (simplifié)
-		return output
-	else
-		return output
-	end
+function ENT:IsCeiling(angles)
+	angles = angles or (self.OriginalAngles or self:GetAngles())
+	local pitch = math.Round(math.NormalizeAngle(angles.p))
+	local roll = math.Round(math.NormalizeAngle(angles.r))
+	return math.abs(pitch) < 15 and math.abs(math.abs(roll) - 180) < 15
 end
 
-function ENT:IsBehind(posA, posB, normal)
-	local Vec1 = (posB - posA):GetNormalized()
-	return (normal:Dot(Vec1) < 0)
+function ENT:IsWall(angles)
+	angles = angles or (self.OriginalAngles or self:GetAngles())
+	local pitch = math.Round(math.NormalizeAngle(angles.p))
+	return math.abs(pitch + 90) < 15
 end
 
--- Crée un tunnel invisible sous le portail pour désactiver les collisions du sol
-function ENT:CreateTunnelBelowPortal()
-    -- Fonction simplifiée - pas besoin de créer d'entité physique
-    -- Le système de ballsocket gère déjà les collisions
-end
-
-function ENT:RemoveTunnelBelowPortal()
-    -- Fonction simplifiée - nettoie juste le flag
-end
-
--- Fonctions utilitaires
-function ENT:IsLinked()
-	return IsValid(self:GetLinkedPartner())
-end
-
-function ENT:PlayerWithinBounds(ent)
-	return self:GetPos():Distance(ent:GetPos()) < 100
-end
-
-function ENT:ShouldIgnoreEntity(ent)
-	-- Liste des modèles à ignorer (copiée de l'ancien système)
-	local ignoredModels = {
-		"models/blackops/portal_sides.mdl",
-		"models/blackops/portal_sides_new.mdl",
-	}
-
-	for _, model in pairs(ignoredModels) do
-		if ent:GetModel() == model then
-			return true
-		end
-	end
-
-	-- Entités spécifiques à ignorer
-	local ignoredClasses = {
-		"projectile_portal_ball",
-		"projectile_portal_ball_atlas",
-		"projectile_portal_ball_pbody",
-		"projectile_portal_ball_guest",
-		"projectile_portal_ball_unknown"
-	}
-
-	for _, class in pairs(ignoredClasses) do
-		if ent:GetClass() == class then
-			ent:SetPos(Vector(-500, -500, -500))
-			return true
-		end
-	end
-
-	-- Si hitprop est activé, ignore certains props PHX
-	if hitprop:GetBool() then
-		return self:IsPhxProp(ent)
-	end
-
-	return false
-end
-
-function ENT:IsPhxProp(ent)
-	local model = ent:GetModel()
-	return string.find(model, "props_phx") or
-		   string.find(model, "phxtended") or
-		   string.find(model, "hunter/")
-end
-
-function ENT:CanPortEntity(ent)
-	if not IsValid(ent) then return false end
-	if ent.InPortal then return false end
-	if self:ShouldIgnoreEntity(ent) then return false end
-
-	return true
-end
-
-function ENT:TransformVelocity(vel, targetPortal)
-	return self:TransformOffset(vel, self:GetAngles(), targetPortal:GetAngles()) * -1
-end
-
-function ENT:TransformOffset(v, a1, a2)
-	return (v:Dot(a1:Right()) * a2:Right() + v:Dot(a1:Up()) * (-a2:Up()) + v:Dot(a1:Forward()) * a2:Forward())
-end
-
-function ENT:GetPortalPosOffsets(portal, ent)
-	-- Calculer l'offset de l'entité par rapport à ce portail
-	local offset = ent:GetPos() - self:GetPos()
-
-	-- Appliquer une symétrie miroir sur l'axe latéral (Right)
-	local localOffset = self:WorldToLocal(ent:GetPos())
-	localOffset.x = localOffset.x -- effet miroir sur l'axe latéral
-	localOffset.y = -localOffset.y -- effet miroir sur l'axe latéral
-	localOffset.z = -localOffset.z -- garder la hauteur inchangée
-	local mirroredWorldOffset = portal:LocalToWorld(localOffset)
-
-	-- Position finale du clone = position portail de sortie + offset miroir
-	local finalPos = mirroredWorldOffset
-
-	-- Ajuster légèrement la position pour éviter les intersections
-	finalPos = finalPos
-
-	return finalPos
-end
-
-function ENT:GetPortalAngleOffsets(portal, ent)
-	-- Calculer les angles relatifs de l'entité par rapport à ce portail
-	local localAngles = self:WorldToLocalAngles(ent:GetAngles())
-
-	-- Appliquer une symétrie miroir sur l'axe Yaw (effet miroir)
-	localAngles.y = -localAngles.y + 180
-	localAngles.r = -localAngles.r + 180
-
-	-- Convertir vers les angles mondiaux du portail de sortie
-	local finalAngles = portal:LocalToWorldAngles(localAngles)
-
-	return finalAngles
-end
-
-function ENT:IsBehind(posA, posB, normal)
-	return (posA - posB):Dot(normal) < 0
-end
-
-function ENT:AdjustVelocityForPortalType(vel, partner)
-	local newVel = vel
+function ENT:TransformVelocityBetweenPortals(vel, targetPortal)
 	local speed = vel:Length()
+	local transformedVel = Vector(0, 0, 0)
 
-	-- Vitesse minimale pour maintenir le momentum
-	local minSpeed = 200
-	local maxSpeed = vel_roof_max:GetInt()
+	local sourceAngles = self.OriginalAngles or self:GetAngles()
+	local targetAngles = targetPortal.OriginalAngles or targetPortal:GetAngles()
 
-	-- Ajustements selon l'orientation des portails
-	if partner:OnFloor() and self:OnFloor() then
-		-- Portail au sol vers portail au sol : garder momentum horizontal
-		if speed < 340 then
-			newVel = partner:GetForward() * math.max(340, speed)
+	local sourceIsFloor = self:IsFloor(sourceAngles)
+	local sourceIsCeiling = self:IsCeiling(sourceAngles)
+	local sourceIsWall = self:IsWall(sourceAngles)
+
+	local targetIsFloor = self:IsFloor(targetAngles)
+	local targetIsCeiling = self:IsCeiling(targetAngles)
+	local targetIsWall = self:IsWall(targetAngles)
+
+	print("[GP2][PORTAL][DEBUG] Pitch source:", sourceAngles.p, "Roll:", sourceAngles.r, "target:", targetAngles.p, "Roll:", targetAngles.r)
+	print("[GP2][PORTAL][DEBUG] IsFloor source:", sourceIsFloor, "IsCeiling:", sourceIsCeiling, "IsWall:", sourceIsWall, "| target IsFloor:", targetIsFloor, "IsCeiling:", targetIsCeiling, "IsWall:", targetIsWall)
+
+	if sourceIsFloor and targetIsFloor then
+		-- Sol -> Sol
+		if vel.z < -50 then
+			transformedVel = Vector(vel.x, vel.y, -vel.z)
+			print("[GP2][PORTAL] Sol->Sol: Chute inversée, vel:", transformedVel)
+		else
+			transformedVel = targetPortal:GetForward() * speed
 		end
-	elseif partner:OnFloor() and not self:OnFloor() then
-		-- Portail mural vers portail au sol : convertir momentum vertical en horizontal
-		if speed < 350 then
-			newVel = partner:GetForward() * math.max(350, speed)
-		end
-	elseif not partner:OnFloor() and self:OnFloor() then
-		-- Portail au sol vers portail mural : convertir momentum horizontal en vertical
-		if speed < minSpeed then
-			newVel = partner:GetForward() * math.max(minSpeed, speed)
-		end
-	elseif partner:OnRoof() and (not partner:IsHorizontal()) then
-		-- Portail plafond : limiter la vitesse pour éviter les bugs
-		if speed > maxSpeed then
-			newVel = partner:GetForward() * maxSpeed
-		elseif speed < minSpeed then
-			newVel = partner:GetForward() * minSpeed
-		end
-	elseif (not partner:IsHorizontal()) and (not partner:OnRoof()) then
-		-- Portail mural standard : vitesse minimale
-		if speed < 300 then
-			newVel = partner:GetForward() * math.max(300, speed)
-		end
+	elseif sourceIsFloor and targetIsCeiling then
+		-- Sol -> Plafond
+		transformedVel = targetPortal:GetForward() * speed
+		print("[GP2][PORTAL] Sol->Plafond: Sortie selon Forward, vel:", transformedVel)
+	elseif sourceIsFloor and targetIsWall then
+		-- Sol -> Mur
+		transformedVel = targetPortal:GetForward() * speed
+		print("[GP2][PORTAL] Sol->Mur: Sortie selon Forward, vel:", transformedVel)
+	elseif sourceIsCeiling and targetIsFloor then
+		-- Plafond -> Sol
+		transformedVel = Vector(vel.x, vel.y, math.abs(vel.z))
+		print("[GP2][PORTAL] Plafond->Sol: Sortie vers le haut, vel:", transformedVel)
+	elseif sourceIsCeiling and targetIsCeiling then
+		-- Plafond -> Plafond
+		transformedVel = targetPortal:GetForward() * speed
+		print("[GP2][PORTAL] Plafond->Plafond: Sortie selon Forward, vel:", transformedVel)
+	elseif sourceIsCeiling and targetIsWall then
+		-- Plafond -> Mur
+		transformedVel = targetPortal:GetForward() * speed
+		print("[GP2][PORTAL] Plafond->Mur: Sortie selon Forward, vel:", transformedVel)
+	elseif sourceIsWall and targetIsFloor then
+		-- Mur -> Sol
+		transformedVel = Vector(vel.x, vel.y, math.abs(vel.z))
+		print("[GP2][PORTAL] Mur->Sol: Sortie vers le haut, vel:", transformedVel)
+	elseif sourceIsWall and targetIsCeiling then
+		-- Mur -> Plafond
+		transformedVel = targetPortal:GetForward() * speed
+		print("[GP2][PORTAL] Mur->Plafond: Sortie selon Forward, vel:", transformedVel)
+	elseif sourceIsWall and targetIsWall then
+		-- Mur -> Mur
+		transformedVel = targetPortal:GetForward() * speed
+		print("[GP2][PORTAL] Mur->Mur: Sortie selon Forward, vel:", transformedVel)
 	else
-		-- Cas par défaut : maintenir une vitesse minimale
-		if speed < minSpeed then
-			newVel = partner:GetForward() * minSpeed
-		end
+		-- Cas par défaut (fallback)
+		transformedVel = targetPortal:GetForward() * speed
+		print("[GP2][PORTAL] Cas par défaut: Sortie selon Forward, vel:", transformedVel)
 	end
 
-	print("[GP2][PORTAL] Vélocité ajustée de", speed, "à", newVel:Length(), "pour orientation:",
-		  self:OnFloor() and "sol" or (self:OnRoof() and "plafond" or "mur"), "vers",
-		  partner:OnFloor() and "sol" or (partner:OnRoof() and "plafond" or "mur"))
+	if transformedVel:Length() < 100 then
+		transformedVel = targetPortal:GetForward() * 250
+		print("[GP2][PORTAL] Application vitesse minimale de sécurité:", transformedVel)
+	end
 
-	return newVel
+	return transformedVel
 end
 
--- Fonctions de détection de type de portail
+-- Fonctions de détection avec angles en paramètres (utilisées par TransformVelocityBetweenPortals)
+function ENT:OnFloorWithAngles(angles)
+	angles = angles or self:GetAngles()
+	local up = angles:Up()
+	local forward = angles:Forward()
+	local isFloorUp = up.z > 0.7
+	local isFloorForward = forward.z > 0.7
+	local result = isFloorUp and isFloorForward
+	print("[GP2][PORTAL] OnFloorWithAngles check: Up=", up, "Forward=", forward, "Result=", result)
+	return result
+end
+
+function ENT:OnRoofWithAngles(angles)
+	angles = angles or self:GetAngles()
+	local forward = angles:Forward()
+	local result = forward.z < -0.7
+	print("[GP2][PORTAL] OnRoofWithAngles check: Forward=", forward, "Result=", result)
+	return result
+end
+
+-- Fonctions de détection de type de portail (utilisées ailleurs)
 function ENT:OnFloor()
-	local p = self:GetAngles().p
-	return p == 0 and self:GetAngles().r == -90
+	local up = self:GetUp()
+	local angles = self:GetAngles()
+	-- Un portail au sol a son vecteur Up pointant vers le haut (Z positif)
+	-- et sa direction Forward pointant vers le haut aussi
+	local isFloorUp = up.z > 0.7 -- Le vecteur Up pointe vers le haut
+	local isFloorForward = self:GetForward().z > 0.7 -- Le Forward pointe vers le haut
+	local result = isFloorUp and isFloorForward
+	print("[GP2][PORTAL] OnFloor check: Up=", up, "Forward=", self:GetForward(), "Result=", result)
+	return result
 end
 
 function ENT:OnRoof()
-	local p = self:GetAngles().p
-	return p >= 0 and p <= 180
+	local up = self:GetUp()
+	local forward = self:GetForward()
+	-- Un portail au plafond a son Forward pointant vers le bas
+	local result = forward.z < -0.7
+	print("[GP2][PORTAL] OnRoof check: Forward=", forward, "Result=", result)
+	return result
 end
 
 function ENT:IsHorizontal()
@@ -861,7 +880,7 @@ function ENT:PlayerEnterPortal(ent)
 	end
 
 	-- Changer le type de mouvement
-	ent:SetMoveType(MOVETYPE_WALK)
+	ent:SetMoveType(MOVETYPE_NOCLIP)
 	ent:SetGroundEntity(self)
 
 	-- Gérer les sons et effets d'entrée
@@ -871,11 +890,11 @@ function ENT:PlayerEnterPortal(ent)
 			local vel = ent:GetVelocity()
 			local pitch = 100 + (30 * (vel:Length() - 450) / 1000)
 
-			if not snd_portal2:GetBool() then
-				ent:EmitSound("player/portal_enter" .. math.random(1,2) .. ".wav", 80, pitch)
-			else
-				ent:EmitSound("player/portal2/portal_enter" .. math.random(1,2) .. ".wav", 80, pitch)
-			end
+			-- if not snd_portal2:GetBool() then
+			-- 	ent:EmitSound("player/portal_enter" .. math.random(1, 2) .. ".wav", 80, pitch)
+			-- else
+			-- 	ent:EmitSound("player/portal2/portal_enter" .. math.random(1, 2) .. ".wav", 80, pitch)
+			-- end
 		end
 
 		-- Ajuster la hitbox du joueur pour le passage
@@ -981,7 +1000,7 @@ function ENT:UpdatePhysmesh()
 					local phys = self:GetPhysicsObject()
 					if IsValid(phys) then
 						phys:EnableMotion(false)
-						phys:SetContents(CONTENTS_SOLID + CONTENTS_MOVEABLE + CONTENTS_BLOCKLOS) -- Pas de collisions solides
+						phys:SetContents((_G.CONTENTS_SOLID or 0) + (_G.CONTENTS_MOVEABLE or 0) + (_G.CONTENTS_BLOCKLOS or 0)) -- Pas de collisions solides
 						GP2.Print("Portal %d: Detailed mesh physics created successfully", self:EntIndex())
 					end
 				else
@@ -991,7 +1010,7 @@ function ENT:UpdatePhysmesh()
 					local phys = self:GetPhysicsObject()
 					if IsValid(phys) then
 						phys:EnableMotion(false)
-						phys:SetContents(CONTENTS_SOLID + CONTENTS_MOVEABLE + CONTENTS_BLOCKLOS) -- Pas de collisions solides
+						phys:SetContents((_G.CONTENTS_SOLID or 0) + (_G.CONTENTS_MOVEABLE or 0) + (_G.CONTENTS_BLOCKLOS or 0)) -- Pas de collisions solides
 					end
 				end
 			end
@@ -1032,7 +1051,7 @@ function ENT:UpdatePhysmesh()
 				local phys = self:GetPhysicsObject()
 				if IsValid(phys) then
 					phys:EnableMotion(false)
-					phys:SetContents(CONTENTS_SOLID + CONTENTS_MOVEABLE + CONTENTS_BLOCKLOS) -- Pas de collisions solides
+					phys:SetContents((_G.CONTENTS_SOLID or 0) + (_G.CONTENTS_MOVEABLE or 0) + (_G.CONTENTS_BLOCKLOS or 0)) -- Pas de collisions solides
 				end
 			end
 		else
@@ -1047,5 +1066,149 @@ if game.SinglePlayer() then
 	function ENT:TestCollision(startpos, delta, isbox, extents, mask)
 		if bit.band(mask, CONTENTS_GRATE) ~= 0 then return true end
 	end
+end
+
+-- ============================================================================
+-- SYSTÈME WOODEN CRATE (Reproduit exactement de l'ancien système)
+-- ============================================================================
+
+function ENT:GetGroundZ()
+	-- Calculer la position réelle du portail
+	local realPortalPos = self:GetPos()
+
+	-- Ajuster selon le système d'environnement utilisé
+	if not PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
+		-- Compenser l'offset appliqué dans Initialize() avec l'axe réel
+		realPortalPos = realPortalPos - self:GetUp() * 7.1
+	end
+
+	local tr = util.TraceLine({
+		start = realPortalPos,
+		endpos = realPortalPos - Vector(0,0,10000),
+		filter = self
+	})
+	return tr.HitPos.z
+end
+
+function ENT:SpawnWoodenCratesBelow()
+	-- Détection fiable de l'orientation du portail via self:GetUp()
+	local up = self:GetUp()
+	local isFloor = up:Dot(Vector(0,0,1)) > 0.9
+	local isCeiling = up:Dot(Vector(0,0,-1)) > 0.9
+	local isWall = not isFloor and not isCeiling
+	print("[GP2][PORTAL] SpawnWoodenCratesBelow - isFloor:", isFloor, "isCeiling:", isCeiling, "isWall:", isWall)
+
+	-- Ne spawner les caisses que si le portail est mural
+	if isWall then
+		-- Calculer la position réelle du portail en tenant compte des transformations
+		local realPortalPos = self:GetPos()
+
+		-- Ajuster selon le système d'environnement utilisé
+		if not PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
+			-- Compenser l'offset appliqué dans Initialize() avec l'axe réel
+			realPortalPos = realPortalPos - self:GetUp() * 7.1
+		end
+
+		-- Utiliser la position réelle pour le calcul du sol
+		local groundZ = self:GetGroundZ()
+		local portalPos = realPortalPos
+		print("[GP2][PORTAL] SpawnWoodenCratesBelow - Position réelle du portail:", portalPos, "GroundZ:", groundZ)
+		local basePos = Vector(portalPos.x, portalPos.y, groundZ - 15) -- 15 unités en dessous du sol
+		local offsets = {
+			Vector(0,0,0), -- centre
+			Vector(40,0,0), Vector(-40,0,0), Vector(0,40,0), Vector(0,-40,0),
+			Vector(40,40,0), Vector(-40,40,0), Vector(40,-40,0), Vector(-40,-40,0)
+		}
+		for _, offset in ipairs(offsets) do
+			local cube = ents.Create("prop_physics")
+			if IsValid(cube) then
+				-- Créer une caisse en bois
+				print("[GP2][PORTAL] SpawnWoodenCratesBelow - Création de la caisse en bois à l'offset:", offset)
+				cube:SetModel("models/props_junk/wood_crate001a.mdl")
+				cube:SetPos(basePos + offset)
+				cube:Spawn()
+				cube:SetOwner(self)
+				cube.InPortalCube = true
+				cube.GP2_IsPortalCrate = true
+
+				-- Rendre la caisse complètement transparente
+				cube:SetColor(Color(255, 255, 255, 255))
+				cube:SetRenderMode(RENDERMODE_TRANSALPHA)
+
+				-- Désactiver collision avec tous les joueurs en rendant la caisse non-solide
+				cube:SetSolid(SOLID_NONE)
+				cube:SetCollisionGroup(COLLISION_GROUP_WORLD)
+
+				-- Alternative : physique pour les props mais pas pour les joueurs
+				timer.Simple(0.1, function()
+					if IsValid(cube) then
+						cube:SetSolid(SOLID_VPHYSICS)
+						cube:SetCollisionGroup(COLLISION_GROUP_DEBRIS_TRIGGER)
+						-- Hook personnalisé pour cette caisse
+						cube.StartTouch = function(self, ent)
+							if ent:IsPlayer() then
+								-- Ne rien faire, passer à travers
+								return
+							end
+						end
+					end
+				end)
+
+				local phys = cube:GetPhysicsObject()
+				if IsValid(phys) then
+					phys:EnableMotion(false)
+					phys:EnableGravity(false)
+					phys:SetVelocity(Vector(0,0,0))
+					phys:AddAngleVelocity(-phys:GetAngleVelocity())
+					phys:SetAngleVelocity(Vector(0,0,0))
+					phys:Sleep()
+				end
+				cube:SetMoveType(MOVETYPE_NONE)
+				table.insert(self.SpawnedCubes, cube)
+			end
+		end
+	end
+end
+
+function ENT:SpawnCratesBelow()
+	-- Version alternative simplifiée (utilisée dans l'ancien fichier pour certains cas)
+	local groundZ = self:GetGroundZ()
+	local portalPos = self:GetPos()
+	local spawnZ = groundZ + 1
+	local centerPos = Vector(portalPos.x, portalPos.y, spawnZ)
+	local crate = ents.Create("prop_physics")
+	crate:SetModel("models/props/wood_crate001a.mdl")
+	crate:SetPos(centerPos)
+	crate:Spawn()
+	crate.GP2_IsPortalCrate = true -- Marqueur pour identification
+
+	-- Désactiver collision avec tous les joueurs existants
+	for _, ply in ipairs(player.GetAll()) do
+		constraint.NoCollide(crate, ply, 0, 0)
+	end
+end
+
+if SERVER then
+    util.AddNetworkString("GP2_ChatMessage")
+    function GP2.SendChatMessage(ply, ...)
+        local args = {...}
+        net.Start("GP2_ChatMessage")
+        net.WriteTable(args)
+        if IsValid(ply) then
+            net.Send(ply)
+        else
+            net.Broadcast()
+        end
+    end
+else
+    net.Receive("GP2_ChatMessage", function()
+        local args = net.ReadTable()
+        chat.AddText(unpack(args))
+    end)
+end
+
+function ENT:IsLinked()
+    local partner = self.GetLinkedPartner and self:GetLinkedPartner() or nil
+    return IsValid(partner) and partner.GetActivated and partner:GetActivated()
 end
 
