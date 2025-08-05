@@ -58,9 +58,12 @@ function ENT:Release()
     if SERVER then
         local retrigger_enabled = GetConVar("gp2_floor_button_retrigger")
         if retrigger_enabled and retrigger_enabled:GetBool() then
-            -- Utiliser NextThink au lieu de timer pour réduire la latence
-            self:SetNextThink(CurTime() + 0.05)
-            self.RetriggerState = "check_players"
+            -- OPTIMISATION : Utiliser GP2_DelayedCall au lieu de timer.Simple
+            self:GP2_DelayedCall(0.05, function()
+                self.RetriggerState = "check_players"
+                self.RetriggerTime = CurTime()
+                self:SetNextThink(CurTime() + 0.05)
+            end)
         end
     end
 end
@@ -78,50 +81,52 @@ function ENT:CancelPress()
         GP2.ButtonLogging.LogActivation("BOUTON PILIER SOUTERRAIN", self:GetName(), self:GetPos(), false)
     end
 
-    -- Système de redéclenchement pour les boutons piliers souterrains temporisés
+    -- OPTIMISATION : Système de redéclenchement optimisé avec GP2_DelayedCall
     if SERVER and self.DelayBeforeReset and self.DelayBeforeReset > 0 then
         local retrigger_enabled = GetConVar("gp2_floor_button_retrigger")
         if retrigger_enabled and retrigger_enabled:GetBool() then
-            -- Redéclenchement immédiat pour les boutons piliers souterrains (pas de délai)
-            timer.Simple(0.05, function()
-                if IsValid(self) then
-                    -- Vérifier qu'aucun joueur n'est proche
-                    local playerNearby = false
-                    for _, ply in ipairs(player.GetAll()) do
-                        if IsValid(ply) and ply:Alive() then
-                            local distance = self:GetPos():Distance(ply:GetPos())
-                            if distance <= (self.CheckDistance or 100) then
-                                playerNearby = true
-                                break
-                            end
+            -- Utiliser le système optimisé au lieu de timer.Simple
+            self:GP2_DelayedCall(0.05, function()
+                if not IsValid(self) then return end
+
+                -- Vérifier qu'aucun joueur n'est proche avec calcul optimisé
+                local playerNearby = false
+                local myPos = self:GetPos()
+                local checkDistSqr = (self.CheckDistance or 100) ^ 2
+
+                for _, ply in ipairs(player.GetAll()) do
+                    if IsValid(ply) and ply:Alive() then
+                        if myPos:DistToSqr(ply:GetPos()) <= checkDistSqr then
+                            playerNearby = true
+                            break
                         end
                     end
+                end
 
-                    -- Si aucun joueur proche, effectuer le redéclenchement
-                    if not playerNearby then
-                        self:SetIsPressed(true)
-                        self:EmitSound(self.SoundDown)
-                        self:ResetSequence(self.DownSequence)
-                        self:TriggerPressedOutput()
+                -- Si aucun joueur proche, effectuer le redéclenchement optimisé
+                if not playerNearby then
+                    self:SetIsPressed(true)
+                    self:EmitSound(self.SoundDown)
+                    self:ResetSequence(self.DownSequence)
+                    self:TriggerPressedOutput()
 
-                        if SERVER and GP2 and GP2.ButtonLogging then
-                            GP2.ButtonLogging.LogActivation("BOUTON PILIER SOUTERRAIN", self:GetName(), self:GetPos(), true)
-                        end
-
-                        -- Désactiver immédiatement après
-                        timer.Simple(0.05, function()
-                            if IsValid(self) and self:GetIsPressed() then
-                                self:SetIsPressed(false)
-                                self:EmitSound(self.SoundUp)
-                                self:ResetSequence(self.UpSequence)
-                                self:TriggerUnpressedOutput()
-
-                                if SERVER and GP2 and GP2.ButtonLogging then
-                                    GP2.ButtonLogging.LogActivation("BOUTON PILIER SOUTERRAIN", self:GetName(), self:GetPos(), false)
-                                end
-                            end
-                        end)
+                    if GP2 and GP2.ButtonLogging then
+                        GP2.ButtonLogging.LogActivation("BOUTON PILIER SOUTERRAIN", self:GetName(), self:GetPos(), true)
                     end
+
+                    -- Désactiver immédiatement après avec système optimisé
+                    self:GP2_DelayedCall(0.05, function()
+                        if IsValid(self) and self:GetIsPressed() then
+                            self:SetIsPressed(false)
+                            self:EmitSound(self.SoundUp)
+                            self:ResetSequence(self.UpSequence)
+                            self:TriggerUnpressedOutput()
+
+                            if GP2 and GP2.ButtonLogging then
+                                GP2.ButtonLogging.LogActivation("BOUTON PILIER SOUTERRAIN", self:GetName(), self:GetPos(), false)
+                            end
+                        end
+                    end)
                 end
             end)
         end
@@ -130,10 +135,11 @@ end
 
 -- Fonction Think optimisée pour remplacer les timers coûteux
 function ENT:Think()
+    -- OPTIMISATION : Vérification des états de retrigger côté serveur seulement
     if SERVER and self.RetriggerState then
         local curTime = CurTime()
 
-        if self.RetriggerState == "check_players" and curTime >= self.RetriggerTime then
+        if self.RetriggerState == "check_players" and (not self.RetriggerTime or curTime >= self.RetriggerTime) then
             -- Cache optimisé des joueurs proches pour éviter les recalculs
             local playerNearby = false
             local myPos = self:GetPos()
@@ -195,43 +201,14 @@ function ENT:Think()
         end
     end
 
-    -- Pas de Think programmé si pas d'état de retrigger
-    return false
-end
-            -- Si aucun joueur proche, effectuer le redéclenchement
-            if not playerNearby then
-                self:SetIsPressed(true)
-                self:EmitSound(self.SoundDown)
-                self:ResetSequence(self.DownSequence)
-                self:TriggerPressedOutput()
-
-                if GP2 and GP2.ButtonLogging then
-                    GP2.ButtonLogging.LogActivation("BOUTON PILIER SOUTERRAIN", self:GetName(), myPos, true)
-                end
-
-                -- Programmer la désactivation
-                self.RetriggerState = "deactivate"
-                self:SetNextThink(CurTime() + 0.05)
-            else
-                self.RetriggerState = nil -- Annuler le redéclenchement
-            end
-
-        elseif self.RetriggerState == "deactivate" then
-            if self:GetIsPressed() then
-                self:SetIsPressed(false)
-                self:EmitSound(self.SoundUp)
-                self:ResetSequence(self.UpSequence)
-                self:TriggerUnpressedOutput()
-
-                if GP2 and GP2.ButtonLogging then
-                    GP2.ButtonLogging.LogActivation("BOUTON PILIER SOUTERRAIN", self:GetName(), self:GetPos(), false)
-                end
-            end
-            self.RetriggerState = nil
-        end
+    -- Gestion du relâchement automatique temporisé (optimisé)
+    if SERVER and self.NextReleaseTime and self.NextReleaseTime > 0 and CurTime() >= self.NextReleaseTime then
+        self:Release()
+        self.NextReleaseTime = 0
     end
 
-    -- ...existing code...
+    -- Appeler le Think de la classe de base si nécessaire
+    return self.BaseClass.Think and self.BaseClass.Think(self) or false
 end
 
 function ENT:GetButtonModelName()
