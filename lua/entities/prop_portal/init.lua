@@ -26,6 +26,20 @@ local function IsBehind(posA, posB, normal)
 	return (normal:Dot(Vec1) < 0)
 end
 
+-- Utilitaire pour obtenir la direction cardinal à partir du yaw
+local function GetCardinalFromYaw(yaw)
+    yaw = math.NormalizeAngle(yaw)
+    if (yaw >= -45 and yaw < 45) then
+        return "EAST"
+    elseif (yaw >= 45 and yaw < 135) then
+        return "NORTH"
+    elseif (yaw >= -135 and yaw < -45) then
+        return "SOUTH"
+    else
+        return "WEST"
+    end
+end
+
 -- Server-side functions from prop_portal.lua
 if SERVER then
 	function ENT:KeyValue(k, v)
@@ -77,7 +91,6 @@ if SERVER then
 	hook.Add("ShouldCollide", "GP2_DisablePortalPropPhysicsCollision", function(ent1, ent2)
 		local c1, c2 = ent1:GetClass(), ent2:GetClass()
 		if (c1 == "prop_portal" and c2 == "prop_physics") or (c2 == "prop_portal" and c1 == "prop_physics") then
-			print("[GP2][PORTAL] ShouldCollide: désactive collision entre", c1, "et", c2)
 			return false
 		end
 	end)
@@ -118,9 +131,16 @@ function ENT:Initialize()
 			if IsValid(self) then
 				self.StablePos = self:GetPos()
 				self.StableAngles = self:GetAngles()
-				print("[GP2][PORTAL][DEBUG] Position portail:", self.StablePos)
-				print("[GP2][PORTAL][DEBUG] Angles portail:", self.StableAngles)
-				print("[GP2][PORTAL][DEBUG] Pitch:", self.StableAngles.p, "Yaw:", self.StableAngles.y, "Roll:", self.StableAngles.r)
+
+				-- Détermination du type de placement du portail
+				local up = self:GetUp()
+				if up:Dot(Vector(0,0,1)) > 0.9 then
+					self.PlacementType = "FLOOR"
+				elseif up:Dot(Vector(0,0,-1)) > 0.9 then
+					self.PlacementType = "ROOF"
+				else
+					self.PlacementType = "WALL"
+				end
 			end
 		end)
 
@@ -130,7 +150,6 @@ function ENT:Initialize()
 				self:SetSolid(SOLID_VPHYSICS)
 				self:SetTrigger(true)
 				self:SetCollisionGroup(COLLISION_GROUP_PASSABLE_DOOR)
-				print("COLLISION_GROUP_PASSABLE_DOOR appliqué au portail:", self)
 				local phys = self:GetPhysicsObject()
 				if IsValid(phys) then
 					phys:EnableMotion(false)
@@ -152,7 +171,6 @@ function ENT:Initialize()
 	self.PropTeleportEnabled = true
 	self.ClonedEntities = {}
 	self.SpawnedCubes = {}
-	print("[GP2][PORTAL] Portail initialisé avec ID de groupe de liaison:", self:GetLinkageGroup())
 	-- Appel différé pour garantir la bonne position
 	-- timer.Simple(0, function()
 	-- 	if IsValid(self) then
@@ -267,8 +285,6 @@ function ENT:UpdatePhysmesh()
 		-- S'assurer que le portail reste un trigger comme l'ancien système
 		self:SetTrigger(true)
 		self:SetCollisionGroup(COLLISION_GROUP_PASSABLE_DOOR)
-
-		print("[GP2][PORTAL] Portail configuré comme trigger - Props peuvent passer à travers!")
 	else
 		self:PhysicsInit(SOLID_NONE)
 	end
@@ -288,7 +304,7 @@ function ENT:StartTouch(ent)
 
 	-- Détection clone touche portail sans original
 	if ent.isClone and ent.daddyEnt and IsValid(ent.daddyEnt) and not ent.daddyEnt.InPortal then
-		print("KAWABUNGA")
+		return
 	end
 
 	-- Système de filtrage PHX props (de l'ancien système)
@@ -413,29 +429,161 @@ function ENT:EndTouch(ent)
     if ent:IsPlayer() then return end
     -- Ne pas swap si l'entité est tenue par un joueur (physgun ou gravity gun)
     if ent:IsPlayerHolding() then return end
-    print("[GP2][PORTAL] EndTouch pour l'entité:", ent)
-    -- Ajout : détection si l'objet est en dessous du portail
-    if ent:GetPos().z < self:GetPos().z then
-        print("[GP2][PORTAL] téléportation maximal")
+    -- Récupérer le type de placement du portail d'entrée et de sortie
+    local portalOut = self:GetLinkedPartner()
+    local placementIn = self.PlacementType or "UNKNOWN"
+    local placementOut = portalOut and portalOut.PlacementType or "UNKNOWN"
+    -- Ajout : détection si l'objet est en dessous du portail (uniquement si les deux portails sont au sol)
+    if placementIn == "FLOOR" and placementOut == "FLOOR" then
         if ent.clone and IsValid(ent.clone) then
             -- Swap original <-> clone avec immunité temporaire
             local clone = ent.clone
             local phys = ent:GetPhysicsObject()
             local oldVel = phys and phys:IsValid() and phys:GetVelocity() or nil
-            print("oldVel:", oldVel)
             oldVel.z = -oldVel.z
-		oldVel.y = -oldVel.y
-            print("oldVel:", oldVel)
+            oldVel.y = -oldVel.y
             ent:SetPos(clone:GetPos())
             ent:SetAngles(clone:GetAngles())
             phys:SetVelocity(oldVel)
-
             -- Appliquer l'immunité temporaire pour éviter les zigzags
             ent.GP2_PortalImmunity = CurTime() + 0 -- 1 seconde d'immunité
-
             clone:Remove()
             ent.clone = nil
-            print("[GP2][PORTAL] Swap original/clone effectué (téléportation maximal) avec immunité")
+        end
+    end
+
+    if placementIn == "WALL" and placementOut == "WALL" then
+        if ent.clone and IsValid(ent.clone) then
+            local clone = ent.clone
+            local phys = ent:GetPhysicsObject()
+            local oldVel = phys and phys:IsValid() and phys:GetVelocity() or nil
+            local yawIn = math.Round((self.StableAngles or self:GetAngles()).y)
+            local yawOut = math.Round((portalOut.StableAngles or portalOut:GetAngles()).y)
+            local dirIn = GetCardinalFromYaw(yawIn)
+            local dirOut = GetCardinalFromYaw(yawOut)
+            local vx, vy, vz = oldVel.x, oldVel.y, oldVel.z
+            local newVel = Vector(vx, vy, vz)
+		print("Du ", dirIn, " vers le ", dirOut)
+            -- Table de correspondance explicite
+            if dirIn == "NORTH" and dirOut == "NORTH" then
+                newVel.x = -vx; newVel.y = -vy
+            elseif dirIn == "NORTH" and dirOut == "SOUTH" then
+                newVel.x = vx; newVel.y = vy
+            elseif dirIn == "NORTH" and dirOut == "EAST" then
+                newVel.x = -vy; newVel.y = -vx
+            elseif dirIn == "NORTH" and dirOut == "WEST" then
+                 newVel.y = -vx; newVel.x = vy
+		     -- OK
+            elseif dirIn == "SOUTH" and dirOut == "NORTH" then
+                newVel.x = vx; newVel.y = vy
+            elseif dirIn == "SOUTH" and dirOut == "SOUTH" then
+                newVel.x = -vx; newVel.y = -vy
+            elseif dirIn == "SOUTH" and dirOut == "EAST" then
+                newVel.x = vy; newVel.y = -vx
+            elseif dirIn == "SOUTH" and dirOut == "WEST" then
+                newVel.x = -vy; newVel.y = vx
+            elseif dirIn == "EAST" and dirOut == "NORTH" then
+                newVel.x = vy; newVel.y = -vx
+            elseif dirIn == "EAST" and dirOut == "SOUTH" then
+                newVel.x = -vy; newVel.y = vx
+            elseif dirIn == "EAST" and dirOut == "EAST" then
+                newVel.x = -vx; newVel.y = -vy
+            elseif dirIn == "EAST" and dirOut == "WEST" then
+                newVel.x = vx; newVel.y = vy
+            elseif dirIn == "WEST" and dirOut == "NORTH" then
+                newVel.x = -vy; newVel.y = vx
+            elseif dirIn == "WEST" and dirOut == "SOUTH" then
+                newVel.x = vy; newVel.y = -vx
+            elseif dirIn == "WEST" and dirOut == "EAST" then
+                newVel.x = vx; newVel.y = vy
+            elseif dirIn == "WEST" and dirOut == "WEST" then
+                newVel.x = -vx; newVel.y = -vy
+            end
+		print("Vélocité transformée de ", oldVel, " vers ", newVel)
+            ent:SetPos(clone:GetPos())
+            ent:SetAngles(clone:GetAngles())
+            phys:SetVelocity(newVel)
+            ent.GP2_PortalImmunity = CurTime() + 1
+            clone:Remove()
+            ent.clone = nil
+        end
+    end
+
+    if placementIn == "WALL" and placementOut == "FLOOR" then
+        if ent.clone and IsValid(ent.clone) then
+            -- Swap original <-> clone avec immunité temporaire
+            local clone = ent.clone
+            local phys = ent:GetPhysicsObject()
+            local oldVel = phys and phys:IsValid() and phys:GetVelocity() or nil
+
+            oldVel.y = -oldVel.x
+            oldVel.x = -oldVel.y
+            ent:SetPos(clone:GetPos())
+            ent:SetAngles(clone:GetAngles())
+            phys:SetVelocity(oldVel)
+            -- Appliquer l'immunité temporaire pour éviter les zigzags
+            ent.GP2_PortalImmunity = CurTime() + 0 -- 1 seconde d'immunité
+            clone:Remove()
+            ent.clone = nil
+        end
+    end
+
+     if placementIn == "FLOOR" and placementOut == "WALL" then
+        if ent.clone and IsValid(ent.clone) then
+            -- Swap original <-> clone avec immunité temporaire
+            local clone = ent.clone
+            local phys = ent:GetPhysicsObject()
+            local oldVel = phys and phys:IsValid() and phys:GetVelocity() or nil
+
+		-- Adapter la vélocité selon le yaw du portail de sortie
+		local yaw = math.Round((portalOut.StableAngles or portalOut:GetAngles()).y)
+		local yoldVel = oldVel.y
+		if yaw == 0 then
+			-- Mur orienté vers l'est (Yaw 0)
+			oldVel.x = oldVel.z
+			oldVel.y = oldVel.y
+		elseif yaw == 90 or yaw == -270 then
+			oldVel.y = oldVel.z
+			oldVel.x = -oldVel.x
+		elseif yaw == 180 or yaw == -180 then
+			-- Mur orienté vers l'ouest (Yaw 180)
+			oldVel.x = -oldVel.z
+			oldVel.y = -oldVel.y
+		elseif yaw == -90 or yaw == 270 then
+			-- Mur orienté vers le sud (Yaw -90)
+			oldVel.y = -oldVel.z
+			oldVel.x = oldVel.x
+		else
+			-- Par défaut, inverser x et y
+			oldVel.x = -oldVel.y
+			oldVel.y = -yoldVel
+		end
+		oldVel.z = 0
+            ent:SetPos(clone:GetPos())
+            ent:SetAngles(clone:GetAngles())
+            phys:SetVelocity(oldVel)
+            -- Appliquer l'immunité temporaire pour éviter les zigzags
+            ent.GP2_PortalImmunity = CurTime() + 0 -- 1 seconde d'immunité
+            clone:Remove()
+            ent.clone = nil
+        end
+    end
+
+     if placementIn == "FLOOR" and placementOut == "ROOF" then
+        if ent.clone and IsValid(ent.clone) then
+            -- Swap original <-> clone avec immunité temporaire
+            local clone = ent.clone
+            local phys = ent:GetPhysicsObject()
+            local oldVel = phys and phys:IsValid() and phys:GetVelocity() or nil
+            oldVel.z = oldVel.z
+            oldVel.y = -oldVel.y
+            ent:SetPos(clone:GetPos())
+            ent:SetAngles(clone:GetAngles())
+            phys:SetVelocity(oldVel)
+            -- Appliquer l'immunité temporaire pour éviter les zigzags
+            ent.GP2_PortalImmunity = CurTime() + 0 -- 1 seconde d'immunité
+            clone:Remove()
+            ent.clone = nil
         end
     end
     -- Nettoyer les contraintes AdvBallsocket pour éviter l'accumulation
@@ -482,9 +630,7 @@ function ENT:EndTouch(ent)
     end
     ent.InPortal = nil
     if ent.OriginalCollisionGroup then
-        GP2.SendChatMessage(nil, Color(200, 200, 200), "COLLISION_GROUP_PASSABLE_DOOR retiré du portail: ", tostring(self))
         ent:SetCollisionGroup(ent.OriginalCollisionGroup)
-        GP2.SendChatMessage(nil, Color(200, 200, 200), "[GP2][PORTAL] CollisionGroup restauré pour l'entité: ", tostring(ent), " à ", tostring(ent.OriginalCollisionGroup))
         ent.OriginalCollisionGroup = nil
     end
 end
@@ -558,11 +704,9 @@ function ENT:SyncClone(ent)
 	local newAngles = self:GetPortalAngleOffsets(portal, ent)
 
 	clone:SetPos(newPos)
-	print("Yaw:", newAngles.y, "Pitch:", newAngles.p, "Roll:", newAngles.r)
 	newAngles.y =  newAngles.y
 	newAngles.p =  newAngles.p
 	newAngles.r = -newAngles.r
-	print("[GP2][PORTAL] Synchronisation du clone:", clone, "avec la position:", newPos, "et les angles:", newAngles)
 	clone:SetAngles(newAngles)
 
 	-- Appliquer la vélocité de l'original au clone, transformée selon l'orientation des portails
@@ -702,7 +846,6 @@ function ENT:DoPort(ent)
 
                 -- Appliquer l'immunité temporaire pour éviter les zigzags
                 ent.GP2_PortalImmunity = CurTime() + 1.0 -- 1 seconde d'immunité
-                print("[GP2][PORTAL] Immunité portail appliquée pendant 1 seconde pour:", ent)
 
                 ent.InPortal = nil
                 ent.clone:Remove()
@@ -741,75 +884,74 @@ function ENT:IsWall(angles)
 end
 
 function ENT:TransformVelocityBetweenPortals(vel, targetPortal)
-	local speed = vel:Length()
-	local transformedVel = Vector(0, 0, 0)
+    local speed = vel:Length()
+    local transformedVel = Vector(0, 0, 0)
 
-	local sourceAngles = self.OriginalAngles or self:GetAngles()
-	local targetAngles = targetPortal.OriginalAngles or targetPortal:GetAngles()
+    local sourceAngles = self.OriginalAngles or self:GetAngles()
+    local targetAngles = targetPortal.OriginalAngles or targetPortal:GetAngles()
 
-	local sourceIsFloor = self:IsFloor(sourceAngles)
-	local sourceIsCeiling = self:IsCeiling(sourceAngles)
-	local sourceIsWall = self:IsWall(sourceAngles)
+    local sourceIsFloor = self:IsFloor(sourceAngles)
+    local sourceIsCeiling = self:IsCeiling(sourceAngles)
+    local sourceIsWall = self:IsWall(sourceAngles)
 
-	local targetIsFloor = self:IsFloor(targetAngles)
-	local targetIsCeiling = self:IsCeiling(targetAngles)
-	local targetIsWall = self:IsWall(targetAngles)
+    local targetIsFloor = targetPortal:IsFloor(targetAngles)
+    local targetIsCeiling = targetPortal:IsCeiling(targetAngles)
+    local targetIsWall = targetPortal:IsWall(targetAngles)
 
-	print("[GP2][PORTAL][DEBUG] Pitch source:", sourceAngles.p, "Roll:", sourceAngles.r, "target:", targetAngles.p, "Roll:", targetAngles.r)
-	print("[GP2][PORTAL][DEBUG] IsFloor source:", sourceIsFloor, "IsCeiling:", sourceIsCeiling, "IsWall:", sourceIsWall, "| target IsFloor:", targetIsFloor, "IsCeiling:", targetIsCeiling, "IsWall:", targetIsWall)
+    if sourceIsFloor and targetIsFloor then
+        -- Sol -> Sol
+        if vel.z < -50 then
+            transformedVel = Vector(vel.x, vel.y, -vel.z)
+        else
+            transformedVel = targetPortal:GetForward() * speed
+        end
+    elseif sourceIsFloor and targetIsWall then
+        -- Sol -> Mur
+        -- Prendre la vélocité horizontale du prop et la projeter sur le plan du mur
+        local localVel = self:WorldToLocal(vel)
+        -- On ignore la composante verticale (z) pour la sortie murale
+        localVel.z = 0
+        -- On projette la vélocité sur le plan du mur cible
+        local wallVel = targetPortal:LocalToWorld(localVel)
+        -- On ajoute une petite impulsion vers l'avant du mur pour éviter de rester collé
+        local forward = targetPortal:GetForward()
+        transformedVel = wallVel:GetNormalized() * speed + forward * 50
+    elseif sourceIsWall and targetIsFloor then
+        -- Mur -> Sol
+        -- Prendre la vélocité du prop et la projeter sur le plan du sol
+        local localVel = self:WorldToLocal(vel)
+        -- On ignore la composante latérale (y) pour la sortie sol
+        localVel.y = 0
+        -- On projette la vélocité sur le plan du sol cible
+        local floorVel = targetPortal:LocalToWorld(localVel)
+        -- On ajoute une impulsion vers le haut
+        local up = targetPortal:GetUp()
+        transformedVel = floorVel:GetNormalized() * speed + up * 50
+    elseif sourceIsCeiling and targetIsFloor then
+        -- Plafond -> Sol
+        transformedVel = Vector(vel.x, vel.y, math.abs(vel.z))
+    elseif sourceIsCeiling and targetIsCeiling then
+        -- Plafond -> Plafond
+        transformedVel = targetPortal:GetForward() * speed
+    elseif sourceIsCeiling and targetIsWall then
+        -- Plafond -> Mur
+        transformedVel = targetPortal:GetForward() * speed
+    elseif sourceIsWall and targetIsCeiling then
+        -- Mur -> Plafond
+        transformedVel = targetPortal:GetForward() * speed
+    elseif sourceIsWall and targetIsWall then
+        -- Mur -> Mur
+        transformedVel = targetPortal:GetForward() * speed
+    else
+        -- Cas par défaut (fallback)
+        transformedVel = targetPortal:GetForward() * speed
+    end
 
-	if sourceIsFloor and targetIsFloor then
-		-- Sol -> Sol
-		if vel.z < -50 then
-			transformedVel = Vector(vel.x, vel.y, -vel.z)
-			print("[GP2][PORTAL] Sol->Sol: Chute inversée, vel:", transformedVel)
-		else
-			transformedVel = targetPortal:GetForward() * speed
-		end
-	elseif sourceIsFloor and targetIsCeiling then
-		-- Sol -> Plafond
-		transformedVel = targetPortal:GetForward() * speed
-		print("[GP2][PORTAL] Sol->Plafond: Sortie selon Forward, vel:", transformedVel)
-	elseif sourceIsFloor and targetIsWall then
-		-- Sol -> Mur
-		transformedVel = targetPortal:GetForward() * speed
-		print("[GP2][PORTAL] Sol->Mur: Sortie selon Forward, vel:", transformedVel)
-	elseif sourceIsCeiling and targetIsFloor then
-		-- Plafond -> Sol
-		transformedVel = Vector(vel.x, vel.y, math.abs(vel.z))
-		print("[GP2][PORTAL] Plafond->Sol: Sortie vers le haut, vel:", transformedVel)
-	elseif sourceIsCeiling and targetIsCeiling then
-		-- Plafond -> Plafond
-		transformedVel = targetPortal:GetForward() * speed
-		print("[GP2][PORTAL] Plafond->Plafond: Sortie selon Forward, vel:", transformedVel)
-	elseif sourceIsCeiling and targetIsWall then
-		-- Plafond -> Mur
-		transformedVel = targetPortal:GetForward() * speed
-		print("[GP2][PORTAL] Plafond->Mur: Sortie selon Forward, vel:", transformedVel)
-	elseif sourceIsWall and targetIsFloor then
-		-- Mur -> Sol
-		transformedVel = Vector(vel.x, vel.y, math.abs(vel.z))
-		print("[GP2][PORTAL] Mur->Sol: Sortie vers le haut, vel:", transformedVel)
-	elseif sourceIsWall and targetIsCeiling then
-		-- Mur -> Plafond
-		transformedVel = targetPortal:GetForward() * speed
-		print("[GP2][PORTAL] Mur->Plafond: Sortie selon Forward, vel:", transformedVel)
-	elseif sourceIsWall and targetIsWall then
-		-- Mur -> Mur
-		transformedVel = targetPortal:GetForward() * speed
-		print("[GP2][PORTAL] Mur->Mur: Sortie selon Forward, vel:", transformedVel)
-	else
-		-- Cas par défaut (fallback)
-		transformedVel = targetPortal:GetForward() * speed
-		print("[GP2][PORTAL] Cas par défaut: Sortie selon Forward, vel:", transformedVel)
-	end
+    if transformedVel:Length() < 100 then
+        transformedVel = targetPortal:GetForward() * 250
+    end
 
-	if transformedVel:Length() < 100 then
-		transformedVel = targetPortal:GetForward() * 250
-		print("[GP2][PORTAL] Application vitesse minimale de sécurité:", transformedVel)
-	end
-
-	return transformedVel
+    return transformedVel
 end
 
 -- Fonctions de détection avec angles en paramètres (utilisées par TransformVelocityBetweenPortals)
@@ -820,7 +962,6 @@ function ENT:OnFloorWithAngles(angles)
 	local isFloorUp = up.z > 0.7
 	local isFloorForward = forward.z > 0.7
 	local result = isFloorUp and isFloorForward
-	print("[GP2][PORTAL] OnFloorWithAngles check: Up=", up, "Forward=", forward, "Result=", result)
 	return result
 end
 
@@ -828,7 +969,6 @@ function ENT:OnRoofWithAngles(angles)
 	angles = angles or self:GetAngles()
 	local forward = angles:Forward()
 	local result = forward.z < -0.7
-	print("[GP2][PORTAL] OnRoofWithAngles check: Forward=", forward, "Result=", result)
 	return result
 end
 
@@ -841,7 +981,6 @@ function ENT:OnFloor()
 	local isFloorUp = up.z > 0.7 -- Le vecteur Up pointe vers le haut
 	local isFloorForward = self:GetForward().z > 0.7 -- Le Forward pointe vers le haut
 	local result = isFloorUp and isFloorForward
-	print("[GP2][PORTAL] OnFloor check: Up=", up, "Forward=", self:GetForward(), "Result=", result)
 	return result
 end
 
@@ -850,7 +989,6 @@ function ENT:OnRoof()
 	local forward = self:GetForward()
 	-- Un portail au plafond a son Forward pointant vers le bas
 	local result = forward.z < -0.7
-	print("[GP2][PORTAL] OnRoof check: Forward=", forward, "Result=", result)
 	return result
 end
 
@@ -1096,7 +1234,6 @@ function ENT:SpawnWoodenCratesBelow()
 	local isFloor = up:Dot(Vector(0,0,1)) > 0.9
 	local isCeiling = up:Dot(Vector(0,0,-1)) > 0.9
 	local isWall = not isFloor and not isCeiling
-	print("[GP2][PORTAL] SpawnWoodenCratesBelow - isFloor:", isFloor, "isCeiling:", isCeiling, "isWall:", isWall)
 
 	-- Ne spawner les caisses que si le portail est mural
 	if isWall then
@@ -1112,7 +1249,6 @@ function ENT:SpawnWoodenCratesBelow()
 		-- Utiliser la position réelle pour le calcul du sol
 		local groundZ = self:GetGroundZ()
 		local portalPos = realPortalPos
-		print("[GP2][PORTAL] SpawnWoodenCratesBelow - Position réelle du portail:", portalPos, "GroundZ:", groundZ)
 		local basePos = Vector(portalPos.x, portalPos.y, groundZ - 15) -- 15 unités en dessous du sol
 		local offsets = {
 			Vector(0,0,0), -- centre
@@ -1123,7 +1259,6 @@ function ENT:SpawnWoodenCratesBelow()
 			local cube = ents.Create("prop_physics")
 			if IsValid(cube) then
 				-- Créer une caisse en bois
-				print("[GP2][PORTAL] SpawnWoodenCratesBelow - Création de la caisse en bois à l'offset:", offset)
 				cube:SetModel("models/props_junk/wood_crate001a.mdl")
 				cube:SetPos(basePos + offset)
 				cube:Spawn()
