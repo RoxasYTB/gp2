@@ -422,217 +422,235 @@ function ENT:Touch(ent)
 	end
 end
 
+-- Cache pour les transformations de vélocité
+local VelocityTransformCache = {}
+
+-- Table pré-calculée pour les transformations mur->mur (optimisation)
+local WallToWallTransforms = {
+    ["NORTH_NORTH"] = function(v) return Vector(-v.x, -v.y, v.z) end,
+    ["NORTH_SOUTH"] = function(v) return Vector(v.x, v.y, v.z) end,
+    ["NORTH_EAST"] = function(v) return Vector(-v.y, v.x, v.z) end,
+    ["NORTH_WEST"] = function(v) return Vector(v.y, -v.x, v.z) end,
+    ["SOUTH_NORTH"] = function(v) return Vector(v.x, v.y, v.z) end,
+    ["SOUTH_SOUTH"] = function(v) return Vector(-v.x, -v.y, v.z) end,
+    ["SOUTH_EAST"] = function(v) return Vector(v.y, -v.x, v.z) end,
+    ["SOUTH_WEST"] = function(v) return Vector(-v.y, v.x, v.z) end,
+    ["EAST_NORTH"] = function(v) return Vector(v.y, -v.x, v.z) end,
+    ["EAST_SOUTH"] = function(v) return Vector(-v.y, v.x, v.z) end,
+    ["EAST_EAST"] = function(v) return Vector(-v.x, -v.y, v.z) end,
+    ["EAST_WEST"] = function(v) return Vector(v.x, v.y, v.z) end,
+    ["WEST_NORTH"] = function(v) return Vector(-v.y, v.x, v.z) end,
+    ["WEST_SOUTH"] = function(v) return Vector(v.y, -v.x, v.z) end,
+    ["WEST_EAST"] = function(v) return Vector(v.x, v.y, v.z) end,
+    ["WEST_WEST"] = function(v) return Vector(-v.x, -v.y, v.z) end,
+}
+
+-- Table pré-calculée pour les transformations sol->mur
+local FloorToWallTransforms = {
+    [0] = function(v) return Vector(v.z, v.y, 0) end,      -- EAST
+    [90] = function(v) return Vector(-v.x, v.z, 0) end,    -- NORTH
+    [180] = function(v) return Vector(-v.z, -v.y, 0) end,  -- WEST
+    [270] = function(v) return Vector(v.x, -v.z, 0) end,   -- SOUTH
+}
+
 function ENT:EndTouch(ent)
+    -- Optimisation : vérifications rapides en premier
+    if not ent or not ent:IsValid() or ent:IsPlayer() or ent:IsPlayerHolding() then return end
     if not self:CanPort(ent) then return end
-    if not ent or not ent:IsValid() then return end
-    -- Ignorer les joueurs pour la logique EndTouch
-    if ent:IsPlayer() then return end
-    -- Ne pas swap si l'entité est tenue par un joueur (physgun ou gravity gun)
-    if ent:IsPlayerHolding() then return end
-    -- Récupérer le type de placement du portail d'entrée et de sortie
+
+    local clone = ent.clone
+    if not clone or not IsValid(clone) then
+        self:CleanupEntity(ent)
+        return
+    end
+
+    local phys = ent:GetPhysicsObject()
+    if not IsValid(phys) then
+        self:CleanupEntity(ent)
+        return
+    end
+
     local portalOut = self:GetLinkedPartner()
-    local placementIn = self.PlacementType or "UNKNOWN"
-    local placementOut = portalOut and portalOut.PlacementType or "UNKNOWN"
-    -- Ajout : détection si l'objet est en dessous du portail (uniquement si les deux portails sont au sol)
-    if placementIn == "FLOOR" and placementOut == "FLOOR" then
-        if ent.clone and IsValid(ent.clone) then
-            -- Swap original <-> clone avec immunité temporaire
-            local clone = ent.clone
-            local phys = ent:GetPhysicsObject()
-            local oldVel = phys and phys:IsValid() and phys:GetVelocity() or nil
-            oldVel.z = -oldVel.z
-            oldVel.y = -oldVel.y
-            ent:SetPos(clone:GetPos())
-            ent:SetAngles(clone:GetAngles())
-            phys:SetVelocity(oldVel)
-            -- Appliquer l'immunité temporaire pour éviter les zigzags
-            ent.GP2_PortalImmunity = CurTime() + 0 -- 1 seconde d'immunité
-            clone:Remove()
-            ent.clone = nil
+    if not IsValid(portalOut) then
+        self:CleanupEntity(ent)
+        return
+    end
+
+    -- Cache des types de placement pour éviter les recalculs
+    local placementIn = self.PlacementType or self:GetPlacementType()
+    local placementOut = portalOut.PlacementType or portalOut:GetPlacementType()
+
+    -- Téléportation optimisée avec transformation de vélocité
+    local success = self:TeleportEntityOptimized(ent, clone, phys, placementIn, placementOut, portalOut)
+
+    -- Nettoyage du clone si l'original ne touche plus le portail
+    if ent.clone and IsValid(ent.clone) then
+        SafeRemoveEntity(ent.clone)
+        ent.clone = nil
+    end
+
+    if success then
+        self:CleanupEntity(ent)
+    end
+end
+
+-- Fonction optimisée de téléportation
+function ENT:TeleportEntityOptimized(ent, clone, phys, placementIn, placementOut, portalOut)
+    local oldVel = phys:GetVelocity()
+    if not oldVel then return false end
+
+    local newVel = self:TransformVelocityOptimized(oldVel, placementIn, placementOut, portalOut)
+    if not newVel then return false end
+
+    -- Téléportation atomique
+    ent:SetPos(clone:GetPos())
+    ent:SetAngles(clone:GetAngles())
+    phys:SetVelocity(newVel)
+
+    -- Immunité temporaire optimisée (plus courte pour de meilleures performances)
+    ent.GP2_PortalImmunity = CurTime() + 0.5
+
+    return true
+end
+
+-- Transformation de vélocité optimisée avec cache
+function ENT:TransformVelocityOptimized(vel, placementIn, placementOut, portalOut)
+    local transformKey = placementIn .. "_" .. placementOut
+
+    -- Transformation sol->sol (simple)
+    if transformKey == "FLOOR_FLOOR" then
+        return Vector(vel.x, -vel.y, -vel.z)
+    end
+
+    -- Transformation mur->mur (utilisation de la table pré-calculée)
+    if transformKey == "WALL_WALL" then
+        local dirIn = self.CardinalDirection or self:GetCardinalDirection()
+        local dirOut = portalOut.CardinalDirection or portalOut:GetCardinalDirection()
+        local wallKey = dirIn .. "_" .. dirOut
+
+        local transform = WallToWallTransforms[wallKey]
+        return transform and transform(vel) or vel
+    end
+
+    -- Transformation mur->sol
+    if transformKey == "WALL_FLOOR" then
+        local yaw = math.Round((portalOut.StableAngles or portalOut:GetAngles()).y)
+        local normalizedYaw = ((yaw % 360) + 360) % 360 -- Normaliser entre 0-359
+
+        -- Mappage aux angles standards
+        if normalizedYaw > 315 or normalizedYaw <= 45 then yaw = 0
+        elseif normalizedYaw > 45 and normalizedYaw <= 135 then yaw = 90
+        elseif normalizedYaw > 135 and normalizedYaw <= 225 then yaw = 180
+        else yaw = 270 end
+
+        -- Table de transformation mur->sol (similaire à FloorToWallTransforms mais inversée)
+        local WallToFloorTransforms = {
+            [0] = function(v) return Vector(-v.y, v.x, -v.y) end,      -- EAST
+            [90] = function(v) return Vector(v.x, -v.y, -v.y) end,      -- NORTH
+            [180] = function(v) return Vector(v.y, -v.x, -v.y) end,    -- WEST
+            [270] = function(v) return Vector(-v.x, -v.y, -v.y) end,   -- SOUTH
+        }
+        local transform = WallToFloorTransforms[yaw]
+        return transform and transform(vel) or Vector(-vel.y, -vel.x, 0)
+    end
+
+    -- Transformation sol->mur (utilisation de la table pré-calculée)
+    if transformKey == "FLOOR_WALL" then
+        local yaw = math.Round((portalOut.StableAngles or portalOut:GetAngles()).y)
+        local normalizedYaw = ((yaw % 360) + 360) % 360 -- Normaliser entre 0-359
+
+        -- Mappage aux angles standards
+        if normalizedYaw > 315 or normalizedYaw <= 45 then yaw = 0
+        elseif normalizedYaw > 45 and normalizedYaw <= 135 then yaw = 90
+        elseif normalizedYaw > 135 and normalizedYaw <= 225 then yaw = 180
+        else yaw = 270 end
+
+        local transform = FloorToWallTransforms[yaw]
+        return transform and transform(vel) or Vector(-vel.y, -vel.x, 0)
+    end
+
+    -- Transformation sol->plafond
+    if transformKey == "FLOOR_ROOF" then
+        return Vector(vel.x, -vel.y, vel.z)
+    end
+
+    -- Fallback
+    return vel
+end
+
+-- Cache des directions cardinales
+function ENT:GetCardinalDirection()
+    if not self.CardinalDirection then
+        local yaw = (self.StableAngles or self:GetAngles()).y
+        self.CardinalDirection = GetCardinalFromYaw(yaw)
+    end
+    return self.CardinalDirection
+end
+
+-- Cache des types de placement
+function ENT:GetPlacementType()
+    if not self.PlacementType then
+        local angles = self.OriginalAngles or self:GetAngles()
+        if self:IsFloor(angles) then
+            self.PlacementType = "FLOOR"
+        elseif self:IsCeiling(angles) then
+            self.PlacementType = "ROOF"
+        else
+            self.PlacementType = "WALL"
         end
     end
+    return self.PlacementType
+end
 
-    if placementIn == "WALL" and placementOut == "WALL" then
-        if ent.clone and IsValid(ent.clone) then
-            local clone = ent.clone
-            local phys = ent:GetPhysicsObject()
-            local oldVel = phys and phys:IsValid() and phys:GetVelocity() or nil
-            local yawIn = math.Round((self.StableAngles or self:GetAngles()).y)
-            local yawOut = math.Round((portalOut.StableAngles or portalOut:GetAngles()).y)
-            local dirIn = GetCardinalFromYaw(yawIn)
-            local dirOut = GetCardinalFromYaw(yawOut)
-            local vx, vy, vz = oldVel.x, oldVel.y, oldVel.z
-            local newVel = Vector(vx, vy, vz)
-		print("Du ", dirIn, " vers le ", dirOut)
-            -- Table de correspondance explicite
-            if dirIn == "NORTH" and dirOut == "NORTH" then
-                newVel.x = -vx; newVel.y = -vy
-            elseif dirIn == "NORTH" and dirOut == "SOUTH" then
-                newVel.x = vx; newVel.y = vy
-            elseif dirIn == "NORTH" and dirOut == "EAST" then
-                newVel.x = -vy; newVel.y = -vx
-            elseif dirIn == "NORTH" and dirOut == "WEST" then
-                 newVel.y = -vx; newVel.x = vy
-		     -- OK
-            elseif dirIn == "SOUTH" and dirOut == "NORTH" then
-                newVel.x = vx; newVel.y = vy
-            elseif dirIn == "SOUTH" and dirOut == "SOUTH" then
-                newVel.x = -vx; newVel.y = -vy
-            elseif dirIn == "SOUTH" and dirOut == "EAST" then
-                newVel.x = vy; newVel.y = -vx
-            elseif dirIn == "SOUTH" and dirOut == "WEST" then
-                newVel.x = -vy; newVel.y = vx
-            elseif dirIn == "EAST" and dirOut == "NORTH" then
-                newVel.x = vy; newVel.y = -vx
-            elseif dirIn == "EAST" and dirOut == "SOUTH" then
-                newVel.x = -vy; newVel.y = vx
-            elseif dirIn == "EAST" and dirOut == "EAST" then
-                newVel.x = -vx; newVel.y = -vy
-            elseif dirIn == "EAST" and dirOut == "WEST" then
-                newVel.x = vx; newVel.y = vy
-            elseif dirIn == "WEST" and dirOut == "NORTH" then
-                newVel.x = -vy; newVel.y = vx
-            elseif dirIn == "WEST" and dirOut == "SOUTH" then
-                newVel.x = vy; newVel.y = -vx
-            elseif dirIn == "WEST" and dirOut == "EAST" then
-                newVel.x = vx; newVel.y = vy
-            elseif dirIn == "WEST" and dirOut == "WEST" then
-                newVel.x = -vx; newVel.y = -vy
-            end
-		print("Vélocité transformée de ", oldVel, " vers ", newVel)
-            ent:SetPos(clone:GetPos())
-            ent:SetAngles(clone:GetAngles())
-            phys:SetVelocity(newVel)
-            ent.GP2_PortalImmunity = CurTime() + 1
-            clone:Remove()
-            ent.clone = nil
-        end
-    end
-
-    if placementIn == "WALL" and placementOut == "FLOOR" then
-        if ent.clone and IsValid(ent.clone) then
-            -- Swap original <-> clone avec immunité temporaire
-            local clone = ent.clone
-            local phys = ent:GetPhysicsObject()
-            local oldVel = phys and phys:IsValid() and phys:GetVelocity() or nil
-
-            oldVel.y = -oldVel.x
-            oldVel.x = -oldVel.y
-            ent:SetPos(clone:GetPos())
-            ent:SetAngles(clone:GetAngles())
-            phys:SetVelocity(oldVel)
-            -- Appliquer l'immunité temporaire pour éviter les zigzags
-            ent.GP2_PortalImmunity = CurTime() + 0 -- 1 seconde d'immunité
-            clone:Remove()
-            ent.clone = nil
-        end
-    end
-
-     if placementIn == "FLOOR" and placementOut == "WALL" then
-        if ent.clone and IsValid(ent.clone) then
-            -- Swap original <-> clone avec immunité temporaire
-            local clone = ent.clone
-            local phys = ent:GetPhysicsObject()
-            local oldVel = phys and phys:IsValid() and phys:GetVelocity() or nil
-
-		-- Adapter la vélocité selon le yaw du portail de sortie
-		local yaw = math.Round((portalOut.StableAngles or portalOut:GetAngles()).y)
-		local yoldVel = oldVel.y
-		if yaw == 0 then
-			-- Mur orienté vers l'est (Yaw 0)
-			oldVel.x = oldVel.z
-			oldVel.y = oldVel.y
-		elseif yaw == 90 or yaw == -270 then
-			oldVel.y = oldVel.z
-			oldVel.x = -oldVel.x
-		elseif yaw == 180 or yaw == -180 then
-			-- Mur orienté vers l'ouest (Yaw 180)
-			oldVel.x = -oldVel.z
-			oldVel.y = -oldVel.y
-		elseif yaw == -90 or yaw == 270 then
-			-- Mur orienté vers le sud (Yaw -90)
-			oldVel.y = -oldVel.z
-			oldVel.x = oldVel.x
-		else
-			-- Par défaut, inverser x et y
-			oldVel.x = -oldVel.y
-			oldVel.y = -yoldVel
-		end
-		oldVel.z = 0
-            ent:SetPos(clone:GetPos())
-            ent:SetAngles(clone:GetAngles())
-            phys:SetVelocity(oldVel)
-            -- Appliquer l'immunité temporaire pour éviter les zigzags
-            ent.GP2_PortalImmunity = CurTime() + 0 -- 1 seconde d'immunité
-            clone:Remove()
-            ent.clone = nil
-        end
-    end
-
-     if placementIn == "FLOOR" and placementOut == "ROOF" then
-        if ent.clone and IsValid(ent.clone) then
-            -- Swap original <-> clone avec immunité temporaire
-            local clone = ent.clone
-            local phys = ent:GetPhysicsObject()
-            local oldVel = phys and phys:IsValid() and phys:GetVelocity() or nil
-            oldVel.z = oldVel.z
-            oldVel.y = -oldVel.y
-            ent:SetPos(clone:GetPos())
-            ent:SetAngles(clone:GetAngles())
-            phys:SetVelocity(oldVel)
-            -- Appliquer l'immunité temporaire pour éviter les zigzags
-            ent.GP2_PortalImmunity = CurTime() + 0 -- 1 seconde d'immunité
-            clone:Remove()
-            ent.clone = nil
-        end
-    end
-    -- Nettoyer les contraintes AdvBallsocket pour éviter l'accumulation
-    if SERVER then
-        constraint.RemoveConstraints(ent, "AdvBallsocket")
-    end
+-- Nettoyage optimisé d'entité
+function ENT:CleanupEntity(ent)
     if ent.clone and IsValid(ent.clone) then
         ent.clone.TouchingPortalsCount = (ent.clone.TouchingPortalsCount or 1) - 1
         if ent.clone.TouchingPortalsCount <= 0 then
-            local clone = ent.clone
-            -- Si le prop d'origine doit être remplacé par un nouveau prop (logique de téléportation)
-            if ent.GP2_ShouldRespawnAfterPortal then
-                -- Le clone devient le nouvel original
-                if IsValid(clone) then
-                    -- Transférer les propriétés importantes
-                    clone:SetPos(ent:GetPos())
-                    clone:SetAngles(ent:GetAngles())
-                    local phys = clone:GetPhysicsObject()
-                    if IsValid(phys) then
-                        local origPhys = ent:GetPhysicsObject()
-                        if IsValid(origPhys) then
-                            phys:SetVelocity(origPhys:GetVelocity())
-                        end
-                        phys:EnableCollisions(true)
-                        phys:EnableGravity(true)
-                        phys:EnableMotion(true)
-                    end
-                    clone.isClone = nil
-                    clone.daddyEnt = nil
-                    clone.InPortal = nil
-                    clone:SetSolid(SOLID_VPHYSICS)
-                    clone:SetCollisionGroup(COLLISION_GROUP_NONE)
-                    -- Nettoyer la référence clone
-                    ent.clone = nil
-                    -- Supprimer l'original
-                    if ent:IsValid() then ent:Remove() end
-                end
-            else
-                -- Sinon, juste supprimer le clone
-                if IsValid(clone) then clone:Remove() end
-                ent.clone = nil
-            end
+            SafeRemoveEntity(ent.clone)
         end
     end
+
     ent.InPortal = nil
+    ent.clone = nil
+
+    -- Restaurer le groupe de collision original
     if ent.OriginalCollisionGroup then
         ent:SetCollisionGroup(ent.OriginalCollisionGroup)
         ent.OriginalCollisionGroup = nil
     end
+
+    -- Nettoyage des contraintes en différé pour éviter les lags
+    if SERVER then
+        timer.Simple(0, function()
+            if IsValid(ent) then
+                constraint.RemoveConstraints(ent, "AdvBallsocket")
+            end
+        end)
+    end
+end
+
+-- Fonction utilitaire pour nettoyer les entités de manière sécurisée
+function SafeRemoveEntity(ent)
+	if not ent or not IsValid(ent) then return end
+
+	-- Nettoyer les références avant suppression
+	if ent.clone then
+		ent.clone = nil
+	end
+	if ent.daddyEnt then
+		ent.daddyEnt = nil
+	end
+	if ent.InPortal then
+		ent.InPortal = nil
+	end
+
+	-- Suppression différée pour éviter les erreurs
+	timer.Simple(0, function()
+		if IsValid(ent) then
+			ent:Remove()
+		end
+	end)
 end
 
 -- === Système de clonage et téléportation des props (hérité, adapté) ===
@@ -689,57 +707,117 @@ end
 
 function ENT:SyncClone(ent)
 	local clone = ent.clone
+
+	-- Vérifications rapides d'abord
+	if not clone or not IsValid(clone) then return end
 	if not self:IsLinked() or not self:GetActivated() then return end
-	if not IsValid(clone) then return end
 
 	local portal = self:GetLinkedPartner()
 	if not IsValid(portal) then return end
 
-	-- Correction : inverser l'offset latéral pour la symétrie gauche/droite
-	local offset = self:WorldToLocal(ent:GetPos())
-	offset.x = offset.x
-	offset.y = -offset.y
-	offset.z = -offset.z
-	local newPos = portal:LocalToWorld(offset)
-	local newAngles = self:GetPortalAngleOffsets(portal, ent)
+	-- Cache de la transformation pour éviter les recalculs
+	local cacheKey = self:EntIndex() .. "_" .. portal:EntIndex()
+	if not self.TransformCache then self.TransformCache = {} end
 
-	clone:SetPos(newPos)
-	newAngles.y =  newAngles.y
-	newAngles.p =  newAngles.p
+	local transform = self.TransformCache[cacheKey]
+	if not transform then
+		-- Calculer une seule fois la transformation de coordonnées
+		transform = {
+			offsetMultiplier = Vector(1, -1, -1),
+			angleMultiplier = Vector(1, 1, -1)
+		}
+		self.TransformCache[cacheKey] = transform
+	end
+
+	-- Transformation optimisée de position
+	local offset = self:WorldToLocal(ent:GetPos())
+	offset:Mul(transform.offsetMultiplier)
+	local newPos = portal:LocalToWorld(offset)
+
+	-- Transformation optimisée d'angles
+	local newAngles = self:GetPortalAngleOffsets(portal, ent)
 	newAngles.r = -newAngles.r
+
+	-- Mise à jour atomique du clone
+	clone:SetPos(newPos)
 	clone:SetAngles(newAngles)
 
-	-- Appliquer la vélocité de l'original au clone, transformée selon l'orientation des portails
+	-- Synchronisation de vélocité optimisée (seulement côté serveur)
 	if SERVER then
 		local origPhys = ent:GetPhysicsObject()
 		local clonePhys = clone:GetPhysicsObject()
 		if IsValid(origPhys) and IsValid(clonePhys) then
 			local origVel = origPhys:GetVelocity()
-			local transformedVel = self:TransformVelocityBetweenPortals(origVel, portal)
+			-- Utiliser la fonction optimisée de transformation de vélocité
+			local transformedVel = self:TransformVelocityOptimized(
+				origVel,
+				self:GetPlacementType(),
+				portal:GetPlacementType(),
+				portal
+			)
 			clonePhys:SetVelocity(transformedVel)
 		end
 	end
 
+	-- Synchronisation des propriétés visuelles (éviter les comparaisons coûteuses)
 	clone.GP2_NoSyncFrames = 0
 
-	if clone:GetSkin() ~= ent:GetSkin() then
-		clone:SetSkin(ent:GetSkin())
+	-- Synchronisation différée des propriétés visuelles pour éviter les appels fréquents
+	if not clone.GP2_LastVisualSync or CurTime() - clone.GP2_LastVisualSync > 0.1 then
+		self:SyncCloneVisuals(ent, clone)
+		clone.GP2_LastVisualSync = CurTime()
 	end
-	if clone:GetMaterial() ~= ent:GetMaterial() then
-		clone:SetMaterial(ent:GetMaterial())
+end
+
+-- Fonction séparée pour la synchronisation visuelle (appelée moins fréquemment)
+function ENT:SyncCloneVisuals(ent, clone)
+	local entSkin = ent:GetSkin()
+	local entMaterial = ent:GetMaterial()
+	local entColor = ent:GetColor()
+
+	if clone:GetSkin() ~= entSkin then
+		clone:SetSkin(entSkin)
 	end
-	if clone:GetColor() ~= ent:GetColor() then
-		clone:SetColor(ent:GetColor())
+	if clone:GetMaterial() ~= entMaterial then
+		clone:SetMaterial(entMaterial)
+	end
+	if clone:GetColor() ~= entColor then
+		clone:SetColor(entColor)
 	end
 end
 
 -- Supprimer l'ancienne fonction CheckCloneImmobile qui créait des plastic crates
 
--- Ajout d'un hook Think pour incrémenter le compteur de frames sans sync
+-- Hook Think optimisé avec limitation de fréquence et cache d'entités
+local GP2_CloneCheckCache = {}
+local GP2_LastCloneCheck = 0
+local GP2_CloneCheckInterval = 0.1 -- Vérifier seulement 10 fois par seconde
+
 hook.Add("Think", "GP2_CloneSyncCheck", function()
-	for _, ent in ipairs(ents.GetAll()) do
+	local currentTime = CurTime()
+
+	-- Limiter la fréquence des vérifications pour améliorer les performances
+	if currentTime - GP2_LastCloneCheck < GP2_CloneCheckInterval then
+		return
+	end
+	GP2_LastCloneCheck = currentTime
+
+	-- Nettoyer le cache périodiquement
+	if math.random(1, 100) == 1 then
+		GP2_CloneCheckCache = {}
+	end
+
+	-- Parcourir seulement les entités mises en cache ou nouvelles
+	for _, ent in ipairs(ents.FindByClass("prop_*")) do
 		if ent.isClone and ent.GP2_NoSyncFrames ~= nil then
 			ent.GP2_NoSyncFrames = ent.GP2_NoSyncFrames + 1
+
+			-- Nettoyage automatique des clones orphelins (optimisation mémoire)
+			if ent.GP2_NoSyncFrames > 600 then -- 60 secondes à 10 FPS
+				if not ent.daddyEnt or not IsValid(ent.daddyEnt) then
+					SafeRemoveEntity(ent)
+				end
+			end
 		end
 	end
 end)
