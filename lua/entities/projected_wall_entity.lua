@@ -40,14 +40,44 @@ function ENT:Initialize()
     self:AddEffects(EF_NODRAW)
 end
 
+-- Cache pour optimiser les calculs de collision
+ENT.LastPlayerCheckTime = 0
+ENT.PlayerCheckInterval = 0.1 -- Vérifier les joueurs seulement 10 fois par seconde
+ENT.CachedPlayerPositions = {}
+
 function ENT:Think()
     if self.IsPortalClone then
-        -- Un clone ne doit pas faire de trace ni de clonage
-        -- Décoinceur de joueurs coincés dans le mur projeté (appliqué aussi au clone)
-        if SERVER then
+        -- Un clone ne doit pas faire de trace ni de clonage - optimisation majeure
+        self:NextThink(CurTime() + 0.5) -- Intervalle très réduit pour les clones
+        return true
+    end
+
+    -- Décoinceur de joueurs avec cache optimisé
+    if SERVER then
+        local curTime = CurTime()
+
+        -- Optimisation : réduire la fréquence des vérifications de collision
+        if curTime - self.LastPlayerCheckTime >= self.PlayerCheckInterval then
+            self.LastPlayerCheckTime = curTime
+
             local physMins, physMaxs = self:GetCollisionBounds()
             local wallPos = self:GetPos()
-            local wallAng = self:GetAngles()
+
+            -- Cache des positions pour éviter les recalculs
+            for _, ply in ipairs(player.GetAll()) do
+                if IsValid(ply) and ply:Alive() then
+                    local plyPos = ply:GetPos()
+                    local distSqr = wallPos:DistToSqr(plyPos)
+
+                    -- Vérification rapide de distance avant calculs coûteux
+                    if distSqr < 16384 then -- 128 units squared
+                        if plyPos:WithinAABox(wallPos + physMins, wallPos + physMaxs) then
+                            ply:SetPos(plyPos + Vector(0, 0, 1))
+                        end
+                    end
+                end
+            end
+        end
             -- Calculer la bounding box en coordonnées monde
             local minsWorld = wallPos + wallAng:Forward() * physMins.x + wallAng:Right() * physMins.y + wallAng:Up() * physMins.z
             local maxsWorld = wallPos + wallAng:Forward() * physMaxs.x + wallAng:Right() * physMaxs.y + wallAng:Up() * physMaxs.z

@@ -413,7 +413,20 @@ function ENT:GetPlayerBasedColor()
     return color or Vector(2, 114, 210) -- Couleur par défaut
 end
 
+-- Cache d'optimisation pour le rendu des portails
+ENT.LastRenderUpdate = 0
+ENT.RenderUpdateInterval = 0.033 -- 30 FPS max pour le rendu des portails
+
 function ENT:Think()
+	local curTime = CurTime()
+
+	-- Optimisation majeure : limiter la fréquence de mise à jour du rendu
+	if curTime - self.LastRenderUpdate < self.RenderUpdateInterval then
+		self:NextThink(curTime + self.RenderUpdateInterval)
+		return true
+	end
+
+	self.LastRenderUpdate = curTime
 	if not self:GetActivated() then return end
 	if PropPortal and PropPortal.AddToRenderList then
 		PropPortal.AddToRenderList(self)

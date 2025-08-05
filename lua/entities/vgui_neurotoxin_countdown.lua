@@ -21,7 +21,7 @@ function ENT:KeyValue(k, v)
     if k == "width" then
         self:SetWidth(tonumber(v))
     elseif k == "height" then
-        self:SetHeight(tonumber(v))        
+        self:SetHeight(tonumber(v))
     elseif k == "countdown" then
         self.Countdown = tonumber(v)
     end
@@ -30,8 +30,12 @@ end
 function ENT:Think()
     -- OPTIMISATION : Early return si déjà dans la render list côté client
     if CLIENT then
-        if VguiNeurotoxinCountdown.IsAddedToRenderList(self) then return end
+        if VguiNeurotoxinCountdown.IsAddedToRenderList(self) then
+            self:SetNextThink(CurTime() + 1) -- Réduire la fréquence à 1 fois par seconde
+            return
+        end
         VguiNeurotoxinCountdown.AddToRenderList(self)
+        self:SetNextThink(CurTime() + 0.1) -- Vérifier de nouveau dans 0.1 seconde
     end
 end
 

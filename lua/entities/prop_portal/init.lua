@@ -811,22 +811,39 @@ hook.Add("Think", "GP2_CloneSyncCheck", function()
 	end
 	GP2_LastCloneCheck = currentTime
 
-	-- Nettoyer le cache périodiquement
-	if math.random(1, 100) == 1 then
+	-- Nettoyer le cache périodiquement (réduire de 1% à 0.1% pour moins de lag spikes)
+	if math.random(1, 1000) == 1 then
 		GP2_CloneCheckCache = {}
 	end
 
-	-- Parcourir seulement les entités mises en cache ou nouvelles
-	for _, ent in ipairs(ents.FindByClass("prop_*")) do
-		if ent.isClone and ent.GP2_NoSyncFrames ~= nil then
+	-- Utiliser cache d'entités au lieu de ents.FindByClass() coûteux à chaque frame
+	if not GP2_CloneCheckCache.entities or GP2_CloneCheckCache.lastUpdate < currentTime - 1 then
+		GP2_CloneCheckCache.entities = {}
+		-- Parcourir seulement les entités clones, pas toutes les prop_*
+		for _, ent in ipairs(ents.GetAll()) do
+			if ent.isClone then
+				table.insert(GP2_CloneCheckCache.entities, ent)
+			end
+		end
+		GP2_CloneCheckCache.lastUpdate = currentTime
+	end
+
+	-- Traiter les entités en cache
+	for i = #GP2_CloneCheckCache.entities, 1, -1 do
+		local ent = GP2_CloneCheckCache.entities[i]
+		if IsValid(ent) and ent.GP2_NoSyncFrames ~= nil then
 			ent.GP2_NoSyncFrames = ent.GP2_NoSyncFrames + 1
 
 			-- Nettoyage automatique des clones orphelins (optimisation mémoire)
 			if ent.GP2_NoSyncFrames > 600 then -- 60 secondes à 10 FPS
 				if not ent.daddyEnt or not IsValid(ent.daddyEnt) then
 					SafeRemoveEntity(ent)
+					table.remove(GP2_CloneCheckCache.entities, i)
 				end
 			end
+		else
+			-- Nettoyer les entités invalides du cache
+			table.remove(GP2_CloneCheckCache.entities, i)
 		end
 	end
 end)

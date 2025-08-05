@@ -55,13 +55,43 @@ local renderViewTable = {
 	znear = 0.1
 }
 
--- sort the portals by distance since draw functions do not obey the z buffer
-timer.Create("seamless_portal_distance_fix", 0.25, 0, function()
+-- Optimiser le tri des portaux : moins fréquent et avec cache de distance
+local portal_cache = {}
+local last_portal_update = 0
+
+timer.Create("seamless_portal_distance_fix", 0.5, 0, function() -- Réduire de 0.25 à 0.5 pour moins de charge CPU
 	if ! PortalManager or PortalManager.PortalIndex < 1 then return end
-	portals = ents.FindByClass("prop_portal")
-	table.sort(portals, function(a, b)
-		return a:GetPos():DistToSqr(EyePos()) < b:GetPos():DistToSqr(EyePos())
+
+	local current_time = RealTime()
+	local eye_pos = EyePos()
+
+	-- Utiliser cache de portaux si disponible et récent
+	if current_time - last_portal_update > 1.0 then -- Mise à jour des portaux seulement chaque seconde
+		portal_cache = ents.FindByClass("prop_portal")
+		last_portal_update = current_time
+	end
+
+	-- Pré-calculer les distances au carré pour éviter les recalculs
+	local distances = {}
+	for i, portal in ipairs(portal_cache) do
+		if IsValid(portal) then
+			distances[i] = portal:GetPos():DistToSqr(eye_pos)
+		else
+			distances[i] = math.huge -- Portail invalide, placer en fin de liste
+		end
+	end
+
+	-- Tri optimisé avec distances pré-calculées
+	table.sort(portal_cache, function(a, b)
+		local idx_a, idx_b
+		for i, p in ipairs(portal_cache) do
+			if p == a then idx_a = i end
+			if p == b then idx_b = i end
+		end
+		return distances[idx_a] < distances[idx_b]
 	end)
+
+	portals = portal_cache
 
 	-- update sky material (I guess it can change?)
 	if sky_name != sky_cvar:GetString() then

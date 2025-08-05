@@ -111,21 +111,34 @@ function ENT:Initialize()
     self:NextThink(CurTime())
 end
 
+-- Cache pour éviter les recalculs inutiles
+ENT.LastLaserUpdate = 0
+ENT.LaserUpdateInterval = 0.1 -- 100ms au lieu de chaque tick
+ENT.CachedLaserData = nil
+
 function ENT:Think()
+    -- Optimisation majeure : éviter les recalculs si rien n'a changé
+    local curTime = CurTime()
+    if curTime - self.LastLaserUpdate < self.LaserUpdateInterval then
+        self:NextThink(curTime + self.LaserUpdateInterval)
+        return true
+    end
+
     local time = os.clock()
 
-    self:FireLaser()
+    -- Cache pour optimiser les calculs répétitifs
+    if not self.CachedLaserData or curTime - self.LastLaserUpdate > 0.5 then
+        self:FireLaser()
+        self.LastLaserUpdate = curTime
+    end
 
     if portal_laser_perf_debug:GetBool() then
         GP2.Print("EnvPortalLaser :: Think - execution time: %.6f seconds", os.clock() - time)
     end
 
-    -- Fréquence de mise à jour plus élevée pour les lasers réfléchis pour un rendu fluide
-    if IsValid(self:GetParentLaser()) then
-        self:NextThink(CurTime() + portal_laser_high_precision_update:GetFloat())
-    else
-        self:NextThink(CurTime() + portal_laser_normal_update:GetFloat())
-    end
+    -- Intervalles optimisés : réduire la fréquence
+    local interval = IsValid(self:GetParentLaser()) and 0.05 or 0.1
+    self:NextThink(curTime + interval)
 
     return true
 end
@@ -140,14 +153,35 @@ function ENT:RecursionLaserThroughPortals(data, recursionDepth, visitedPortals, 
         return { HitPos = data.endpos, Entity = NULL, Fraction = 1 }, laserSegments
     end
 
-    -- D'abord, détecter les portails le long du rayon AVANT le trace line
+    -- OPTIMISATION: Utiliser le cache global des portails au lieu de ents.FindAlongRay()
     local rayStart = data.start
     local rayEnd = data.endpos
-    local extents = Vector(10, 10, 10)
     local foundPortalEntity = nil
     local portalHitPos = nil
 
-    local rayHits = ents.FindAlongRay(rayStart, rayEnd, -extents, extents)
+    -- Cache optimisé : utiliser le gestionnaire de portails global
+    if PortalManager and PortalManager.Portals then
+        for portal in pairs(PortalManager.Portals) do
+            if IsValid(portal) and portal:GetActivated() then
+                local portalPos = portal:GetPos()
+                local rayDir = (rayEnd - rayStart):GetNormalized()
+                local toPortal = portalPos - rayStart
+                local projDist = toPortal:Dot(rayDir)
+
+                -- Vérification rapide de distance avant calculs coûteux
+                if projDist > 0 and projDist < (rayEnd - rayStart):Length() then
+                    local projPoint = rayStart + rayDir * projDist
+                    local distToRay = (portalPos - projPoint):Length()
+
+                    if distToRay < 32 then -- Tolérance pour la détection de portail
+                        foundPortalEntity = portal
+                        portalHitPos = projPoint
+                        break
+                    end
+                end
+            end
+        end
+    end
     for _, ent in ipairs(rayHits) do
         if IsValid(ent) and ent:GetClass() == "prop_portal" and IsValid(ent:GetLinkedPartner()) then
             -- Vérifier si on a déjà visité ce portail

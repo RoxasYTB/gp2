@@ -349,9 +349,17 @@ if SERVER then
         fixPortalColors()
     end)
 
+    -- Hook Think optimisé avec cache et fréquence réduite
+    local lastThinkTime = 0
+    local thinkInterval = 0.1 -- 100ms au lieu de chaque tick
+
     hook.Add("Think", "GP2::Think", function()
+        local curTime = CurTime()
+        if curTime - lastThinkTime < thinkInterval then return end
+        lastThinkTime = curTime
+
         GP2.VScriptMgr.Think()
-        -- SoundManager.Think()
+        -- SoundManager.Think() -- Déjà optimisé
         MouthManager.Think()
     end)
 
