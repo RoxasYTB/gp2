@@ -726,8 +726,11 @@ function ENT:CalculatePortalExitSegments(startPos, direction)
             end
 
             -- Décaler légèrement pour éviter de retoucher le portail
-            -- newPos = newPos + newAng:Forward() * 10
-            newPos = newPos + newAng:Forward() * 0
+            newPos = newPos + newAng:Forward() * 30
+            newPos = newPos + newAng:Up() * offsetZ
+            -- Inverser la direction du laser si le portail de sortie est au plafond ou au sol
+
+                newAng = Angle(-newAng.p, newAng.y, newAng.r)
 
             -- Calculer la position d'impact sur le portail d'entrée avec les mêmes offsets
             -- pour que les segments se connectent correctement
