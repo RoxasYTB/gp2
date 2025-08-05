@@ -793,7 +793,7 @@ function SWEP:ViewModelDrawn(vm)
 		end
 	end
 
-	if self.TopLightColor ~= lightColor then
+
 		-- Set color to current portal placed
 		if IsValid(self.TopLightFirstPerson) then
 			self.TopLightFirstPerson:SetControlPoint(1, lightColor)
@@ -804,7 +804,7 @@ function SWEP:ViewModelDrawn(vm)
 		end
 
 		self.TopLightColor = lightColor
-	end
+
 
 	if not self.TopLightColor then
 		self.TopLightColor = Vector()
