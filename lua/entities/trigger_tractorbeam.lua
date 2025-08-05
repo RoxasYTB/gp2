@@ -112,7 +112,6 @@ function ENT:ProcessEntity(ent)
         if IsValid(portal) and portal:GetClass() == "prop_portal" then
             local portalPos = portal:GetPos()
             local dist = entPos:Distance(portalPos)
-             print("passedPortal: ", self.passedPortal)
             if dist > 50 then
                 self.passedPortal = false
             end
@@ -120,8 +119,7 @@ function ENT:ProcessEntity(ent)
                 isNearPortal = true
 
                 if dist > 2 and (not immunityEnd or now > immunityEnd) and self.passedPortal == false then
-                     print("Entité %s détectée dans le beam à proximité d'un portail", ent:GetClass(), "Distance: " .. dist)
-                     print("ImmunityEnd: ", immunityEnd, "Now: ", now)
+
                          -- Déplacement progressif (1 unité max par tick)
                     local direction = (portalPos - entPos):GetNormalized()
                     local step = math.min(1, dist)
@@ -130,7 +128,6 @@ function ENT:ProcessEntity(ent)
                 end
                 if dist < 2 and (not immunityEnd or now > immunityEnd) then
                     -- Immunité temporaire (ex: 1 seconde) après passage dans le portail
-                    print("Entité " .. ent:GetClass() .. " immunisée au rapprochement automatique vers le portail pour 1s")
                     self.PortalImmunity[ent] = now + 5
                     self.passedPortal = true
                 end
