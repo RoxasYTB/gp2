@@ -354,6 +354,8 @@ function ENT:StartTouch(ent)
 	if ent.InPortal then return end
 
 	if ent:IsPlayer() then
+		local pos = ent:GetPos() + self:GetUp()
+		ent:SetPos(pos)
 		-- Garder le nouveau système pour les joueurs
 		if not self:PlayerWithinBounds(ent) then return end
 		ent.JustEntered = true
