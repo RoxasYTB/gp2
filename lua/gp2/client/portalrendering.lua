@@ -88,20 +88,28 @@ local function UpdatePortalsAndSky()
 		end
 	end
 
-	-- Tri optimisé avec distances pré-calculées
-	table.sort(portal_cache, function(a, b)
-		local idx_a, idx_b
-		for i, p in ipairs(portal_cache) do
-			if p == a then idx_a = i end
-			if p == b then idx_b = i end
+	-- Nettoyer la table avant le tri pour ne garder que les portails valides et uniques
+	local cleaned_portal_cache = {}
+	local seen = {}
+	for _, portal in ipairs(portal_cache) do
+		if IsValid(portal) and not seen[portal] then
+			table.insert(cleaned_portal_cache, portal)
+			seen[portal] = true
 		end
-		if not idx_a or not idx_b then
-			return false -- Si un portail n'est pas trouvé, ne pas échanger
-		end
-		return distances[idx_a] < distances[idx_b]
+	end
+
+	-- Recalculer les distances pour la table nettoyée
+	local cleaned_distances = {}
+	for i, portal in ipairs(cleaned_portal_cache) do
+		cleaned_distances[i] = portal:GetPos():DistToSqr(eye_pos)
+	end
+
+	-- Tri optimisé : plus simple et toujours valide
+	table.sort(cleaned_portal_cache, function(a, b)
+		return a:GetPos():DistToSqr(eye_pos) < b:GetPos():DistToSqr(eye_pos)
 	end)
 
-	portals = portal_cache
+	portals = cleaned_portal_cache
 
 	-- update sky material (I guess it can change?)
 	if sky_name != sky_cvar:GetString() then

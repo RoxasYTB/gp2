@@ -477,6 +477,12 @@ function ENT:Think()
 		local right = mat:GetRight()
 		local up = mat:GetUp()
 		self.RingParticle:SetControlPointOrientation(0, right, fwd, up)
+
+		-- Ajout : mise à jour dynamique de la couleur du ring
+		local color = self:GetPlayerBasedColor()
+		if color then
+			self.RingParticle:SetControlPoint(1, color / 255)
+		end
 	end
 
 	-- Gestion dynamique de la recréation du ring si les angles changent
@@ -502,6 +508,15 @@ function ENT:Think()
 		phys:SetMaterial("glass")
 		phys:SetPos(self:GetPos())
 		phys:SetAngles(self:GetAngles())
+	end
+
+	-- Mise à jour dynamique de la couleur du mesh du portail (pour le rendu principal)
+	if CLIENT then
+		local color = self:GetPlayerBasedColor()
+		if color and self:GetColorVectorInternal() ~= color then
+			self:SetColorVectorInternal(color)
+			self:SetColorVector01Internal(color * 0.5 / 255)
+		end
 	end
 
 	self:NextThink(CurTime())
