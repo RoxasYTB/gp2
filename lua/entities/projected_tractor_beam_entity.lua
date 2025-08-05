@@ -157,18 +157,36 @@ function ENT:Think()
                     clone.IsPortalClone = true
                     clone.OrigZ = self.OrigZ -- Copie la hauteur d'origine pour le calcul d'offset Z
                     clone:SetPos(bestPortalClonePos)
+
                     -- Correction orientation du clone selon le type de portail
                     local exitPortalPitch = bestPortalCloneLinked:GetAngles().p
+                    local exitPortalYaw = bestPortalCloneLinked:GetAngles().y
+                    local exitPortalRoll = bestPortalCloneLinked:GetAngles().r
+                    -- print("Exit Portal Pitch, Yaw, Roll:", exitPortalPitch, exitPortalYaw, exitPortalRoll)
                     local cloneAng = bestPortalCloneLinked:GetAngles()
-                    if math.abs(exitPortalPitch - 90) < 10 then
-                        -- Portail au sol : Up
+
+                    if math.abs(exitPortalPitch + 90) < 1 then
+                        -- Mur (pitch == -90)
+                        -- print("Portail sur un mur détecté (pitch -90), orientation Forward")
+                        cloneAng.y = 45 -- Reset pitch to 45
                         clone:SetAngles(cloneAng)
-                    elseif math.abs(exitPortalPitch + 90) < 10 then
-                        -- Portail au plafond : Down
+                    elseif math.abs(exitPortalRoll + 180) < 10 then
+                        -- Plafond
+                        -- print("Portail au plafond détecté, orientation Down")
                         cloneAng:RotateAroundAxis(cloneAng:Right(), 180)
-                        clone:SetAngles(cloneAng)
+                        local ang = cloneAng
+                        ang = Angle(-ang.p, ang.y, ang.r)
+                        clone:SetAngles(ang)
+                    elseif math.abs(exitPortalRoll) < 10 then
+                        -- Sol
+                        -- print("Portail au sol détecté, orientation Up")
+                        cloneAng:RotateAroundAxis(cloneAng:Forward(), 180)
+                        local ang = cloneAng
+                        ang = Angle(-ang.p, ang.y, ang.r)
+                        clone:SetAngles(ang)
                     else
-                        -- Mur : Forward
+                        -- Mur (fallback)
+                        -- print("Portail sur un mur détecté (fallback), orientation Forward")
                         clone:SetAngles(cloneAng)
                     end
                     clone:SetRadius(self:GetRadius())
@@ -185,16 +203,49 @@ function ENT:Think()
                 self.PortalClone:SetPos(bestPortalClonePos)
                 -- Appliquer la même correction d'orientation que lors de la création
                 local exitPortalPitch = bestPortalCloneLinked:GetAngles().p
+                local exitPortalRoll = bestPortalCloneLinked:GetAngles().r
+                local exitPortalYaw = bestPortalCloneLinked:GetAngles().y
                 local cloneAng = bestPortalCloneLinked:GetAngles()
-                if math.abs(exitPortalPitch - 90) < 10 then
-                    -- Portail au sol : Up
+
+                if math.abs(exitPortalPitch + 90) < 1 then
+                    -- Mur (pitch == -90)
+                    -- Détection Nord/Sud/Est/Ouest selon l'angle Yaw du portail de sortie
+                    -- 0 = Nord, 90 = Est, 180 = Sud, -90 ou 270 = Ouest
+                    local yaw = math.NormalizeAngle(exitPortalYaw)
+                    if (yaw >= -45 and yaw < 45) then
+                        -- Nord
+                        -- print("Portail orienté Nord (Yaw ~0)")
+                        cloneAng = Angle(180, 0, 0)
+                    elseif (yaw >= 45 and yaw < 135) then
+                        -- Est
+                        -- print("Portail orienté Est (Yaw ~90)")
+                        cloneAng = Angle(180, 90, 0)
+                    elseif (yaw >= 135 or yaw < -135) then
+                        -- Sud
+                        -- print("Portail orienté Sud (Yaw ~180)")
+                        cloneAng = Angle(180, 180, 0)
+                    elseif (yaw >= -135 and yaw < -45) then
+                        -- Ouest
+                        -- print("Portail orienté Ouest (Yaw ~-90)")
+                        cloneAng = Angle(180, -90, 0)
+                    end
                     self.PortalClone:SetAngles(cloneAng)
-                elseif math.abs(exitPortalPitch + 90) < 10 then
-                    -- Portail au plafond : Down
+                elseif exitPortalRoll == 180 or exitPortalRoll == -180 then
+                    -- Plafond
+                    -- print("Portail au plafond détecté, orientation Down")
                     cloneAng:RotateAroundAxis(cloneAng:Right(), 180)
-                    self.PortalClone:SetAngles(cloneAng)
+                    local ang = cloneAng
+                    ang = Angle(90, 0, 90)
+                    self.PortalClone:SetAngles(ang)
+                elseif math.abs(exitPortalRoll) < 10 then
+                    -- Sol
+                    cloneAng:RotateAroundAxis(cloneAng:Forward(), 180)
+                    local ang = cloneAng
+                    ang = Angle(90, 0, 0)
+                    ang = Angle(-ang.p, ang.y, ang.r)
+                    self.PortalClone:SetAngles(ang)
                 else
-                    -- Mur : Forward
+                    -- Mur (fallback)
                     self.PortalClone:SetAngles(cloneAng)
                 end
                 self.PortalClone:SetRadius(self:GetRadius())

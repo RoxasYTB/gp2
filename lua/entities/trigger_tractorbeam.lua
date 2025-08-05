@@ -7,6 +7,7 @@ ENT.Type = "brush"
 ENT.Base = "base_brush"
 ENT.TouchingEnts = {}
 ENT.TractorBeam = NULL
+ENT.PortalImmunity = ENT.PortalImmunity or {}
 
 local TRACTOR_BEAM_VALID_ENTS = {
     --["player"] = true, -- player movement handled by Move hook
@@ -25,9 +26,13 @@ local TRACTOR_BEAM_VALID_ENTS = {
     ["npc_rollermine"] = true,
 }
 
+local COLLISION_GROUP_BEAM = COLLISION_GROUP_WORLD -- collision group utilisé pour ignorer les collisions dans la beam
+ENT.OriginalCollisionGroups = {}
+
 function ENT:Initialize()
     self:SetSolid(SOLID_BBOX)
     self:SetTrigger(true)
+    self.passedPortal = false
 end
 
 function ENT:SetTractorBeam(tbeam)
@@ -56,7 +61,7 @@ function ENT:Think()
                 GP2.GameMovement.PlayerExitedFromTractorBeam(ent, self)
             end
         else
-            self:ProcessEntity(ent) 
+            self:ProcessEntity(ent)
         end
     end
 
@@ -66,16 +71,20 @@ end
 
 function ENT:StartTouch(ent)
     if IsValid(self.TractorBeam) then
-        
         if (TRACTOR_BEAM_VALID_ENTS[ent:GetClass()]) then
             table.insert(self.TouchingEnts, ent)
+            -- Désactive les collisions pour les entités non-joueurs
+            if not ent:IsPlayer() then
+                self.OriginalCollisionGroups[ent] = ent:GetCollisionGroup()
+                ent:SetCollisionGroup(COLLISION_GROUP_BEAM)
+            end
         elseif ent:IsPlayer() then
             GP2.GameMovement.PlayerEnteredToTractorBeam(ent, self)
 
             if self.sndPlayerInBeam then
                 self.sndPlayerInBeam:Stop()
             end
-            
+
             local filter = RecipientFilter(true)
             filter:AddPlayer(ent)
 
@@ -83,11 +92,58 @@ function ENT:StartTouch(ent)
             self.sndPlayerInBeam:Play()
         elseif ent:IsNPC() or ent:IsNextBot() or ent:IsVehicle() then
             table.insert(self.TouchingEnts, ent)
+            -- Désactive les collisions pour les entités non-joueurs
+            if not ent:IsPlayer() then
+                self.OriginalCollisionGroups[ent] = ent:GetCollisionGroup()
+                ent:SetCollisionGroup(COLLISION_GROUP_BEAM)
+            end
         end
     end
 end
 
 function ENT:ProcessEntity(ent)
+    -- Détection du contact avec un prop_portal (distance)
+    local entPos = ent:GetPos()
+    local immunityEnd = self.PortalImmunity[ent]
+    local now = CurTime()
+    local isNearPortal = false
+
+    for _, portal in ipairs(ents.FindInSphere(entPos, 64)) do
+        if IsValid(portal) and portal:GetClass() == "prop_portal" then
+            local portalPos = portal:GetPos()
+            local dist = entPos:Distance(portalPos)
+             print("passedPortal: ", self.passedPortal)
+            if dist > 50 then
+                self.passedPortal = false
+            end
+            if dist < 48 then
+                isNearPortal = true
+
+                if dist > 2 and (not immunityEnd or now > immunityEnd) and self.passedPortal == false then
+                     print("Entité %s détectée dans le beam à proximité d'un portail", ent:GetClass(), "Distance: " .. dist)
+                     print("ImmunityEnd: ", immunityEnd, "Now: ", now)
+                         -- Déplacement progressif (1 unité max par tick)
+                    local direction = (portalPos - entPos):GetNormalized()
+                    local step = math.min(1, dist)
+                    local newPos = entPos + direction * step
+                    ent:SetPos(newPos)
+                end
+                if dist < 2 and (not immunityEnd or now > immunityEnd) then
+                    -- Immunité temporaire (ex: 1 seconde) après passage dans le portail
+                    print("Entité " .. ent:GetClass() .. " immunisée au rapprochement automatique vers le portail pour 1s")
+                    self.PortalImmunity[ent] = now + 5
+                    self.passedPortal = true
+                end
+                break
+            end
+        end
+    end
+    -- Si l'entité n'est plus proche d'un portail, on retire l'immunité (pour éviter fuite mémoire)
+    if immunityEnd and not isNearPortal then
+        self.PortalImmunity[ent] = nil
+    end
+
+    -- Le beam applique toujours ses forces, même si l'entité est immunisée au rapprochement portail
     local phys = ent:GetPhysicsObject()
 
     local entPos = ent:WorldSpaceCenter()
@@ -106,17 +162,17 @@ function ENT:ProcessEntity(ent)
 
         local mins, maxs = ent:GetCollisionBounds()
         local boxSize = (maxs - mins):Length()
-    
+
         local trMovementFrontFace = entPos + normalizedForwardForce * (boxSize / 2)
 
         local tr = util.QuickTrace(trMovementFrontFace, normalizedForwardForce * boxSize, {self, ent})
 
-        if tr.Fraction < 0.1 then 
+        if tr.Fraction < 0.1 then
             totalForce = sidewayForce
         else
             totalForce = (forwardForce + sidewayForce) * tr.Fraction
             phys:AddAngleVelocity((forwardForce + sidewayForce) * tr.Fraction / phys:GetMass())
-        end    
+        end
 
         phys:Wake()
         phys:SetVelocity(totalForce)
@@ -129,10 +185,14 @@ function ENT:ProcessEntity(ent)
     ent:SetGroundEntity(NULL)
 end
 
-
 function ENT:EndTouch(ent)
     table.RemoveByValue(self.TouchingEnts, ent)
-
+    -- Ne retire plus l'immunité ici, elle est gérée dans ProcessEntity selon la distance au portail
+    -- Restaure le groupe de collision d'origine si ce n'est pas un joueur
+    if not ent:IsPlayer() and self.OriginalCollisionGroups[ent] then
+        ent:SetCollisionGroup(self.OriginalCollisionGroups[ent])
+        self.OriginalCollisionGroups[ent] = nil
+    end
     if ent:IsPlayer() then
         GP2.GameMovement.PlayerExitedFromTractorBeam(ent, self)
 
