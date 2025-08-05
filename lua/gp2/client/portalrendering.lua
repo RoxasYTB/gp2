@@ -55,21 +55,28 @@ local renderViewTable = {
 	znear = 0.1
 }
 
--- Optimiser le tri des portaux : moins fréquent et avec cache de distance
+-- Optimiser le tri des portails : moins fréquent et avec cache de distance
 local portal_cache = {}
 local last_portal_update = 0
 
-timer.Create("seamless_portal_distance_fix", 0.5, 0, function() -- Réduire de 0.25 à 0.5 pour moins de charge CPU
-	if ! PortalManager or PortalManager.PortalIndex < 1 then return end
+-- update the rendertarget here since we cant do it in postdraw (cuz of infinite recursion)
+local nofunc = function() end
+local render_PushRenderTarget = render.PushRenderTarget
+local render_PopRenderTarget = render.PopRenderTarget
+local render_PushCustomClipPlane = render.PushCustomClipPlane
+local render_PopCustomClipPlane = render.PopCustomClipPlane
+local render_RenderView = render.RenderView
+local render_EnableClipping = render.EnableClipping
 
-	local current_time = RealTime()
+
+local skip = 0
+local function UpdatePortalsAndSky()
+	if not PortalManager or PortalManager.PortalIndex < 1 then return end
+
 	local eye_pos = EyePos()
 
-	-- Utiliser cache de portaux si disponible et récent
-	if current_time - last_portal_update > 1.0 then -- Mise à jour des portaux seulement chaque seconde
-		portal_cache = ents.FindByClass("prop_portal")
-		last_portal_update = current_time
-	end
+	-- Met à jour la liste des portails à chaque frame
+	portal_cache = ents.FindByClass("prop_portal")
 
 	-- Pré-calculer les distances au carré pour éviter les recalculs
 	local distances = {}
@@ -105,20 +112,10 @@ timer.Create("seamless_portal_distance_fix", 0.5, 0, function() -- Réduire de 0
 		sky_materials[5] = Material(prefix .. "rt")
 		sky_materials[6] = Material(prefix .. "up")
 	end
-end)
+end
 
--- update the rendertarget here since we cant do it in postdraw (cuz of infinite recursion)
-local nofunc = function() end
-local render_PushRenderTarget = render.PushRenderTarget
-local render_PopRenderTarget = render.PopRenderTarget
-local render_PushCustomClipPlane = render.PushCustomClipPlane
-local render_PopCustomClipPlane = render.PopCustomClipPlane
-local render_RenderView = render.RenderView
-local render_EnableClipping = render.EnableClipping
-
-
-local skip = 0
 hook.Add("RenderScene", "seamless_portal_draw", function(eyePos, eyeAngles, fov)
+	UpdatePortalsAndSky()
 	if PortalManager.PortalIndex < 1 then return end
 
 	skip = (skip + 1) % gp2_portal_refreshrate:GetInt()

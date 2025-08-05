@@ -159,6 +159,9 @@ function ENT:RecursionLaserThroughPortals(data, recursionDepth, visitedPortals, 
     local foundPortalEntity = nil
     local portalHitPos = nil
 
+    -- Ajout : initialisation de rayHits pour éviter l'erreur nil
+    local rayHits = ents.FindAlongRay(rayStart, rayEnd, RAY_EXTENTS_NEG, RAY_EXTENTS)
+
     -- Cache optimisé : utiliser le gestionnaire de portails global
     if PortalManager and PortalManager.Portals then
         for portal in pairs(PortalManager.Portals) do
@@ -203,8 +206,19 @@ function ENT:RecursionLaserThroughPortals(data, recursionDepth, visitedPortals, 
                     ent:GetAngles(),
                     mins, maxs
                 )
+                -- Correction : si l'intersection échoue, utiliser le point d'impact du trace line
                 if not portalHitPos then
-                    portalHitPos = ent:GetPos()
+                    local tr = util.TraceLine({
+                        start = rayStart,
+                        endpos = rayEnd,
+                        filter = { self, ent },
+                        mask = MASK_OPAQUE_AND_NPCS
+                    })
+                    if tr.Hit and tr.Entity == ent then
+                        portalHitPos = tr.HitPos
+                    else
+                        break -- On ne traverse pas le portail si on n'a pas de point d'impact fiable
+                    end
                 end
                 break
             end
@@ -668,7 +682,7 @@ function ENT:CalculatePortalExitSegments(startPos, direction)
                 -- Portail au plafond (pitch = 90°) : inverser pour aller vers le haut
                 newAng = Angle(-newAng.p, newAng.y, newAng.r)
             elseif math.abs(exitPortalPitch - 270) < 10 then
-                -- Portail au sol (pitch = -90°) : inverser pour aller vers le haut
+                -- Portail au sol (pitch = 270°) : inverser pour aller vers le haut
                 newAng = Angle(-newAng.p, newAng.y, newAng.r)
             end
 
