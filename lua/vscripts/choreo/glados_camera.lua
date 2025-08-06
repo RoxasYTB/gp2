@@ -9,16 +9,16 @@ function StartClawPickup()  -- 45.4
 
     EntFire("camera_1","Enable", "", 2.2)
 
-    EntFire("trigger_weapon_strip", "Enable", "", 2.6)
+    --    EntFire("trigger_weapon_strip", "Enable", "", 2.6) -- Désactivé pour ne pas retirer les armes par défaut
 
     EntFire("camera_1","Disable", "", 3.4)
     EntFire("camera_ghostAnim_2","Enable", "", 3.4)
-    
+
     EntFire("@sphere","SetParent", "ghostAnim", 3.4) -- delay this until we aren't looking at wheatley.
-    EntFire("@sphere","SetParentAttachment", "attach_2", 3.5) 
+    EntFire("@sphere","SetParentAttachment", "attach_2", 3.5)
 
     EntFire("gun_shooter", "Shoot", "", 6 )
-    
+
     EntFire("relay_incinerator_open","Trigger", "", 30.6)
 
     EntFire("achievement_wakeup_glados","FireEvent", "", 37.45)

@@ -4,6 +4,10 @@
 -- ----------------------------------------------------------------------------
 
 if SERVER then
+    local Entity = FindMetaTable("Entity")
+    if not Entity or type(Entity) ~= "table" then
+        Entity = debug.getregistry().Entity or {}
+    end
     -- Cache global optimisé pour les entités avec des timers programmés
     GP2.ScheduledTimers = GP2.ScheduledTimers or {}
     local lastTimerCheck = 0

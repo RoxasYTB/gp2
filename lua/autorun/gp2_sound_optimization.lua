@@ -4,6 +4,10 @@
 -- ----------------------------------------------------------------------------
 
 if SERVER then
+    local Entity = FindMetaTable("Entity")
+    if not Entity or type(Entity) ~= "table" then
+        Entity = debug.getregistry().Entity or {}
+    end
     -- Cache pour limiter les émissions de sons trop fréquentes
     local soundThrottleCache = {}
     local SOUND_THROTTLE_TIME = 0.1 -- Minimum 100ms entre les mêmes sons

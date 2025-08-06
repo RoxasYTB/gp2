@@ -275,7 +275,6 @@ if SERVER then
     include("gp2/mouthmanager.lua")
     include("gp2/gamemovement.lua")
     include("gp2/portalpvs.lua")
-    include("gp2/portalpropteleport.lua")
     include("gp2/paint.lua")
     include("gp2/client/hud.lua")
 

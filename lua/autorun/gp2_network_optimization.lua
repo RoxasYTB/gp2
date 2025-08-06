@@ -4,6 +4,11 @@
 -- ----------------------------------------------------------------------------
 
 if SERVER then
+    local Entity = FindMetaTable("Entity")
+    if not Entity or type(Entity) ~= "table" then
+        Entity = debug.getregistry().Entity or {}
+    end
+
     -- Cache pour les NetworkVar pour éviter les mises à jour inutiles
     local networkVarCache = {}
 

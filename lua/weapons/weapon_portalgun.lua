@@ -85,10 +85,14 @@ if SERVER then
 
 		-- Message de confirmation
 		if upgraded then
-			ply:PrintMessage(HUD_PRINTCHAT, "[GP2] Portal Gun amélioré avec succès!")
-			ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Vous pouvez maintenant tirer les deux types de portails!")
+			if ply.PrintMessage then
+				ply:PrintMessage(HUD_PRINTCHAT, "[GP2] Portal Gun amélioré avec succès!")
+				ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Vous pouvez maintenant tirer les deux types de portails!")
+			end
 		else
-			ply:PrintMessage(HUD_PRINTCHAT, "[GP2] Portal Gun donné - équipez-le et retapez la commande!")
+			if ply.PrintMessage then
+				ply:PrintMessage(HUD_PRINTCHAT, "[GP2] Portal Gun donné - équipez-le et retapez la commande!")
+			end
 		end
 	end, nil, "Améliore votre Portal Gun pour tirer les deux types de portails")
 

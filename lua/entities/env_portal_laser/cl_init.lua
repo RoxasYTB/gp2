@@ -406,3 +406,32 @@ if not timer.Exists("GP2_ForceLaserRefresh") then
         end
     end)
 end
+
+if not ENT.GetHitPos then
+    function ENT:GetHitPos()
+        -- Si le trace n'est pas défini, retourne la position de l'entité
+        if self.TraceResult and self.TraceResult.HitPos then
+            return self.TraceResult.HitPos
+        end
+        return self:GetPos() -- fallback
+    end
+end
+
+-- Patch global pour les entités env_portal_laser créées dynamiquement
+hook.Add("OnEntityCreated", "GP2_EnsureGetHitPosAndState", function(ent)
+    if IsValid(ent) and ent:GetClass() == "env_portal_laser" then
+        if not ent.GetHitPos then
+            function ent:GetHitPos()
+                if self.TraceResult and self.TraceResult.HitPos then
+                    return self.TraceResult.HitPos
+                end
+                return self:GetPos()
+            end
+        end
+        if not ent.GetState then
+            function ent:GetState()
+                return self.State or false
+            end
+        end
+    end
+end)
