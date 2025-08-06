@@ -104,13 +104,31 @@ function PANEL:Paint(w, h)
     surface_SetMaterial(crosshairMaterial)
 
     local can1 = weapon.GetCanFirePortal1 and weapon:GetCanFirePortal1() or false
+
     local can2 = weapon.GetCanFirePortal2 and weapon:GetCanFirePortal2() or false
 
     if not (can1 or can2) then return end
 
-    local group = PortalManager.GetLinkageGroup(weapon:GetLinkageGroup())
-    local placed1 = can1 and group[0] or group[1]
-    local placed2 = can2 and group[1] or group[0]
+    -- Nouvelle approche : chercher directement les portails du joueur
+    local function findPlayerPortals()
+        local myLinkageGroup = weapon:GetLinkageGroup()
+        local placed1, placed2 = nil, nil
+
+        -- Parcourir tous les portails et trouver ceux avec le bon linkage group
+        for _, portal in ipairs(ents.FindByClass("prop_portal")) do
+            if IsValid(portal) and portal:GetActivated() and portal:GetLinkageGroup() == myLinkageGroup then
+                if portal:GetType() == PORTAL_TYPE_FIRST then
+                    placed1 = portal
+                elseif portal:GetType() == PORTAL_TYPE_SECOND then
+                    placed2 = portal
+                end
+            end
+        end
+
+        return placed1, placed2
+    end
+
+    local placed1, placed2 = findPlayerPortals()
 
 
     -- Récupère la couleur RGB des couleurs par joueur (nouveau système)
@@ -135,10 +153,20 @@ function PANEL:Paint(w, h)
     end
 
     -- Crosshair droite (portail 2)
-    if can2 and IsValid(placed2) then
-        drawCrosshairPart(4, w / 2 - 17, h / 2 - 22, r2, g2, b2, 255)
+    if can2 then
+        -- Portal Gun upgradé : comportement normal pour le portail 2
+        if IsValid(placed2) then
+            drawCrosshairPart(4, w / 2 - 17, h / 2 - 22, r2, g2, b2, 255)
+        else
+            drawCrosshairPart(2, w / 2 - 18, h / 2 - 22, r2, g2, b2, 196)
+        end
     else
-        drawCrosshairPart(2, w / 2 - 18, h / 2 - 22, r2, g2, b2, 196)
+        -- Portal Gun pas upgradé : même comportement que le portail 1
+        if IsValid(placed1) then
+            drawCrosshairPart(4, w / 2 - 17, h / 2 - 22, r1, g1, b1, 255)
+        else
+            drawCrosshairPart(2, w / 2 - 18, h / 2 - 22, r1, g1, b1, 196)
+        end
     end
 
     surface_SetDrawColor(255,255,255,255)

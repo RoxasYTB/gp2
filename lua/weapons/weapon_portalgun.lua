@@ -667,29 +667,33 @@ function SWEP:PlacePortal(type, owner)
 		return
 	end
 
-	portal:SetActivated(true)
-	portal:Spawn()
-	portal:SetPos(pos)
-	portal:SetAngles(ang)
-	portal:SetPlacedByMap(false)
-	if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
-		portal:BuildPortalEnvironment()
-	end
+    portal:Spawn()
+    portal:SetPos(pos)
+    portal:SetAngles(ang)
+    portal:SetPlacedByMap(false)
+    if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
+        portal:BuildPortalEnvironment()
+    end
 
-	--- @type Player
-	local player = owner
+    portal:SetActivated(true)
 
-	self:SetLastPlacedPortal(portal)
-	net.Start(GP2.Net.SendPortalPlacementSuccess)
-	net.WriteVector(portal:GetPos())
-	net.WriteAngle(portal:GetAngles())
-	-- Protected GetColorVector call
-	if IsValid(portal) and portal.GetColorVector then
-		net.WriteVector(portal:GetColorVector() * 0.5)
-	else
-		net.WriteVector(Vector(255, 255, 255) * 0.5) -- Default white color
-	end
-	net.Broadcast()
+    -- Correction : forcer la mise à jour du linkage group après activation
+    if SERVER then
+        PortalManager.SetPortal(self:GetLinkageGroup(), portal)
+    end    --- @type Player
+    local player = owner
+
+    self:SetLastPlacedPortal(portal)
+    net.Start(GP2.Net.SendPortalPlacementSuccess)
+    net.WriteVector(portal:GetPos())
+    net.WriteAngle(portal:GetAngles())
+    -- Protected GetColorVector call
+    if IsValid(portal) and portal.GetColorVector then
+        net.WriteVector(portal:GetColorVector() * 0.5)
+    else
+        net.WriteVector(Vector(255, 255, 255) * 0.5) -- Default white color
+    end
+    net.Broadcast()
 end
 
 function SWEP:Think()
