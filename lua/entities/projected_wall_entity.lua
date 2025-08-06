@@ -40,44 +40,14 @@ function ENT:Initialize()
     self:AddEffects(EF_NODRAW)
 end
 
--- Cache pour optimiser les calculs de collision
-ENT.LastPlayerCheckTime = 0
-ENT.PlayerCheckInterval = 0.1 -- Vérifier les joueurs seulement 10 fois par seconde
-ENT.CachedPlayerPositions = {}
-
 function ENT:Think()
     if self.IsPortalClone then
-        -- Un clone ne doit pas faire de trace ni de clonage - optimisation majeure
-        self:NextThink(CurTime() + 0.5) -- Intervalle très réduit pour les clones
-        return true
-    end
-
-    -- Décoinceur de joueurs avec cache optimisé
-    if SERVER then
-        local curTime = CurTime()
-
-        -- Optimisation : réduire la fréquence des vérifications de collision
-        if curTime - self.LastPlayerCheckTime >= self.PlayerCheckInterval then
-            self.LastPlayerCheckTime = curTime
-
+        -- Un clone ne doit pas faire de trace ni de clonage
+        -- Décoinceur de joueurs coincés dans le mur projeté (appliqué aussi au clone)
+        if SERVER then
             local physMins, physMaxs = self:GetCollisionBounds()
             local wallPos = self:GetPos()
-
-            -- Cache des positions pour éviter les recalculs
-            for _, ply in ipairs(player.GetAll()) do
-                if IsValid(ply) and ply:Alive() then
-                    local plyPos = ply:GetPos()
-                    local distSqr = wallPos:DistToSqr(plyPos)
-
-                    -- Vérification rapide de distance avant calculs coûteux
-                    if distSqr < 16384 then -- 128 units squared
-                        if plyPos:WithinAABox(wallPos + physMins, wallPos + physMaxs) then
-                            ply:SetPos(plyPos + Vector(0, 0, 1))
-                        end
-                    end
-                end
-            end
-        end
+            local wallAng = self:GetAngles()
             -- Calculer la bounding box en coordonnées monde
             local minsWorld = wallPos + wallAng:Forward() * physMins.x + wallAng:Right() * physMins.y + wallAng:Up() * physMins.z
             local maxsWorld = wallPos + wallAng:Forward() * physMaxs.x + wallAng:Right() * physMaxs.y + wallAng:Up() * physMaxs.z
@@ -245,19 +215,26 @@ function ENT:Think()
                     end
                     -- Appliquer l'offset X local sur l'axe Right du portail de sortie
                     bestPortalClonePos = bestPortalClonePos + exitPortal:GetRight() * (-(lastOffsetReceivedX  or 0))
-                    -- Application de l'offset Z selon l'orientation du portail
-                    if math.abs(exitPortal:GetAngles().p - 270) < 10 then
+                    if exitPortal:GetAngles().p == -90 then
                         -- Portail au sol (pitch = 270°) : appliquer l'offset Z sur l'axe Up
                         print("Application offset Z pour portail au sol: " .. (lastOffsetReceivedZ or 0))
                         bestPortalClonePos = bestPortalClonePos + exitPortal:GetUp() * (-(lastOffsetReceivedZ or 0))
-                    elseif math.abs(exitPortal:GetAngles().p - 90) < 10 then
+                    -- Application de l'offset Z selon l'orientation du portail
+                    elseif exitPortal:GetAngles().r == 180 then
+                        -- Portail au sol (pitch = 270°) : appliquer l'offset Z sur l'axe Up
+                        print("Application offset Z pour portail au sol: " .. (lastOffsetReceivedZ or 0))
+
+                        bestPortalClonePos = bestPortalClonePos + exitPortal:GetUp() * (-(lastOffsetReceivedZ or 0) - 20)
+                        bestPortalClonePos = bestPortalClonePos + exitPortal:GetForward() * (-(lastOffsetReceivedZ or 0))
+                    elseif exitPortal:GetAngles().r == 0 then
                         -- Portail au plafond (pitch = 90°) : appliquer l'offset Z sur l'axe Up
                         print("Application offset Z pour portail au plafond: " .. (lastOffsetReceivedZ or 0))
                         bestPortalClonePos = bestPortalClonePos + exitPortal:GetUp() * (-(lastOffsetReceivedZ or 0))
+                        bestPortalClonePos = bestPortalClonePos + exitPortal:GetForward() * (-(lastOffsetReceivedZ or 0))
+
                     end
                     -- Correction du gap : coller le mur exactement à la face du portail de sortie
-                    local wallThickness = 1 -- épaisseur du mur projeté (voir PhysicsInitConvex)
-                    bestPortalClonePos = bestPortalClonePos + exitPortal:GetForward() * (wallThickness * - 30) -- 0.1 pour éviter le z-fighting
+
 
                     bestPortalCloneAng = newAng
                     bestPortalCloneLinked = exitPortal
