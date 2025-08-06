@@ -118,19 +118,24 @@ function PANEL:Paint(w, h)
     local r1, g1, b1 = colors.r1, colors.g1, colors.b1
     local r2, g2, b2 = colors.r2, colors.g2, colors.b2
 
+    -- Si le Portal Gun n'est pas upgraded, la couleur 2 doit être la même que la 1
+    if not can2 then
+        r2, g2, b2 = r1, g1, b1
+    end
+
     -- On n'applique plus de désaturation/éclaircissement
     -- r1, g1, b1 = desaturateAndBrighten(r1, g1, b1)
     -- r2, g2, b2 = desaturateAndBrighten(r2, g2, b2)
 
     -- Crosshair gauche (portail 1)
-    if IsValid(placed1) then
+    if can1 and IsValid(placed1) then
         drawCrosshairPart(3, w / 2 - 29, h / 2 - 44, r1, g1, b1, 255)
     else
         drawCrosshairPart(1, w / 2 - 31, h / 2 - 44, r1, g1, b1, 196)
     end
 
     -- Crosshair droite (portail 2)
-    if IsValid(placed2) then
+    if can2 and IsValid(placed2) then
         drawCrosshairPart(4, w / 2 - 17, h / 2 - 22, r2, g2, b2, 255)
     else
         drawCrosshairPart(2, w / 2 - 18, h / 2 - 22, r2, g2, b2, 196)

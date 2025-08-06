@@ -303,6 +303,11 @@ end
 
 -- Fonction de transformation inspirée de projected_wall_entity
 function ENT:TransformPortal(entryPortal, exitPortal, hitPos, hitAng)
+    -- Protection contre les portails invalides
+    if not IsValid(entryPortal) or not IsValid(exitPortal) then
+        return hitPos, hitAng -- Retourne la position/angle d'origine si portail invalide
+    end
+
     -- Calcul de l'offset local dans le repère du portail d'entrée
     local hitOffset = hitPos - entryPortal:GetPos()
     local localOffset = Vector(

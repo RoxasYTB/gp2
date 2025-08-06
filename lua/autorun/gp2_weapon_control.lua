@@ -291,6 +291,10 @@ if CLIENT then
         local ply = LocalPlayer()
         if not IsValid(ply) then return end
 
+        -- Ne rien faire si le joueur écrit dans le tchat ou une UI
+        if gui.IsGameUIVisible and gui.IsGameUIVisible() then return end
+        if ply.IsTyping and ply:IsTyping() then return end
+
         local dropKey = GetConVar("gp2_weapon_drop_key"):GetString():upper()
         local keyCode = _G["KEY_" .. dropKey]
 

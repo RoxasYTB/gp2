@@ -44,6 +44,9 @@ PORTAL_PLACEMENT_FIZZLER_HIT = 4
 local vector_origin = Vector(0,0,0)
 
 if SERVER then
+    HUD_PRINTCONSOLE = HUD_PRINTCONSOLE or 2
+    HUD_PRINTCHAT = HUD_PRINTCHAT or 3
+
 	CreateConVar("gp2_portal_placement_never_fail", "0", FCVAR_CHEAT + FCVAR_NOTIFY,
 		"Can portal be placed on every surface?")
 end
