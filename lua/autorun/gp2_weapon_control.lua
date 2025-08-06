@@ -20,36 +20,7 @@ if SERVER then
 
     -- Suppression du hook qui retirait les armes par défaut
     --[[]
-    hook.Add("PlayerLoadout", "GP2::ControlWeaponLoadout", function(ply)
-        if GetConVar("gp2_remove_default_weapons"):GetBool() then
-            GP2_StoredDefaultWeapons[ply:SteamID()] = {}
-            for _, weapon in ipairs(ply:GetWeapons()) do
-                table.insert(GP2_StoredDefaultWeapons[ply:SteamID()], weapon:GetClass())
-            end
-            ply:StripWeapons()
-            if GetConVar("gp2_auto_give_portalgun"):GetBool() then
-                timer.Simple(0.1, function()
-                    if IsValid(ply) then
-                        ply:Give("weapon_portalgun")
-                        for _, weapon in ipairs(ply:GetWeapons()) do
-                            if weapon:GetClass() == "weapon_portalgun" then
-                                weapon:UpdatePortalGun()
-                            end
-                        end
-                        timer.Simple(0.2, function()
-                            if IsValid(ply) then
-                                local portalgun = ply:GetWeapon("weapon_portalgun")
-                                if IsValid(portalgun) then
-                                    ply:SelectWeapon("weapon_portalgun")
-                                end
-                            end
-                        end)
-                    end
-                end)
-            end
-            return true
-        end
-    end)
+    -- HOOK SUPPRIMÉ : ne retire plus les armes par défaut
     --]]
 
     -- Hook pour maintenir le mode "Portal Gun Only"
@@ -66,23 +37,22 @@ if SERVER then
     end)
 
     -- Hook pour nettoyer les armes non autorisées
+    -- SUPPRIMÉ : ne retire plus aucune arme au spawn
+    --[[]
     hook.Add("PlayerSpawn", "GP2::CleanupUnwantedWeapons", function(ply, transition)
         if GetConVar("gp2_portal_gun_only"):GetBool() then
-            timer.Simple(0.3, function()
-                if IsValid(ply) then
-                    local allowedWeapons = {
-                        ["weapon_portalgun"] = true,
-                        ["weapon_paintgun"] = true
-                    }
-                    for _, weapon in ipairs(ply:GetWeapons()) do
-                        if not allowedWeapons[weapon:GetClass()] then
-                            ply:StripWeapon(weapon:GetClass())
-                        end
-                    end
+            local allowedWeapons = {
+                ["weapon_portalgun"] = true,
+                ["weapon_paintgun"] = true
+            }
+            for _, weapon in ipairs(ply:GetWeapons()) do
+                if not allowedWeapons[weapon:GetClass()] then
+                    ply:StripWeapon(weapon:GetClass())
                 end
-            end)
+            end
         end
     end)
+    --]]
 
     -- Commandes console pour contrôler le système
     concommand.Add("gp2_give_portalgun_all", function(ply, cmd, args)
@@ -109,7 +79,7 @@ if SERVER then
         end
         GetConVar("gp2_portal_gun_only"):SetBool(true)
         GetConVar("gp2_auto_give_portalgun"):SetBool(true)
-        -- On ne touche plus à gp2_remove_default_weapons
+        -- On ne retire plus les armes ici !
         GP2.Print("Mode Portal Gun uniquement activé par %s", ply:Nick())
         for _, player in ipairs(player.GetAll()) do
             if IsValid(player) then
@@ -117,7 +87,7 @@ if SERVER then
                 for _, weapon in ipairs(player:GetWeapons()) do
                     table.insert(GP2_StoredWeapons[player:SteamID()], weapon:GetClass())
                 end
-                player:StripWeapons()
+                -- Suppression du StripWeapons ici
                 player:Give("weapon_portalgun")
                 for _, weapon in ipairs(player:GetWeapons()) do
                     if weapon:GetClass() == "weapon_portalgun" then
@@ -133,11 +103,10 @@ if SERVER then
             return
         end
         GetConVar("gp2_portal_gun_only"):SetBool(false)
-        -- On ne touche plus à gp2_remove_default_weapons
         GP2.Print("Mode Portal Gun uniquement désactivé par %s", ply:Nick())
         for _, player in ipairs(player.GetAll()) do
             if IsValid(player) then
-                player:StripWeapons()
+                -- Suppression du StripWeapons ici
                 local stored = GP2_StoredWeapons[player:SteamID()]
                 if stored then
                     for _, wep in ipairs(stored) do
@@ -148,42 +117,7 @@ if SERVER then
         end
     end, nil, "Désactive le mode Portal Gun uniquement (Admin uniquement)")
 
-    -- Commande pour restaurer les armes par défaut à tous les joueurs (inutile si on ne les retire plus)
-    --[[]
-    concommand.Add("gp2_restore_default_weapons", function(ply, cmd, args)
-        if not IsValid(ply) or not ply:IsAdmin() then return end
-        for _, player in ipairs(player.GetAll()) do
-            if IsValid(player) then
-                local stored = GP2_StoredDefaultWeapons[player:SteamID()]
-                if stored then
-                    for _, wep in ipairs(stored) do
-                        player:Give(wep)
-                    end
-                end
-            end
-        end
-        GP2.Print("Armes par défaut restaurées pour tous les joueurs par %s", ply:Nick())
-    end, nil, "Restaure les armes par défaut à tous les joueurs (Admin)")
-    --]]
 
-    -- Callback inutile si on ne retire plus les armes
-    --[[]
-    cvars.AddChangeCallback("gp2_remove_default_weapons", function(name, old, new)
-        if new == "0" then
-            for _, player in ipairs(player.GetAll()) do
-                if IsValid(player) then
-                    local stored = GP2_StoredDefaultWeapons[player:SteamID()]
-                    if stored then
-                        for _, wep in ipairs(stored) do
-                            player:Give(wep)
-                        end
-                    end
-                end
-            end
-            GP2.Print("Armes par défaut restaurées automatiquement (gp2_remove_default_weapons désactivé)")
-        end
-    end, "GP2_RestoreDefaultWeaponsOnDisable")
-    --]]
 end
 
 if CLIENT then
@@ -191,9 +125,9 @@ if CLIENT then
     local function SuppressWeaponHelpNotifications()
         -- Hook pour supprimer les notifications d'aide
         hook.Add("HUDShouldDraw", "GP2::SuppressWeaponHelp", function(name)
-            -- Supprimer les éléments d'aide des armes
+            -- Supprimer les éléments d'aide des armes (SANS CHudWeaponSelection pour garder le scroll d'armes)
             local suppressedElements = {
-                ["CHudWeaponSelection"] = true,
+                -- ["CHudWeaponSelection"] = true, -- RETIRÉ : empêchait le scroll entre armes
                 ["CHudHintDisplay"] = true,
             }
 
@@ -253,6 +187,23 @@ if CLIENT then
             chat.AddText(Color(200, 200, 200), "Utilisez ", Color(100, 255, 100), "gp2_hide_weapon_help", Color(200, 200, 200), " pour cacher les bulles d'aide")
         end)
     end)
+end
+
+-- DEBUG : Hook pour loguer tout strip d'armes sur un joueur
+if SERVER then
+    local plymeta = FindMetaTable("Player")
+    local oldStripWeapon = plymeta.StripWeapon
+    function plymeta:StripWeapon(class)
+        print("[GP2 DEBUG] StripWeapon appelé sur " .. tostring(self) .. " pour l'arme : " .. tostring(class) .. " (stacktrace ci-dessous)")
+        debug.Trace()
+        return oldStripWeapon(self, class)
+    end
+    local oldStripWeapons = plymeta.StripWeapons
+    function plymeta:StripWeapons()
+        print("[GP2 DEBUG] StripWeapons appelé sur " .. tostring(self) .. " (stacktrace ci-dessous)")
+        debug.Trace()
+        return oldStripWeapons(self)
+    end
 end
 
 -- Message d'information sur la convar Portal Gun Only
