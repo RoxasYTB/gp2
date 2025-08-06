@@ -49,6 +49,14 @@ if SERVER then
 
 	CreateConVar("gp2_portal_placement_never_fail", "0", FCVAR_CHEAT + FCVAR_NOTIFY,
 		"Can portal be placed on every surface?")
+
+	-- ConVars pour sauvegarder l'état du Portal Gun par joueur
+	CreateConVar("gp2_save_portalgun_state", "1", FCVAR_ARCHIVE,
+		"Save Portal Gun state (normal/upgraded/potato) when picking up the weapon")
+else
+	-- ConVars côté client pour sauvegarder l'état
+	CreateClientConVar("gp2_portalgun_upgraded", "0", true, false, "Portal Gun upgraded state")
+	CreateClientConVar("gp2_portalgun_potato", "0", true, false, "Portal Gun potato mode state")
 end
 
 concommand.Add("gp2_change_linkage_group_id", function(ply, cmd, args)
@@ -70,8 +78,7 @@ if SERVER then
 	concommand.Add("upgrade_portalgun", function(ply, cmd, args)
 		-- Vérifier que le joueur est valide
 		if not IsValid(ply) then
-			print("Erreur: Joueur invalide")
-			return
+						return
 		end
 
 		-- Donner l'arme au joueur
@@ -84,6 +91,12 @@ if SERVER then
 				weapon:UpdatePortalGun()
 				upgraded = true
 			end
+		end
+
+		-- Sauvegarder l'état upgraded côté client
+		if upgraded then
+			ply:ConCommand("gp2_portalgun_upgraded 1")
+			ply:ConCommand("gp2_portalgun_potato 0") -- Reset potato si upgraded
 		end
 
 		-- Message de confirmation
@@ -103,8 +116,7 @@ if SERVER then
 	concommand.Add("upgrade_potatogun", function(ply, cmd, args)
 		-- Vérifier que le joueur est valide
 		if not IsValid(ply) then
-			print("Erreur: Joueur invalide")
-			return
+						return
 		end
 
 		local upgraded = false
@@ -113,6 +125,11 @@ if SERVER then
 				weapon:UpdatePotatoGun(true)
 				upgraded = true
 			end
+		end
+
+		-- Sauvegarder l'état potato côté client
+		if upgraded then
+			ply:ConCommand("gp2_portalgun_potato 1")
 		end
 
 		-- Message de confirmation
@@ -127,8 +144,7 @@ if SERVER then
 	-- Commande pour désactiver le mode potato
 	concommand.Add("downgrade_potatogun", function(ply, cmd, args)
 		if not IsValid(ply) then
-			print("Erreur: Joueur invalide")
-			return
+						return
 		end
 
 		local downgraded = false
@@ -137,6 +153,11 @@ if SERVER then
 				weapon:UpdatePotatoGun(false)
 				downgraded = true
 			end
+		end
+
+		-- Sauvegarder l'état potato côté client
+		if downgraded then
+			ply:ConCommand("gp2_portalgun_potato 0")
 		end
 
 		if downgraded then
@@ -150,18 +171,44 @@ if SERVER then
 	-- Commande d'aide pour les Portal Gun
 	concommand.Add("portalgun_help", function(ply, cmd, args)
 		if not IsValid(ply) then
-			print("Erreur: Joueur invalide")
-			return
+						return
 		end
 
 		ply:PrintMessage(HUD_PRINTCONSOLE, "=== COMMANDES PORTAL GUN GP2-SDK ===")
 		ply:PrintMessage(HUD_PRINTCONSOLE, "upgrade_portalgun - Obtenir/améliorer votre Portal Gun")
 		ply:PrintMessage(HUD_PRINTCONSOLE, "upgrade_potatogun - Activer le mode Potato")
 		ply:PrintMessage(HUD_PRINTCONSOLE, "downgrade_potatogun - Désactiver le mode Potato")
+		ply:PrintMessage(HUD_PRINTCONSOLE, "reset_portalgun - Réinitialiser l'état du Portal Gun")
 		ply:PrintMessage(HUD_PRINTCONSOLE, "portalgun_help - Afficher cette aide")
 		ply:PrintMessage(HUD_PRINTCONSOLE, "===================================")
 		ply:PrintMessage(HUD_PRINTCHAT, "[GP2] Commandes Portal Gun affichées dans la console!")
 	end, nil, "Affiche l'aide des commandes Portal Gun")
+
+	-- Commande pour réinitialiser l'état du Portal Gun
+	concommand.Add("reset_portalgun", function(ply, cmd, args)
+		if not IsValid(ply) then
+						return
+		end
+
+		-- Remettre l'arme en état normal
+		local reset = false
+		for _, weapon in ipairs(ply:GetWeapons()) do
+			if weapon:GetClass() == "weapon_portalgun" then
+				weapon:UpdatePotatoGun(false)
+				weapon:SetCanFirePortal2(false) -- Remettre en mode simple
+				reset = true
+			end
+		end
+
+		-- Réinitialiser les convars
+		if reset then
+			ply:ConCommand("gp2_portalgun_upgraded 0")
+			ply:ConCommand("gp2_portalgun_potato 0")
+			ply:PrintMessage(HUD_PRINTCHAT, "[GP2] Portal Gun réinitialisé en mode normal!")
+		else
+			ply:PrintMessage(HUD_PRINTCHAT, "[GP2] Aucun Portal Gun trouvé!")
+		end
+	end, nil, "Réinitialise le Portal Gun en mode normal")
 else
 	CreateClientConVar("gp2_portal_color1", "2 114 210", true, true, "Color for Portal 1")
 	CreateClientConVar("gp2_portal_color2", "210 114 2", true, true, "Color for Portal 2")
@@ -182,11 +229,17 @@ else
 		chat.AddText(Color(100, 200, 255), "[GP2] ", Color(255, 255, 255), "Portal Gun restauré en mode normal!")
 	end, nil, "Raccourci pour downgrade_potatogun")
 
+	concommand.Add("gp2_reset", function(ply, cmd, args)
+		RunConsoleCommand("reset_portalgun")
+		chat.AddText(Color(255, 100, 100), "[GP2] ", Color(255, 255, 255), "Portal Gun réinitialisé!")
+	end, nil, "Raccourci pour reset_portalgun")
+
 	concommand.Add("gp2_help", function(ply, cmd, args)
 		chat.AddText(Color(255, 255, 100), "=== COMMANDES PORTAL GUN GP2-SDK ===")
 		chat.AddText(Color(100, 255, 100), "upgrade_portalgun", Color(255, 255, 255), " ou ", Color(100, 255, 100), "gp2_upgrade", Color(255, 255, 255), " - Obtenir le Portal Gun")
 		chat.AddText(Color(255, 200, 100), "upgrade_potatogun", Color(255, 255, 255), " ou ", Color(255, 200, 100), "gp2_potato", Color(255, 255, 255), " - Mode Potato")
 		chat.AddText(Color(100, 200, 255), "downgrade_potatogun", Color(255, 255, 255), " ou ", Color(100, 200, 255), "gp2_normal", Color(255, 255, 255), " - Mode Normal")
+		chat.AddText(Color(255, 100, 100), "reset_portalgun", Color(255, 255, 255), " ou ", Color(255, 100, 100), "gp2_reset", Color(255, 255, 255), " - Réinitialiser")
 		chat.AddText(Color(255, 255, 100), "gp2_help", Color(255, 255, 255), " - Cette aide")
 		chat.AddText(Color(255, 255, 100), "=====================================")
 	end, nil, "Affiche l'aide des commandes Portal Gun")
@@ -459,54 +512,71 @@ function SWEP:SetupDataTables()
 end
 
 function SWEP:Deploy()
-	if CLIENT then return end
+	if CLIENT then
+		if SyncPortalGunState then SyncPortalGunState() end
+		return end
 
+	-- Restaurer l'état sauvegardé du Portal Gun
+	local owner = self:GetOwner()
+	if IsValid(owner) and owner:IsPlayer() then
+		local saveState = GetConVar("gp2_save_portalgun_state")
+		if saveState and saveState:GetBool() then
+			local tries = 0
+			local function TryApplyState()
+				if not IsValid(self) or not IsValid(owner) then return end
+				local isUpgraded, isPotato = self:GetSyncedPortalGunState()
+								if isUpgraded or isPotato or tries > 10 then
+					if isPotato then
+						self:UpdatePotatoGun(true)
+											elseif isUpgraded then
+						if not self:GetCanFirePortal2() then
+							self:UpdatePortalGun()
+														if owner.PrintMessage then
+								owner:PrintMessage(HUD_PRINTCHAT, "[GP2] Portal Gun automatiquement amélioré!")
+							end
+						end
+					end
+				else
+					tries = tries + 1
+					timer.Simple(0.1, TryApplyState)
+				end
+			end
+			TryApplyState()
+		end
+	end
 
 	if not self.GotCustomLinkageGroup then
 		self:SetLinkageGroup(self:GetOwner():EntIndex() - 1)
 	end
-
 	if self:GetIsPotatoGun() then
 		self:SendWeaponAnim(ACT_VM_DEPLOY)
 		self:GetOwner():GetViewModel(0):SetBodygroup(1, 1)
 		self:SetBodygroup(1, 1)
 	end
-
 	local owner = self:GetOwner()
 	local vm0 = owner:GetViewModel(0)
 	local vm1 = owner:GetViewModel(1)
-
 	if not IsValid(self.HoldSound) then
 		local filter = RecipientFilter()
 		filter:AddPlayer(owner)
-
 		self.HoldSound = CreateSound(self, "PortalPlayer.ObjectUse", filter)
 	end
-
 	local seq = vm1:SelectWeightedSequence(ACT_VM_RELEASE)
-
 	if IsValid(vm1) then
 		vm1:SetWeaponModel(self:GetWeaponViewModel(), NULL)
 		if self:GetIsPotatoGun() then
 			vm1:SetBodygroup(1, 1)
 		end
 	end
-
-	-- Previously we held object, use other deploy sequence
 	if self.GotEntityInUse then
 		self:StopSound("PortalPlayer.ObjectUse")
-
-		-- No operator stacks
 		self:EmitSound("PortalPlayer.ObjectUseStop", 0)
 		self:SetEntityInUse(NULL)
 		self.GotEntityInUse = false
-
 		timer.Simple(0, function()
 			vm0:SendViewModelMatchingSequence(12)
 		end)
 	end
-
-
 	return true
 end
 
@@ -713,6 +783,26 @@ function SWEP:Think()
 
 		if self:GetEntityInUse() ~= owner:GetEntityInUse() then
 			self:SetEntityInUse(owner:GetEntityInUse())
+		end
+
+		-- Vérification constante de l'état du Portal Gun
+		local saveState = GetConVar("gp2_save_portalgun_state")
+		if saveState and saveState:GetBool() then
+			if not self.NextStateCheck or CurTime() > self.NextStateCheck then
+				self.NextStateCheck = CurTime() + 0.5
+				local isUpgraded, isPotato = self:GetSyncedPortalGunState()
+								if isUpgraded then
+									end
+				if isPotato and not self:GetIsPotatoGun() then
+					self:UpdatePotatoGun(true)
+									elseif not isPotato and self:GetIsPotatoGun() then
+					self:UpdatePotatoGun(false)
+									elseif isUpgraded and not self:GetCanFirePortal2() and not self:GetIsPotatoGun() then
+										self:UpdatePortalGun()
+				elseif not isUpgraded and not isPotato and self:GetCanFirePortal2() then
+					self:SetCanFirePortal2(false)
+									end
+			end
 		end
 	else
 		if LocalPlayer():InVehicle() then
@@ -1058,4 +1148,63 @@ function SWEP:CalcViewModelView(vm,_,_,pos,ang)
 	pos,ang = self:AddViewmodelBob(vm, pos, ang)
 
 	return pos,ang
+end
+
+if SERVER then
+    util.AddNetworkString("GP2.SyncPortalGunState")
+    GP2_PortalGunStates = GP2_PortalGunStates or {}
+
+    net.Receive("GP2.SyncPortalGunState", function(len, ply)
+        local upgraded = net.ReadBool()
+        local potato = net.ReadBool()
+        local steamid = ply:SteamID()
+        GP2_PortalGunStates[steamid] = {
+            upgraded = upgraded,
+            potato = potato
+        }
+            end)
+end
+
+if CLIENT then
+    local function SyncPortalGunState()
+        net.Start("GP2.SyncPortalGunState")
+        net.WriteBool(GetConVar("gp2_portalgun_upgraded"):GetBool())
+        net.WriteBool(GetConVar("gp2_portalgun_potato"):GetBool())
+        net.SendToServer()
+    end
+    -- Synchroniser à chaque changement de convar
+    cvars.AddChangeCallback("gp2_portalgun_upgraded", function() SyncPortalGunState() end, "gp2_portalgun_upgraded_sync")
+    cvars.AddChangeCallback("gp2_portalgun_potato", function() SyncPortalGunState() end, "gp2_portalgun_potato_sync")
+    -- Synchroniser à la connexion
+    hook.Add("InitPostEntity", "GP2_PortalGunStateSyncInit", function()
+        timer.Simple(1, function() SyncPortalGunState() end)
+    end)
+    -- Synchroniser quand on équipe l'arme
+    hook.Add("WeaponEquipped", "GP2_PortalGunStateSync", function(weapon)
+        if weapon:GetClass() == "weapon_portalgun" then
+            timer.Simple(0.1, function() SyncPortalGunState() end)
+        end
+    end)
+end
+
+function SWEP:GetSyncedPortalGunState()
+    if SERVER then
+        local owner = self:GetOwner()
+        if not IsValid(owner) or not owner:IsPlayer() then
+                        return false, false
+        end
+        local steamid = owner:SteamID()
+        local state = GP2_PortalGunStates and GP2_PortalGunStates[steamid]
+
+	  if not state then
+				return GetConVar("gp2_portalgun_upgraded"):GetBool(), GetConVar("gp2_portalgun_potato"):GetBool()
+	  end
+	          if state then
+                        return (state.upgraded == true), (state.potato == true)
+        else
+                        return false, false
+        end
+    else
+        return GetConVar("gp2_portalgun_upgraded"):GetBool(), GetConVar("gp2_portalgun_potato"):GetBool()
+    end
 end
