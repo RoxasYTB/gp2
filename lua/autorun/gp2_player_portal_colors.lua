@@ -15,8 +15,6 @@ if SERVER then
     local function GetDefaultPlayerColors(ply)
         if not IsValid(ply) then return {r1=2, g1=114, b1=210, r2=210, g2=114, b2=2} end
 
-        -- Couleurs différentes selon l'UserID pour avoir des couleurs uniques par joueur
-        local uid = ply:UserID()
         local colorSets = {
             {r1=2, g1=114, b1=210, r2=210, g2=114, b2=2},     -- Bleu/Orange (défaut)
             {r1=40, g1=180, b1=40, r2=180, g2=80, b2=120},    -- Vert/Rose
@@ -26,8 +24,28 @@ if SERVER then
             {r1=200, g1=200, b1=200, r2=30, g2=30, b2=30},    -- Blanc/Noir
         }
 
-        local setIndex = (uid % #colorSets) + 1
-        return colorSets[setIndex]
+        -- SOLO : toujours bleu/orange
+        if #player.GetAll() == 1 then
+            return colorSets[1]
+        end
+
+        -- MULTI : premier joueur bleu/orange, les autres couleurs différentes
+        -- On trie les joueurs par EntIndex pour garantir l'ordre
+        local players = player.GetAll()
+        table.sort(players, function(a, b) return a:EntIndex() < b:EntIndex() end)
+        for i, p in ipairs(players) do
+            if p == ply then
+                if i == 1 then
+                    return colorSets[1]
+                else
+                    -- Décale l'index pour éviter bleu/orange pour les suivants
+                    local setIndex = ((i-2) % (#colorSets-1)) + 2
+                    return colorSets[setIndex]
+                end
+            end
+        end
+        -- fallback
+        return colorSets[1]
     end
 
     -- Récupérer les couleurs d'un joueur
