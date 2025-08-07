@@ -17,6 +17,10 @@ function ENT:SetupDataTables()
     self:NetworkVar("Float", "TimeUntil")
 end
 
+function ENT:Initialize()
+    self.NextThinkTime = 0
+end
+
 function ENT:KeyValue(k, v)
     if k == "width" then
         self:SetWidth(tonumber(v))
@@ -28,14 +32,33 @@ function ENT:KeyValue(k, v)
 end
 
 function ENT:Think()
+    if self.NextThinkFunction
+    and isfunction(self.NextThinkFunction)
+    and CurTime() > self.NextThinkTime then
+        self:NextThinkFunction()
+    end
+
     -- OPTIMISATION : Early return si déjà dans la render list côté client
     if CLIENT then
         if VguiNeurotoxinCountdown.IsAddedToRenderList(self) then
             self:SetNextThink(CurTime() + 1) -- Réduire la fréquence à 1 fois par seconde
-            return
+            return true
         end
         VguiNeurotoxinCountdown.AddToRenderList(self)
         self:SetNextThink(CurTime() + 0.1) -- Vérifier de nouveau dans 0.1 seconde
+    end
+
+    self:NextThink(CurTime() + 0.1)
+    return true
+end
+
+function ENT:SetNextThink(nextThink)
+    self.NextThinkTime = nextThink
+end
+
+function ENT:SetThink(nextThinkFunc)
+    if nextThinkFunc then
+        self.NextThinkFunction = nextThinkFunc
     end
 end
 
