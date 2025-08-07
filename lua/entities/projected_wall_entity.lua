@@ -1,527 +1,657 @@
--- ----------------------------------------------------------------------------
--- GP2 Framework
--- Hard light surface
--- ----------------------------------------------------------------------------
-
-AddCSLuaFile()
-ENT.Type = "anim"
-
-local MAX_RAY_LENGTH = 8192
-local PROJECTED_WALL_WIDTH = 72
-
-ENT.PhysicsSolidMask = CONTENTS_SOLID+CONTENTS_MOVEABLE+CONTENTS_BLOCKLOS
-
-PrecacheParticleSystem("projected_wall_impact")
-
+AddCSLuaFile();
+ENT.Type = "anim";
+local MAX_RAY_LENGTH = 8192;
+local PROJECTED_WALL_WIDTH = 72;
+ENT.PhysicsSolidMask = CONTENTS_SOLID + CONTENTS_MOVEABLE + CONTENTS_BLOCKLOS;
+PrecacheParticleSystem("projected_wall_impact");
 if SERVER then
-    util.AddNetworkString("ProjectedWall_SetOffset")
-end
-
+	util.AddNetworkString("ProjectedWall_SetOffset");
+	net.Receive("ProjectedWall_SetOffset", function(len, ply)
+		local ent = net.ReadEntity();
+		local offsetZ = net.ReadFloat();
+		local offsetX = net.ReadFloat();
+		if IsValid(ent) then
+			ent:SetFinalOffsetZ(offsetZ);
+			ent:SetFinalOffsetX(offsetX);
+		end;
+	end);
+end;
 function ENT:SetupDataTables()
-    self:NetworkVar( "Bool", "Updated" )
-    self:NetworkVar( "Bool", "GotInitialPosition" )
-    self:NetworkVar( "Vector", "InitialPosition" )
-    self:NetworkVar( "Float", "DistanceToHit" )
-    self:NetworkVar( "Float", "FinalOffsetZ" ) -- Pour synchronisation client/serveur
-    self:NetworkVar( "Float", "FinalOffsetX" ) -- Pour synchronisation client/serveur (gauche/droite)
-end
-
+	self:NetworkVar("Bool", "Updated");
+	self:NetworkVar("Bool", "GotInitialPosition");
+	self:NetworkVar("Vector", "InitialPosition");
+	self:NetworkVar("Float", "DistanceToHit");
+	self:NetworkVar("Float", "FinalOffsetZ");
+	self:NetworkVar("Float", "FinalOffsetX");
+	self:NetworkVar("Bool", "IsProjectorCloned");
+	self:NetworkVar("Float", "ManualOffsetZ");
+	self:NetworkVar("Float", "ManualOffsetX");
+	self:NetworkVar("Angle", "ManualAngle");
+end;
+function ENT:SetManualOffsetZ(val)
+	self:SetManualOffsetZ(val);
+end;
+function ENT:SetManualOffsetX(val)
+	self:SetManualOffsetX(val);
+end;
+function ENT:SetManualAngle(ang)
+	self:SetManualAngle(ang);
+end;
 function ENT:Initialize()
-    if SERVER then
-        self.TraceFraction = 0
-        self:SetModel("models/props_junk/PopCan01a.mdl")
-        -- Stocke la hauteur d'origine uniquement sur l'entité principale
-        if not self.IsPortalClone then
-            self.OriginalWallZ = self:GetPos().z
-            self.OriginalWallX = self:GetPos().x
-        end
-        self.LastLoggedOffsetZ = nil -- Ajout pour limiter le flood
-    end
-    self:AddEffects(EF_NODRAW)
-end
-
+	if SERVER then
+		self.TraceFraction = 0;
+		self:SetModel("models/props_junk/PopCan01a.mdl");
+		self.LastLoggedOffsetZ = nil;
+		if not PortalManager then
+			timer.Simple(0.1, function()
+				if not PortalManager and IsValid(self) then
+					if file.Exists("lua/gp2/portalmanager.lua", "GAME") then
+						include("gp2/portalmanager.lua");
+					end;
+				end;
+			end);
+		end;
+	end;
+	self:AddEffects(EF_NODRAW);
+end;
 function ENT:Think()
-    if self.IsPortalClone then
-        -- Un clone ne doit pas faire de trace ni de clonage
-        -- Décoinceur de joueurs coincés dans le mur projeté (appliqué aussi au clone)
-        if SERVER then
-            local physMins, physMaxs = self:GetCollisionBounds()
-            local wallPos = self:GetPos()
-            local wallAng = self:GetAngles()
-            -- Calculer la bounding box en coordonnées monde
-            local minsWorld = wallPos + wallAng:Forward() * physMins.x + wallAng:Right() * physMins.y + wallAng:Up() * physMins.z
-            local maxsWorld = wallPos + wallAng:Forward() * physMaxs.x + wallAng:Right() * physMaxs.y + wallAng:Up() * physMaxs.z
-            local expand = 0
-            local boxMins = Vector(math.min(minsWorld.x, maxsWorld.x) - expand, math.min(minsWorld.y, maxsWorld.y) - expand, math.min(minsWorld.z, maxsWorld.z))
-            local boxMaxs = Vector(math.max(minsWorld.x, maxsWorld.x) + expand, math.max(minsWorld.y, maxsWorld.y) + expand, math.min(minsWorld.z, maxsWorld.z))
-            for _, ply in ipairs(ents.FindInBox(boxMins, boxMaxs)) do
-                if ply:IsPlayer() and ply:Alive() and not ply:IsFlagSet(FL_GODMODE) then
-                    local plyPos = ply:GetPos()
-                    ply:SetPos(plyPos + Vector(0, 0, 1))
-                    ply:SetVelocity(Vector(0, 0, 0))
-                end
-            end
-        end
-        return
-    end
-
-    if not self:GetUpdated() then
-        self:CreateWall()
-    end
-
-    if CLIENT then
-        self:SetNextClientThink(CurTime())
-        if ProjectedWallEntity and not ProjectedWallEntity.IsAdded(self) then
-            self:CreateWall()
-        end
-    end
-
-    local startPos = self:GetPos()
-    -- Utilise la hauteur d'origine stockée, sinon fallback sur la position actuelle
-    local originalWallZ = self.OriginalWallZ or startPos.z
-    local originalWallX = self.OriginalWallX or startPos.x
-    local angles = self:GetAngles()
-    local fwd = angles:Forward()
-    local totalDistance = 0
-    local maxBounces = 1
-    local currentPos = startPos
-    local currentAng = angles
-    local lastEntity = self
-    local foundPortal = false
-    local tr
-    local bestEntryPortalZDiff = nil
-    local bestOffsetZ = nil
-    local bestOffsetX = nil
-    local bestExitPortalZ = nil
-    local bestExitPortalX = nil
-    local bestPortalClonePos, bestPortalCloneAng, bestPortalCloneLinked = nil, nil, nil
-    local finalOffsetZ = nil
-    local firstExitPortalZ = nil
-    local lastOffsetReceivedZ = self:GetFinalOffsetZ() or 0
-    local lastOffsetReceivedX = self:GetFinalOffsetX() or 0
-
-
-    for bounce = 1, maxBounces do
-        -- Utilisation de ents.FindAlongRay pour une détection plus fiable comme le laser
-        local rayStart = currentPos
-        local rayEnd = currentPos + currentAng:Forward() * MAX_RAY_LENGTH
-        local extents = Vector(10, 10, 10)
-        local found = false
-        local foundPortalEntity = nil
-        local foundPortalTr = nil
-        local rayHits = ents.FindAlongRay(rayStart, rayEnd, -extents, extents)
-        for _, ent in ipairs(rayHits) do
-            if IsValid(ent) then
-                if ent:GetClass() == "prop_portal" and IsValid(ent:GetLinkedPartner()) then
-                    found = true
-                    foundPortalEntity = ent
-                    break
-                end
-            end
-        end
-        if found and foundPortalEntity then
-            -- Passage à travers le portail
-            foundPortal = true
-            -- Correction : stocker le portail de sortie (exitPortal) pour le bloc serveur
-            local exitPortal = foundPortalEntity:GetLinkedPartner()
-            self.LastFoundPortalEntity = exitPortal
-            local entryPortal = exitPortal:GetLinkedPartner()
-            -- Calcul du point d'impact réel sur le portail d'entrée
-            local mins, maxs = entryPortal:GetCollisionBounds()
-            local hitPos = util.IntersectRayWithOBB(
-                rayStart,
-                (rayEnd - rayStart):GetNormalized(),
-                entryPortal:GetPos(),
-                entryPortal:GetAngles(),
-                mins, maxs
-            )
-            if not hitPos then
-                hitPos = entryPortal:GetPos()
-            end
-            local portalZ = entryPortal:GetPos().z
-            local portalX = entryPortal:GetPos().x
-            local exitPortalZ = exitPortal:GetPos().z
-            local exitPortalX = exitPortal:GetPos().x
-            local entryDiffZ = math.abs(portalZ - originalWallZ)
-            -- Décalage local gauche/droite (Right) dans le repère du portail d'entrée
-            local entryRight = entryPortal:GetRight() -- axe local X du portail
-            local offsetVec = startPos - entryPortal:GetPos()
-            local offsetXLocal = offsetVec:Dot(entryRight) -- décalage sur l'axe Right du portail
-            local offsetZ = portalZ - originalWallZ
-            -- On garde l'offset du portail dont entryPortalZ est le plus proche de originalWallZ
-            if (offsetZ ~= 0 or math.abs(offsetXLocal) > 0.001) and (bestEntryPortalZDiff == nil or entryDiffZ < bestEntryPortalZDiff) then
-                bestEntryPortalZDiff = entryDiffZ
-                bestOffsetZ = offsetZ
-                bestOffsetX = offsetXLocal
-                -- IMPORTANT : ne jamais setter self:SetFinalOffsetZ/X côté serveur ailleurs que dans le net.Receive ci-dessous !
-                if SERVER then
-                    net.Receive("ProjectedWall_SetOffset", function(len, ply)
-                        local ent    = net.ReadEntity()
-                        local offsetZ = net.ReadFloat()
-                        local offsetX = net.ReadFloat()
-                        if IsValid(ent) then
-                            ent:SetFinalOffsetZ(offsetZ)
-                            ent:SetFinalOffsetX(offsetX)
-                            lastOffsetReceivedZ = offsetZ
-                            lastOffsetReceivedX = offsetX
-                        end
-                    end)
-                end
-               bestExitPortalZ = exitPortalZ
-                bestExitPortalX = exitPortalX
-                if firstExitPortalZ == nil then
-                    firstExitPortalZ = exitPortalZ
-                end
-                -- On stocke aussi la position/angle/parent pour ce portail
-                if SERVER then
-                    local newPos, newAng = PortalManager.TransformPortal(entryPortal, exitPortal, hitPos, currentAng)
-                    -- Correction de l'angle pour faire face à la direction du portail au lieu d'être dos au portail
-                    newAng = Angle(newAng.p, newAng.y + 180, newAng.r)
-
-                    -- Correction spécifique pour les portails au plafond ou au sol
-                    -- ORIENTATIONS PORTAILS :
-                    -- Pitch 90° = Portail au PLAFOND qui pointe vers le sol
-                    -- Pitch -90° = Portail au SOL qui pointe vers le plafond
-                    -- Pitch 0° = Portail vertical (mur)
-                    local exitPortalPitch = exitPortal:GetAngles().p
-                    print("Pitch du portail de sortie : " .. exitPortalPitch)
-                    if math.abs(exitPortalPitch - 90) < 10 then
-                        print("Là c'est un portail au plafond")
-                        -- Portail au plafond (pitch = 90°) : inverser pour aller vers le haut
-                        newAng = Angle(-newAng.p, newAng.y, newAng.r)
-                    elseif exitPortalPitch == 270 then
-
-                        print("Là c'est un portail au sol")
-                        -- Portail au sol (pitch = -90°) : inverser pour aller vers le haut
-                        newAng = Angle(-newAng.p, newAng.y, newAng.r)
-                    end
-                   bestPortalClonePos = newPos
-                    bestPortalClonePos.z = bestPortalClonePos.z    -- Force Z à la valeur du portail de sortie
-                    -- Appliquer un décalage sur Y en fonction de l'orientation du portail de sortie
-                    local exitRight = exitPortal:GetRight()
-                    -- Si l'axe Right pointe vers le haut (z > 0), on ajoute 20, sinon on soustrait 20
-                    local exitAngY = exitPortal:GetAngles().y
-                    if exitAngY == -90 then
-                        bestPortalClonePos.y = bestPortalClonePos.y - 20
-                    end
-                    if exitAngY > 90 and exitAngY < 180 then
-                        bestPortalClonePos.y = bestPortalClonePos.y
-                    end
-                    if exitAngY > -1 and exitAngY < 1 then
-                        bestPortalClonePos.x = bestPortalClonePos.x
-                    end
-                    if exitAngY == -180 then
-                        bestPortalClonePos.x = bestPortalClonePos.x - 20
-                    end
-                    -- Appliquer l'offset X local sur l'axe Right du portail de sortie
-                    bestPortalClonePos = bestPortalClonePos + exitPortal:GetRight() * (-(lastOffsetReceivedX  or 0))
-                    if exitPortal:GetAngles().p == -90 then
-                        -- Portail au sol (pitch = 270°) : appliquer l'offset Z sur l'axe Up
-                        print("Application offset Z pour portail au sol: " .. (lastOffsetReceivedZ or 0))
-                        bestPortalClonePos = bestPortalClonePos + exitPortal:GetUp() * (-(lastOffsetReceivedZ or 0))
-                    -- Application de l'offset Z selon l'orientation du portail
-                    elseif exitPortal:GetAngles().r == 180 then
-                        -- Portail au sol (pitch = 270°) : appliquer l'offset Z sur l'axe Up
-                        print("Application offset Z pour portail au sol: " .. (lastOffsetReceivedZ or 0))
-
-                        bestPortalClonePos = bestPortalClonePos + exitPortal:GetUp() * (-(lastOffsetReceivedZ or 0) - 20)
-                        bestPortalClonePos = bestPortalClonePos + exitPortal:GetForward() * (-(lastOffsetReceivedZ or 0))
-                    elseif exitPortal:GetAngles().r == 0 then
-                        -- Portail au plafond (pitch = 90°) : appliquer l'offset Z sur l'axe Up
-                        print("Application offset Z pour portail au plafond: " .. (lastOffsetReceivedZ or 0))
-                        bestPortalClonePos = bestPortalClonePos + exitPortal:GetUp() * (-(lastOffsetReceivedZ or 0))
-                        bestPortalClonePos = bestPortalClonePos + exitPortal:GetForward() * (-(lastOffsetReceivedZ or 0))
-
-                    end
-                    -- Correction du gap : coller le mur exactement à la face du portail de sortie
-
-
-                    bestPortalCloneAng = newAng
-                    bestPortalCloneLinked = exitPortal
-                end
-            end
-            currentPos, currentAng = PortalManager.TransformPortal(entryPortal, exitPortal, hitPos, currentAng)
-            -- Correction de l'angle pour que le projected wall continue dans la direction du portail
-            currentAng = Angle(currentAng.p, currentAng.y + 180, currentAng.r)
-
-            -- Correction spécifique pour les portails au plafond ou au sol
-            -- ORIENTATIONS PORTAILS :
-            -- Pitch 90° = Portail au PLAFOND qui pointe vers le sol
-            -- Pitch -90° = Portail au SOL qui pointe vers le plafond
-            -- Pitch 0° = Portail vertical (mur)
-            local exitPortalPitch = exitPortal:GetAngles().p
-            if math.abs(exitPortalPitch - 90) < 10 then
-                -- Portail au plafond (pitch = 90°) : inverser pour aller vers le haut
-                currentAng = Angle(-currentAng.p, currentAng.y, currentAng.r)
-            elseif exitPortalPitch == -90 then
-                -- Portail au sol (pitch = -90°) : inverser pour aller vers le haut
-                currentAng = Angle(-currentAng.p, currentAng.y, currentAng.r)
-            end
-
-            lastEntity = exitPortal
-
-            break -- Ajout : on sort de la boucle après le premier passage portail
-
-        end
-    end
-
-    -- Après avoir parcouru tous les portails, on fixe l’offset final
-    if bestOffsetZ or bestOffsetX then
-        if CLIENT then
-            -- Envoi la valeur calculée au serveur
-            net.Start("ProjectedWall_SetOffset")
-                net.WriteEntity(self)
-                net.WriteFloat(bestOffsetZ or 0)
-                net.WriteFloat(bestOffsetX or 0)
-            net.SendToServer()
-            if self.SetFinalOffsetZ then
-                self:SetFinalOffsetZ(bestOffsetZ or 0)
-            end
-            if self.SetFinalOffsetX then
-                self:SetFinalOffsetX(bestOffsetX or 0)
-            end
-        end
-        self.LastFinalOffsetZ = bestOffsetZ
-        self.LastFinalOffsetX = bestOffsetX
-        if self.LastLoggedOffsetZ ~= bestOffsetZ or self.LastLoggedOffsetX ~= bestOffsetX then
-            self.LastLoggedOffsetZ = bestOffsetZ
-            self.LastLoggedOffsetX = bestOffsetX
-        end
-    end
-
-    -- Correction : s'assurer que tr est toujours défini
-    if not tr then
-        tr = { Fraction = 1, HitPos = currentPos + currentAng:Forward() * MAX_RAY_LENGTH, Entity = NULL }
-    end
-
-    -- Décoinceur de joueurs coincés dans le mur projeté
-    if SERVER then
-        local physMins, physMaxs = self:GetCollisionBounds()
-        local wallPos = self:GetPos()
-        local wallAng = self:GetAngles()
-        -- Calculer la bounding box en coordonnées monde
-        local minsWorld = wallPos + wallAng:Forward() * physMins.x + wallAng:Right() * physMins.y + wallAng:Up() * physMins.z
-        local maxsWorld = wallPos + wallAng:Forward() * physMaxs.x + wallAng:Right() * physMaxs.y + wallAng:Up() * physMaxs.z
-        -- On élargit un peu la box pour être sûr
-        local expand = 0
-        local boxMins = Vector(math.min(minsWorld.x, maxsWorld.x) - expand, math.min(minsWorld.y, maxsWorld.y) - expand, math.min(minsWorld.z, maxsWorld.z) - expand)
-        local boxMaxs = Vector(math.max(minsWorld.x, maxsWorld.x) + expand, math.min(minsWorld.y, maxsWorld.y) + expand, math.max(minsWorld.z, maxsWorld.z) - expand)
-        for _, ply in ipairs(ents.FindInBox(boxMins, boxMaxs)) do
-            if ply:IsPlayer() and ply:Alive() and not ply:IsFlagSet(FL_GODMODE) then
-                local plyPos = ply:GetPos()
-                -- On vérifie si le joueur est vraiment dans le mur (optionnel, sinon on le monte toujours)
-                -- On le remonte de 1 unité
-                ply:SetPos(plyPos + Vector(0, 0, 1))
-                ply:SetVelocity(Vector(0, 0, 0))
-            end
-        end
-    end
-
-    -- création du clone (même logique client et serveur pour LastFinalOffsetZ/X)
-    if SERVER then
-        -- Utiliser uniquement la valeur synchronisée par le client, ne jamais setter ici !
-        local finalZ = self:GetFinalOffsetZ()
-        local finalX = self:GetFinalOffsetX()
-        local foundPortalEntIndex = self.LastFoundPortalEntity and self.LastFoundPortalEntity:IsValid() and self.LastFoundPortalEntity:EntIndex() or "nil"
-        if foundPortal and bestPortalClonePos and bestPortalCloneAng and bestPortalCloneLinked then
-            -- Application de l'offset selon l'orientation du portail
-            local exitPortalPitch = bestPortalCloneLinked:GetAngles().p
-
-            if finalZ then
-                if math.abs(exitPortalPitch - 90) < 10 then
-                    -- Portail au plafond (pitch = 90°) : l'offset Z devient un offset sur l'axe Forward du portail
-                    bestPortalClonePos = bestPortalClonePos + bestPortalCloneLinked:GetForward() * finalZ
-                elseif math.abs(exitPortalPitch - -90) < 10 then
-                    -- Portail au sol (pitch = -90°) : l'offset Z devient un offset sur l'axe Forward du portail (inversé)
-                    bestPortalClonePos = bestPortalClonePos - bestPortalCloneLinked:GetForward() * finalZ
-                else
-                    -- Mur : application normale de l'offset Z
-                    bestPortalClonePos.z = bestPortalClonePos.z - finalZ
-                end
-            end
-
-            -- L'offset X est déjà appliqué via l'axe Right du portail de sortie plus haut
-            -- Création / mise à jour unique du clone
-            if not self.PortalClone or not IsValid(self.PortalClone) then
-                local clone = ents.Create("projected_wall_entity")
-                if IsValid(clone) then
-                    clone:SetPos(bestPortalClonePos)
-                    -- Correction orientation du clone selon le type de portail
-                    local exitPortalPitch = bestPortalCloneLinked:GetAngles().p
-                    local cloneAng = bestPortalCloneAng
-                    if math.abs(exitPortalPitch - 90) < 10 then
-                        -- Portail au plafond (pitch = 90°) : orientation normale
-                        clone:SetAngles(cloneAng)
-                    elseif exitPortalPitch == 270 or exitPortalPitch == 90 then
-                        -- Portail au sol (pitch = -90°) : rotation de 180° autour de l'axe Right
-                        cloneAng:RotateAroundAxis(cloneAng:Right(), 180)
-                        clone:SetAngles(cloneAng)
-                    else
-                        -- Mur : Forward
-                        clone:SetAngles(cloneAng)
-                    end
-                    clone:Spawn()
-                    clone:CreateWall() -- Ajout : génère la collision du clone
-                    clone:SetParent(bestPortalCloneLinked)
-                    clone.IsPortalClone = true
-                    clone.OriginalWallZ = self.OriginalWallZ
-                    clone.OriginalWallX = self.OriginalWallX
-                    -- Stocker l'orientation initiale pour éviter les changements à chaque frame
-                    clone.InitialCloneAngle = clone:GetAngles()
-                    self.PortalClone = clone
-                    self.PortalCloneLinked = bestPortalCloneLinked
-                end
-            else
-                self.PortalClone:SetPos(bestPortalClonePos)
-                -- Appliquer la même correction d'orientation que lors de la création
-                local exitPortalPitch = bestPortalCloneLinked:GetAngles().p
-                local cloneAng = bestPortalCloneAng
-                -- print(string.format("Updating PortalClone position: %s", tostring(bestPortalClonePos)))
-                print(string.format("exitPortalPitch: %s, exitPortalYaw: %s, exitPortalRoll: %s",
-                    tostring(bestPortalCloneLinked:GetAngles().p),
-                    tostring(bestPortalCloneLinked:GetAngles().y),
-                    tostring(bestPortalCloneLinked:GetAngles().r)))
-                if exitPortalPitch == 90 then
-                    -- Portail au plafond (pitch = 90°)
-                    cloneAng:RotateAroundAxis(cloneAng:Right(), 0)
-                    self.PortalClone:SetAngles(cloneAng)
-                elseif exitPortalPitch == -90 then
-                    -- Portail au sol (pitch = -90°)
-                    cloneAng:RotateAroundAxis(cloneAng:Right(), 180)
-                    self.PortalClone:SetAngles(cloneAng)
-                else
-                    -- Mur : Forward
-                    self.PortalClone:SetAngles(cloneAng)
-                end
-            end
-        else
-            -- Pas de portail valide : suppression du clone s’il existe
-            if self.PortalClone and IsValid(self.PortalClone) then
-                self.PortalClone:Remove()
-                self.PortalClone = nil
-                self.PortalCloneLinked = nil
-            end
-        end
-    end
-
-    if self.TraceFraction ~= tr.Fraction then
-        self:SetUpdated(false)
-        self.TraceFraction = tr.Fraction
-    end
-
-    self:NextThink(CurTime())
-    return true
-end
-
-
-
+	if SERVER then
+		local parent = self:GetParent();
+		if IsValid(parent) and parent:GetClass() == "prop_wall_projector" then
+			local newPos = parent:GetPos() + (parent:GetAngles()):Forward() * 8;
+			local newAng = parent:GetAngles();
+			if not self._lastSyncPos or (not self._lastSyncAng) or self._lastSyncPos ~= newPos or self._lastSyncAng ~= newAng then
+				self:SetPos(newPos);
+				self:SetAngles(newAng);
+				self:SetUpdated(false);
+				self:CreateWall();
+				self._lastSyncPos = newPos;
+				self._lastSyncAng = newAng;
+			end;
+		end;
+	end;
+	if SERVER and (not self.IsPortalClone) and (not self:GetIsProjectorCloned()) then
+		if not self._originalCollisionData then
+			local phys = self:GetPhysicsObject();
+			if IsValid(phys) then
+				self._originalCollisionData = {
+					Solid = self:GetSolid(),
+					CollisionGroup = self:GetCollisionGroup()
+				};
+			end;
+		end;
+	end;
+	if SERVER and (not self.IsPortalClone) and (not self:GetIsProjectorCloned()) and (not self.OriginalWallZ) then
+		self.OriginalWallZ = (self:GetPos()).z;
+		self.OriginalWallX = (self:GetPos()).x;
+	end;
+	if self:GetIsProjectorCloned() then
+		if not self:GetUpdated() and (not self._finalWallCreated) then
+			self:CreateWall();
+			self._finalWallCreated = true;
+		end;
+		self:NextThink(CurTime() + 1);
+		return true;
+	end;
+	if self.IsPortalClone then
+		if SERVER then
+			local physMins, physMaxs = self:GetCollisionBounds();
+			local wallPos = self:GetPos();
+			local wallAng = self:GetAngles();
+			local minsWorld = wallPos + wallAng:Forward() * physMins.x + wallAng:Right() * physMins.y + wallAng:Up() * physMins.z;
+			local maxsWorld = wallPos + wallAng:Forward() * physMaxs.x + wallAng:Right() * physMaxs.y + wallAng:Up() * physMaxs.z;
+			local expand = 0;
+			local boxMins = Vector(math.min(minsWorld.x, maxsWorld.x) - expand, math.min(minsWorld.y, maxsWorld.y) - expand, math.min(minsWorld.z, maxsWorld.z));
+			local boxMaxs = Vector(math.max(minsWorld.x, maxsWorld.x) + expand, math.max(minsWorld.y, maxsWorld.y) + expand, math.min(minsWorld.z, maxsWorld.z));
+			for _, ply in ipairs(ents.FindInBox(boxMins, boxMaxs)) do
+				if ply:IsPlayer() and ply:Alive() and (not ply:IsFlagSet(FL_GODMODE)) then
+					local plyPos = ply:GetPos();
+					ply:SetPos(plyPos + Vector(0, 0, 1));
+					ply:SetVelocity(Vector(0, 0, 0));
+				end;
+			end;
+		end;
+		self:NextThink(CurTime() + 0.5);
+		return true;
+	end;
+	if not self:GetUpdated() then
+		self:CreateWall();
+		if self._originalCollisionData then
+			self:SetSolid(self._originalCollisionData.Solid);
+			self:SetCollisionGroup(self._originalCollisionData.CollisionGroup);
+		end;
+	end;
+	if CLIENT then
+		self:SetNextClientThink(CurTime());
+		if ProjectedWallEntity and (not ProjectedWallEntity.IsAdded(self)) then
+			self:CreateWall();
+		end;
+	end;
+	self._lastFullUpdate = self._lastFullUpdate or 0;
+	local currentTime = CurTime();
+	if currentTime - self._lastFullUpdate < 0.2 then
+		self:NextThink(CurTime() + 0.2);
+		return true;
+	end;
+	self._lastFullUpdate = currentTime;
+	local startPos = self:GetPos();
+	local angles = self:GetAngles();
+	local fwd = angles:Forward();
+	local maxBounces = 1;
+	local currentPos = startPos;
+	local currentAng = angles;
+	local lastEntity = self;
+	local foundPortal = false;
+	local tr;
+	local bestPortalClonePos, bestPortalCloneAng, bestPortalCloneLinked = nil, nil, nil;
+	local entryPortal = nil;
+	for bounce = 1, maxBounces do
+		local rayStart = currentPos;
+		local rayEnd = currentPos + currentAng:Forward() * MAX_RAY_LENGTH;
+		local extents = Vector(10, 10, 10);
+		local found = false;
+		local foundPortalEntity = nil;
+		local foundPortalTr = nil;
+		local rayHits = ents.FindAlongRay(rayStart, rayEnd, -extents, extents);
+		for _, ent in ipairs(rayHits) do
+			if IsValid(ent) then
+				if ent:GetClass() == "prop_portal" and IsValid(ent:GetLinkedPartner()) then
+					found = true;
+					foundPortalEntity = ent;
+					entryPortal = ent;
+					break;
+				end;
+			end;
+		end;
+		if not found then
+			local tr_portal = util.TraceLine({
+				start = rayStart,
+				endpos = rayEnd,
+				mask = MASK_SOLID
+			});
+			if IsValid(tr_portal.Entity) and tr_portal.Entity:GetClass() == "prop_portal" and IsValid(tr_portal.Entity:GetLinkedPartner()) then
+				found = true;
+				foundPortalEntity = tr_portal.Entity;
+				entryPortal = tr_portal.Entity;
+			end;
+		end;
+		if not found then
+			local nearbyPortals = ents.FindInSphere(currentPos, 500);
+			for _, ent in ipairs(nearbyPortals) do
+				if IsValid(ent) and ent:GetClass() == "prop_portal" and IsValid(ent:GetLinkedPartner()) then
+					local dirToPortal = (ent:GetPos() - currentPos):GetNormalized();
+					local rayDir = currentAng:Forward();
+					if dirToPortal:Dot(rayDir) > 0.8 then
+						found = true;
+						foundPortalEntity = ent;
+						entryPortal = ent;
+						break;
+					end;
+				end;
+			end;
+		end;
+		if found and foundPortalEntity then
+			foundPortal = true;
+			local exitPortal = foundPortalEntity:GetLinkedPartner();
+			self.LastFoundPortalEntity = exitPortal;
+			if SERVER then
+				local hitPos = entryPortal:GetPos();
+				if not PortalManager then
+					if file.Exists("lua/gp2/portalmanager.lua", "GAME") then
+						include("gp2/portalmanager.lua");
+					end;
+				end;
+				if PortalManager and PortalManager.TransformPortal then
+					local newPos, newAng = PortalManager.TransformPortal(entryPortal, exitPortal, hitPos, currentAng);
+					newAng = Angle(newAng.p, newAng.y + 180, newAng.r);
+					local exitPortalPitch = (exitPortal:GetAngles()).p;
+					if math.abs(exitPortalPitch - 90) < 10 then
+						newAng = Angle(-newAng.p, newAng.y, newAng.r);
+					elseif math.abs(exitPortalPitch - (-90)) < 10 then
+						newAng = Angle(-newAng.p, newAng.y, newAng.r);
+					end;
+					bestPortalClonePos = newPos;
+					bestPortalCloneAng = newAng;
+					bestPortalCloneLinked = exitPortal;
+				else
+					local entryPos = entryPortal:GetPos();
+					local entryAng = entryPortal:GetAngles();
+					local exitPos = exitPortal:GetPos();
+					local exitAng = exitPortal:GetAngles();
+					local newPos = exitPos + exitAng:Forward() * 50;
+					local newAng = Angle(exitAng.p, exitAng.y + 180, exitAng.r);
+					bestPortalClonePos = newPos;
+					bestPortalCloneAng = newAng;
+					bestPortalCloneLinked = exitPortal;
+				end;
+			end;
+			if PortalManager and PortalManager.TransformPortal then
+				currentPos, currentAng = PortalManager.TransformPortal(foundPortalEntity, exitPortal, hitPos, currentAng);
+				currentAng = Angle(currentAng.p, currentAng.y + 180, currentAng.r);
+				local exitPortalPitch = (exitPortal:GetAngles()).p;
+				if math.abs(exitPortalPitch - 90) < 10 then
+					currentAng = Angle(-currentAng.p, currentAng.y, currentAng.r);
+				elseif exitPortalPitch == (-90) then
+					currentAng = Angle(-currentAng.p, currentAng.y, currentAng.r);
+				end;
+			end;
+			lastEntity = exitPortal;
+			break;
+		end;
+	end;
+	if not tr then
+		tr = {
+			Fraction = 1,
+			HitPos = currentPos + currentAng:Forward() * MAX_RAY_LENGTH,
+			Entity = NULL
+		};
+	end;
+	if SERVER then
+		local physMins, physMaxs = self:GetCollisionBounds();
+		local wallPos = self:GetPos();
+		local wallAng = self:GetAngles();
+		local minsWorld = wallPos + wallAng:Forward() * physMins.x + wallAng:Right() * physMins.y + wallAng:Up() * physMins.z;
+		local maxsWorld = wallPos + wallAng:Forward() * physMaxs.x + wallAng:Right() * physMaxs.y + wallAng:Up() * physMaxs.z;
+		local expand = 0;
+		local boxMins = Vector(math.min(minsWorld.x, maxsWorld.x) - expand, math.min(minsWorld.y, maxsWorld.y) - expand, math.min(minsWorld.z, maxsWorld.z) - expand);
+		local boxMaxs = Vector(math.max(minsWorld.x, maxsWorld.x) + expand, math.min(minsWorld.y, maxsWorld.y) + expand, math.max(minsWorld.z, maxsWorld.z) - expand);
+		for _, ply in ipairs(ents.FindInBox(boxMins, boxMaxs)) do
+			if ply:IsPlayer() and ply:Alive() and (not ply:IsFlagSet(FL_GODMODE)) then
+				local plyPos = ply:GetPos();
+				ply:SetPos(plyPos + Vector(0, 0, 1));
+				ply:SetVelocity(Vector(0, 0, 0));
+			end;
+		end;
+	end;
+	if SERVER then
+		self._lastCloneUpdate = self._lastCloneUpdate or 0;
+		local currentTime = CurTime();
+		if currentTime - self._lastCloneUpdate < 0.2 then
+			self:NextThink(CurTime() + 0.2);
+			return true;
+		end;
+		if foundPortal and bestPortalClonePos and bestPortalCloneAng and bestPortalCloneLinked then
+			local function vectorsEqual(a, b, tolerance)
+				tolerance = tolerance or 0.1;
+				return math.abs(a.x - b.x) < tolerance and math.abs(a.y - b.y) < tolerance and math.abs(a.z - b.z) < tolerance;
+			end;
+			local function anglesEqual(a, b, tolerance)
+				tolerance = tolerance or 1;
+				return math.abs(a.p - b.p) < tolerance and math.abs(a.y - b.y) < tolerance and math.abs(a.r - b.r) < tolerance;
+			end;
+			self._lastPortalClonePos = self._lastPortalClonePos or Vector(0, 0, 0);
+			self._lastPortalCloneAng = self._lastPortalCloneAng or Angle(0, 0, 0);
+			local portalMoved = not vectorsEqual(self._lastPortalClonePos, bestPortalCloneLinked:GetPos()) or (not anglesEqual(self._lastPortalCloneAng, bestPortalCloneLinked:GetAngles()));
+			local forceCreate = not self.PortalClone or (not IsValid(self.PortalClone));
+			self._lastPortalClonePos = bestPortalCloneLinked:GetPos();
+			self._lastPortalCloneAng = bestPortalCloneLinked:GetAngles();
+			if portalMoved or forceCreate then
+				self._lastCloneUpdate = currentTime;
+				if self.PortalClone and IsValid(self.PortalClone) then
+					self.PortalClone:Remove();
+					self.PortalClone = nil;
+					self.PortalCloneLinked = nil;
+				end;
+				if self.EntryPortalClone and IsValid(self.EntryPortalClone) then
+					self.EntryPortalClone:Remove();
+					self.EntryPortalClone = nil;
+				end;
+				local entryCloneWall = ents.Create("projected_wall_entity");
+				if IsValid(entryCloneWall) then
+					local entryPortalAng = entryPortal:GetAngles();
+					local entryCloneAngle = Angle(entryPortalAng.p - 90, entryPortalAng.y, entryPortalAng.r);
+					local entryPortalPitch = entryPortalAng.p;
+					local entryPortalZ = entryPortal and (entryPortal:GetPos()).z or 0;
+					local entryPortalX = entryPortal and (entryPortal:GetPos()).x or 0;
+					local entryPortalY = entryPortal and (entryPortal:GetPos()).y or 0;
+					local originProjectorZ = (self:GetPos()).z;
+					local originProjectorX = (self:GetPos()).x;
+					local originProjectorY = (self:GetPos()).y;
+					local offsetZ = entryPortalZ - originProjectorZ;
+					local offsetX = entryPortalX - originProjectorX;
+					local offsetY = entryPortalY - originProjectorY;
+					print("[GP2] prop_wall_projector: Création du clone miroir pour le portail d'entrée");
+					print("[GP2] prop_wall_projector: Position du portail d'entrée: " .. tostring(entryPortal:GetPos()));
+					print("[GP2] prop_wall_projector: Position du projecteur d'origine: " .. tostring(self:GetPos()));
+					print("[GP2] prop_wall_projector: Position du portail de sortie: " .. tostring(bestPortalCloneLinked:GetPos()));
+					print("[GP2] prop_wall_projector: Position du projecteur cloné: " .. tostring(bestPortalClonePos));
+					print("[GP2] prop_wall_projector: Offset Z: " .. tostring(offsetZ));
+					print("[GP2] prop_wall_projector: Offset X: " .. tostring(offsetX));
+					print("[GP2] prop_wall_projector: Offset Y: " .. tostring(offsetY));
+					print("------------------------------------------------------------------------");
+					local yaw = entryPortalAng.y % 360;
+					if yaw >= 45 and yaw < 135 then
+						offsetX = entryPortalY - originProjectorY;
+						offsetX = -offsetX;
+						offsetY = 0;
+					elseif yaw >= 135 and yaw < 225 then
+						offsetX = 0;
+						offsetY = -offsetY;
+					elseif yaw >= 225 and yaw < 315 then
+						offsetX = -(entryPortalY - originProjectorY);
+						offsetX = -offsetX;
+						offsetY = 0;
+					else
+						offsetX = 0;
+					end;
+					if math.abs(entryPortalPitch - 90) < 10 then
+						entryCloneAngle = Angle(-entryCloneAngle.p, entryCloneAngle.y, entryCloneAngle.r);
+					elseif math.abs(entryPortalPitch - (-90)) < 10 then
+						entryCloneAngle = Angle(-entryCloneAngle.p, entryCloneAngle.y, entryCloneAngle.r);
+					end;
+					while entryCloneAngle.y >= 360 do
+						entryCloneAngle.y = entryCloneAngle.y - 360;
+					end;
+					while entryCloneAngle.y < 0 do
+						entryCloneAngle.y = entryCloneAngle.y + 360;
+					end;
+					local parent = self:GetParent();
+					if IsValid(parent) then
+						local entryClonePos = entryPortal:GetPos() + entryPortalAng:Forward() * 8;
+						if entryPortalAng.p == 90 or entryPortalAng.p == (-90) then
+							if entryPortalAng.p == 90 then
+								entryClonePos = entryClonePos - entryPortalAng:Forward() * 20;
+							else
+								entryClonePos = entryClonePos + entryPortalAng:Forward() * (-8);
+							end;
+							entryClonePos = entryClonePos - entryPortalAng:Up() * (-offsetZ);
+							entryClonePos = entryClonePos + entryPortalAng:Right() * (-offsetX);
+							entryClonePos.z = entryClonePos.z - offsetZ;
+							entryClonePos.x = entryClonePos.x - offsetX;
+							entryClonePos.y = entryClonePos.y - offsetY;
+							print("entryClonePos.z: " .. tostring(entryClonePos.z));
+							print("entryClonePos.x: " .. tostring(entryClonePos.x));
+							print("entryClonePos.y: " .. tostring(entryClonePos.y));
+						else
+							entryClonePos = entryClonePos - entryPortalAng:Forward() * (-8);
+						end;
+						entryCloneWall:SetPos(entryClonePos);
+						entryCloneWall:SetAngles(entryCloneAngle);
+						entryCloneWall:SetParent(entryPortal);
+						entryCloneWall.IsPortalClone = true;
+						entryCloneWall.InvisibleClone = true;
+						entryCloneWall:Spawn();
+						entryCloneWall:Activate();
+						entryCloneWall:AddEffects(EF_NODRAW);
+						if self._originalCollisionData then
+							entryCloneWall:SetSolid(self._originalCollisionData.Solid);
+							entryCloneWall:SetCollisionGroup(self._originalCollisionData.CollisionGroup);
+						end;
+						entryCloneWall:CreateWall();
+						self.EntryPortalClone = entryCloneWall;
+						print("[GP2] Clone miroir créé au portail d'entrée avec angles: " .. tostring(entryCloneAngle));
+						print("[GP2] Position du clone miroir: " .. tostring(entryClonePos));
+					end;
+				end;
+				local cloneProjector = ents.Create("prop_wall_projector");
+				if IsValid(cloneProjector) then
+					local entryPortalZ = entryPortal and (entryPortal:GetPos()).z or 0;
+					local entryPortalX = entryPortal and (entryPortal:GetPos()).x or 0;
+					local entryPortalY = entryPortal and (entryPortal:GetPos()).y or 0;
+					local originProjectorZ = (self:GetPos()).z;
+					local originProjectorX = (self:GetPos()).x;
+					local originProjectorY = (self:GetPos()).y;
+					local offsetZ = entryPortalZ - originProjectorZ;
+					local offsetX = entryPortalX - originProjectorX;
+					local offsetY = entryPortalY - originProjectorY;
+					print("[GP2] prop_wall_projector: Création du clone du projecteur de mur");
+					print("[GP2] prop_wall_projector: Position du portail d'entrée: " .. tostring(entryPortal:GetPos()));
+					print("[GP2] prop_wall_projector: Position du projecteur d'origine: " .. tostring(self:GetPos()));
+					print("[GP2] prop_wall_projector: Position du portail de sortie: " .. tostring(bestPortalCloneLinked:GetPos()));
+					print("[GP2] prop_wall_projector: Position du projecteur cloné: " .. tostring(bestPortalClonePos));
+					print("[GP2] prop_wall_projector: Offset Z: " .. tostring(offsetZ));
+					print("[GP2] prop_wall_projector: Offset X: " .. tostring(offsetX));
+					print("[GP2] prop_wall_projector: Offset Y: " .. tostring(offsetY));
+					local exitAng = bestPortalCloneLinked:GetAngles();
+					local yaw = exitAng.y % 360;
+					if yaw >= 45 and yaw < 135 then
+						offsetX = entryPortalY - originProjectorY;
+						offsetX = -offsetX;
+						offsetY = 0;
+						print("[GP2] Correction de l'offset X pour le portail à l'est");
+					elseif yaw >= 135 and yaw < 225 then
+						offsetX = 0;
+						offsetY = -offsetY;
+						print("[GP2] Correction de l'offset X pour le portail au sud");
+					elseif yaw >= 225 and yaw < 315 then
+						offsetX = -(entryPortalY - originProjectorY);
+						offsetX = -offsetX;
+						offsetY = 0;
+						print("[GP2] Correction de l'offset X pour le portail à l'ouest");
+					else
+						offsetX = 0;
+						print("[GP2] Correction de l'offset X pour le portail au nord");
+					end;
+					local finalAngle = bestPortalCloneAng;
+					if bestPortalCloneAng.p == 90 or bestPortalCloneAng.p == (-90) then
+						finalAngle = Angle(bestPortalCloneAng.p, bestPortalCloneAng.y + 180, bestPortalCloneAng.r);
+						if bestPortalCloneAng.p == 90 then
+							bestPortalClonePos = bestPortalClonePos - bestPortalCloneAng:Forward() * 20;
+						else
+							bestPortalClonePos = bestPortalClonePos + bestPortalCloneAng:Forward() * (-8);
+						end;
+						bestPortalClonePos = bestPortalClonePos - bestPortalCloneAng:Up() * (-offsetZ);
+						bestPortalClonePos = bestPortalClonePos + bestPortalCloneAng:Right() * (-offsetX);
+					else
+						finalAngle = Angle(bestPortalCloneAng.p, bestPortalCloneAng.y + 180, bestPortalCloneAng.r);
+						bestPortalClonePos = bestPortalClonePos - bestPortalCloneAng:Forward() * (-8);
+						bestPortalClonePos.z = bestPortalClonePos.z - offsetZ;
+						bestPortalClonePos.x = bestPortalClonePos.x + offsetX;
+						bestPortalClonePos.y = bestPortalClonePos.y + offsetY;
+					end;
+					while finalAngle.y >= 360 do
+						finalAngle.y = finalAngle.y - 360;
+					end;
+					while finalAngle.y < 0 do
+						finalAngle.y = finalAngle.y + 360;
+					end;
+					if cloneProjector.SetIsProjectorCloned then
+						cloneProjector:SetIsProjectorCloned(true);
+					end;
+					cloneProjector:SetPos(bestPortalClonePos);
+					cloneProjector:SetAngles(finalAngle);
+					cloneProjector:Spawn();
+					cloneProjector:Activate();
+					cloneProjector:SetParent(bestPortalCloneLinked);
+					if cloneProjector.ProjectedWall and IsValid(cloneProjector.ProjectedWall) then
+						cloneProjector.ProjectedWall:SetManualAngle(finalAngle);
+					end;
+					timer.Simple(0.1, function()
+						if IsValid(cloneProjector) and cloneProjector.ProjectedWall and IsValid(cloneProjector.ProjectedWall) then
+							cloneProjector.ProjectedWall:SetIsProjectorCloned(true);
+							cloneProjector.ProjectedWall:SetAngles(cloneProjector:GetAngles());
+							if IsValid(cloneProjector.ProjectedWall:GetPhysicsObject()) then
+								(cloneProjector.ProjectedWall:GetPhysicsObject()):Remove();
+							end;
+							cloneProjector.ProjectedWall:SetUpdated(false);
+							cloneProjector.ProjectedWall._finalWallCreated = false;
+							cloneProjector.ProjectedWall:CreateWall();
+							cloneProjector.ProjectedWall._finalWallCreated = true;
+							timer.Simple(0.2, function()
+								if IsValid(cloneProjector.ProjectedWall) then
+									local phys = cloneProjector.ProjectedWall:GetPhysicsObject();
+									if IsValid(phys) then
+										phys:EnableMotion(false);
+										phys:SetMaterial("gmod_silent");
+									end;
+								end;
+							end);
+						end;
+					end);
+					self.PortalClone = cloneProjector;
+					self.PortalCloneLinked = bestPortalCloneLinked;
+				end;
+			end;
+		elseif self.PortalClone and IsValid(self.PortalClone) then
+			self.PortalClone:Remove();
+			self.PortalClone = nil;
+			self.PortalCloneLinked = nil;
+			if self.EntryPortalClone and IsValid(self.EntryPortalClone) then
+				self.EntryPortalClone:Remove();
+				self.EntryPortalClone = nil;
+			end;
+		elseif not foundPortal then
+		elseif not bestPortalClonePos then
+		elseif not bestPortalCloneAng then
+		elseif not bestPortalCloneLinked then
+		end;
+	end;
+	if tr and tr.Fraction then
+		if self.TraceFraction == nil then
+			self.TraceFraction = tr.Fraction;
+			self:SetUpdated(false);
+		elseif math.abs(self.TraceFraction - tr.Fraction) > 0.05 then
+			self.TraceFraction = tr.Fraction;
+			self:SetUpdated(false);
+		end;
+	end;
+	self:NextThink(CurTime() + 0.2);
+	return true;
+end;
 function ENT:Draw()
-end
-
+end;
 function ENT:OnRemove(fd)
-    if self.WallImpact then
-        self.WallImpact:StopEmissionAndDestroyImmediately()
-    end
-    if SERVER and self.PortalClone and IsValid(self.PortalClone) then
-        self.PortalClone:Remove()
-        self.PortalClone = nil
-        self.PortalCloneLinked = nil
-    end
-    if self.IsPortalClone then
-    end
-end
-
+	if self.WallImpact then
+		self.WallImpact:StopEmissionAndDestroyImmediately();
+	end;
+	if SERVER and self.PortalClone and IsValid(self.PortalClone) then
+		self.PortalClone:Remove();
+		self.PortalClone = nil;
+		self.PortalCloneLinked = nil;
+	end;
+	if SERVER and self.EntryPortalClone and IsValid(self.EntryPortalClone) then
+		self.EntryPortalClone:Remove();
+		self.EntryPortalClone = nil;
+	end;
+	if self.IsPortalClone then
+	end;
+end;
 function ENT:CreateWall()
-    local startPos = self:GetPos()
-    local angles = self:GetAngles()
-    local fwd = angles:Forward()
-    local right = angles:Right()
-    local up = angles:Up()
-
-    local tr = util.TraceLine({
-        start = startPos,
-        endpos = startPos + fwd * MAX_RAY_LENGTH,
-        mask = MASK_SOLID_BRUSHONLY,
-    })
-
-    local hitPos = tr.HitPos
-    local distance = hitPos:Distance(startPos)
-    local v = -distance / 192
-
-    self:SetDistanceToHit(distance)
-
-    local fullLength = (tr.HitPos - startPos):Length()
-    local halfLength = fullLength / 2
-    local halfWidth = PROJECTED_WALL_WIDTH / 2
-
-    local verts_col = {
-        Vector(-halfLength, -halfWidth, -1),
-        Vector(-halfLength, -halfWidth, 0),
-        Vector(-halfLength, halfWidth, -1),
-        Vector(-halfLength, halfWidth, 0),
-        Vector(fullLength, -halfWidth, -1),
-        Vector(fullLength, -halfWidth, 0),
-        Vector(fullLength, halfWidth, -1),
-        Vector(fullLength, halfWidth, 0)
-    }
-
-    if CLIENT then
-        -- Correction : recalculer les points du mesh selon l'orientation réelle
-        local verts = {
-            { pos = startPos - right * halfWidth, u = 1, v = 0 },
-            { pos = startPos - right * halfWidth + fwd * distance, u = 1, v = v },
-            { pos = startPos - right * halfWidth + fwd * distance + right * PROJECTED_WALL_WIDTH, u = 0, v = v },
-            { pos = startPos + right * halfWidth + fwd * distance, u = 0, v = v },
-            { pos = startPos + right * halfWidth, u = 0, v = 0 },
-            { pos = startPos - right * halfWidth, u = 1, v = 0 },
-        }
-        -- Si le mur est un clone et que l'angle est inversé (portail au sol/plafond), inverser le mesh
-        if self.IsPortalClone and self.InitialCloneAngle then
-            local pitch = self.InitialCloneAngle.p
-            if math.abs(pitch - 90) < 10 or math.abs(pitch - -90) < 10 then
-                -- Inverser le mesh sur l'axe Up
-                for k, vert in ipairs(verts) do
-                    vert.pos = vert.pos + up * 0 -- (optionnel, à ajuster si besoin)
-                end
-            end
-        end
-        if self.Mesh and self.Mesh:IsValid() then
-            self.Mesh:Destroy()
-        end        self.Mesh = Mesh()
-        self.Mesh:BuildFromTriangles(verts)
-        if ProjectedWallEntity then
-            ProjectedWallEntity.AddToRenderList(self, self.Mesh)
-        end
-    end
-
-    if SERVER then
-        -- It don't work without it
-        self:PhysicsInitStatic(6)
-        self:SetUpdated(true)
-    else
-        if not IsValid(self.WallImpact) then
-            local wallImpactAng = tr.HitNormal:Angle()
-
-            self.WallImpact = CreateParticleSystemNoEntity("projected_wall_impact", tr.HitPos - fwd * 4, wallImpactAng)
-
-            --idk how to work with this particle, maybe converter fucked it up
-            --self.WallImpact:SetControlPoint(1, Vector(1,1,1))
-        end
-
-        if not self:GetUpdated() and IsValid(self.WallImpact) then
-            self.WallImpact:StopEmissionAndDestroyImmediately()
-            self.WallImpact = nil
-        end
-    end
-
-    self:EnableCustomCollisions(true)
-    self:PhysicsInitConvex(verts_col, "hard_light_bridge")
-    self:GetPhysicsObject():EnableMotion(false)
-    self:GetPhysicsObject():SetContents(CONTENTS_SOLID + CONTENTS_MOVEABLE + CONTENTS_BLOCKLOS)
-end
-
+	if self:GetIsProjectorCloned() and self._finalWallCreated then
+		return;
+	end;
+	local startPos = self:GetPos();
+	local angles = self:GetAngles();
+	local fwd = angles:Forward();
+	local right = angles:Right();
+	local up = angles:Up();
+	if self:GetManualAngle() and self:GetManualAngle() ~= Angle(0, 0, 0) then
+		angles = self:GetManualAngle();
+		fwd = angles:Forward();
+		right = angles:Right();
+		up = angles:Up();
+	end;
+	local tr = util.TraceLine({
+		start = startPos,
+		endpos = startPos + fwd * MAX_RAY_LENGTH,
+		mask = MASK_SOLID_BRUSHONLY
+	});
+	local hitPos = tr.HitPos;
+	local distance = hitPos:Distance(startPos);
+	local v = (-distance) / 192;
+	self:SetDistanceToHit(distance);
+	local offsetZ = self:GetIsProjectorCloned() and 0 or (self:GetManualOffsetZ() or 0);
+	local offsetX = self:GetIsProjectorCloned() and 0 or (self:GetManualOffsetX() or 0);
+	local adjustedStartPos = startPos + up * offsetZ + right * offsetX;
+	local fullLength = (tr.HitPos - adjustedStartPos):Length();
+	local halfWidth = PROJECTED_WALL_WIDTH / 2;
+	local verts_col = {
+		Vector(0, -halfWidth, -2),
+		Vector(0, -halfWidth, 2),
+		Vector(0, halfWidth, -2),
+		Vector(0, halfWidth, 2),
+		Vector(fullLength, -halfWidth, -2),
+		Vector(fullLength, -halfWidth, 2),
+		Vector(fullLength, halfWidth, -2),
+		Vector(fullLength, halfWidth, 2)
+	};
+	if CLIENT then
+		if not self.InvisibleClone then
+			local verts = {
+				{
+					pos = adjustedStartPos - right * halfWidth,
+					u = 1,
+					v = 0
+				},
+				{
+					pos = adjustedStartPos - right * halfWidth + fwd * distance,
+					u = 1,
+					v = v
+				},
+				{
+					pos = adjustedStartPos - right * halfWidth + fwd * distance + right * PROJECTED_WALL_WIDTH,
+					u = 0,
+					v = v
+				},
+				{
+					pos = adjustedStartPos + right * halfWidth + fwd * distance,
+					u = 0,
+					v = v
+				},
+				{
+					pos = adjustedStartPos + right * halfWidth,
+					u = 0,
+					v = 0
+				},
+				{
+					pos = adjustedStartPos - right * halfWidth,
+					u = 1,
+					v = 0
+				}
+			};
+			if self.IsPortalClone and self.InitialCloneAngle then
+				local pitch = self.InitialCloneAngle.p;
+				if math.abs(pitch - 90) < 10 or math.abs(pitch - (-90)) < 10 then
+					for k, vert in ipairs(verts) do
+						vert.pos = vert.pos + up * 0;
+					end;
+				end;
+			end;
+			if self.Mesh and self.Mesh:IsValid() then
+				self.Mesh:Destroy();
+			end;
+			self.Mesh = Mesh();
+			self.Mesh:BuildFromTriangles(verts);
+			if ProjectedWallEntity then
+				ProjectedWallEntity.AddToRenderList(self, self.Mesh);
+			end;
+		end;
+	end;
+	if SERVER then
+		self:SetPos(adjustedStartPos);
+		self:SetAngles(angles);
+		self:PhysicsInitStatic(6);
+		self:SetUpdated(true);
+	else
+		if not IsValid(self.WallImpact) then
+			local wallImpactAng = tr.HitNormal:Angle();
+			self.WallImpact = CreateParticleSystemNoEntity("projected_wall_impact", tr.HitPos - fwd * 4, wallImpactAng);
+		end;
+		if not self:GetUpdated() and IsValid(self.WallImpact) then
+			self.WallImpact:StopEmissionAndDestroyImmediately();
+			self.WallImpact = nil;
+		end;
+	end;
+	self:EnableCustomCollisions(true);
+	self:PhysicsInitConvex(verts_col, "hard_light_bridge");
+	local phys = self:GetPhysicsObject();
+	if IsValid(phys) then
+		phys:EnableMotion(false);
+		phys:SetContents(CONTENTS_SOLID + CONTENTS_MOVEABLE + CONTENTS_BLOCKLOS);
+		if self:GetIsProjectorCloned() then
+			phys:SetMaterial("gmod_silent");
+			phys:Wake();
+			timer.Simple(0.1, function()
+				if IsValid(self) and IsValid(phys) then
+					phys:Sleep();
+				end;
+			end);
+		end;
+	elseif self:GetIsProjectorCloned() then
+	end;
+end;
 if SERVER then
-    function ENT:UpdateTransmitState()
-        return TRANSMIT_ALWAYS
-    end
-end
+	function ENT:UpdateTransmitState()
+		return TRANSMIT_ALWAYS;
+	end;
+end;

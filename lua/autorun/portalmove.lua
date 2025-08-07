@@ -235,7 +235,7 @@ end
 
 -- Fixed Portals Roofs
 
-			ply:SetMoveType(MOVETYPE_FLY)
+			ply:SetMoveType(MOVETYPE_NOCLIP)
 -- print("MOVETYPE_FLY")
 
 timer.Create( "Walk", 0.075, 1, function()
