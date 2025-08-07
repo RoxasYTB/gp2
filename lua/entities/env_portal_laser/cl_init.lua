@@ -66,12 +66,40 @@ function EnvPortalLaser.CreateSegmentsFromSimpleData(laser)
         return
     end
 
-    -- Créer un segment simple
+    -- Vérifier si ce segment termine sur un portail ET peut l'atteindre
+    local hitsPortal = false
+    local canReachPortal = true
+    local entsAtEnd = ents.FindInSphere(hitPos, 15)
+
+    for _, ent in ipairs(entsAtEnd) do
+        if IsValid(ent) and ent:GetClass() == "prop_portal" then
+            hitsPortal = true
+
+            -- Vérifier si le laser peut réellement atteindre ce portail
+            local traceToPortal = util.TraceLine({
+                start = startPos,
+                endpos = hitPos,
+                filter = function(checkEnt)
+                    return checkEnt ~= laser and checkEnt:GetClass() ~= "env_portal_laser"
+                end,
+                mask = MASK_OPAQUE_AND_NPCS
+            })
+
+            -- Si quelque chose bloque le chemin
+            if traceToPortal.Hit and traceToPortal.Entity ~= ent then
+                canReachPortal = false
+            end
+            break
+        end
+    end
+
+    -- Créer un segment simple avec les informations de portail
     laser.LaserSegments = {
         {
             start = startPos,
             endpos = hitPos,
-            hitsPortal = false -- Pour simplifier, on assume qu'il n'y a pas de portail
+            hitsPortal = hitsPortal,
+            canReachPortal = canReachPortal
         }
     }
 end
@@ -87,21 +115,14 @@ net.Receive("LaserSegments", function()
     for i = 1, numSegments do
         local startPos = net.ReadVector()
         local endPos = net.ReadVector()
-
-        -- Détecter si ce segment termine sur un portail
-        local hitPortal = false
-        local entsAtEnd = ents.FindInSphere(endPos, 10)
-        for _, ent in ipairs(entsAtEnd) do
-            if IsValid(ent) and ent:GetClass() == "prop_portal" then
-                hitPortal = true
-                break
-            end
-        end
+        local hitsPortal = net.ReadBool()
+        local canReachPortal = net.ReadBool()
 
         table.insert(laser.LaserSegments, {
             start = startPos,
             endpos = endPos,
-            hitsPortal = hitPortal
+            hitsPortal = hitsPortal,
+            canReachPortal = canReachPortal
         })
     end
 end)
@@ -183,30 +204,30 @@ function ENT:DrawLaserSegments()
         if #self.LaserSegments > 1 then
             local dir = (endpos - start):GetNormalized()
 
-            -- Premier segment : si il termine sur un portail, étendre davantage
+            -- Premier segment : si il termine sur un portail ET qu'il peut l'atteindre, étendre davantage
             if i == 1 then
-                local extension = segment.hitsPortal and 20 or 12
+                local extension = (segment.hitsPortal and segment.canReachPortal ~= false) and 20 or 12
                 endpos = endpos + dir * extension
             end
 
             -- Segments intermédiaires : étendre dans les deux directions
             if i > 1 and i < #self.LaserSegments then
-                start = start - dir * 8
-                local extension = segment.hitsPortal and 16 or 8
+                start = start - dir * 0
+                local extension = (segment.hitsPortal and segment.canReachPortal ~= false) and 16 or 8
                 endpos = endpos + dir * extension
             end
 
             -- Dernier segment : si il part d'un portail, étendre vers l'arrière
             if i == #self.LaserSegments then
                 local extension = 12
-                -- Si le segment précédent terminait sur un portail, étendre davantage
-                if i > 1 and self.LaserSegments[i-1].hitsPortal then
+                -- Si le segment précédent terminait sur un portail ET qu'il pouvait l'atteindre, étendre davantage
+                if i > 1 and self.LaserSegments[i-1].hitsPortal and self.LaserSegments[i-1].canReachPortal ~= false then
                     extension = 20
                 end
-                start = start - dir * extension
+                start = start - dir * 6.05
             end
-        elseif segment.hitsPortal then
-            -- Segment unique qui termine sur un portail
+        elseif segment.hitsPortal and segment.canReachPortal ~= false then
+            -- Segment unique qui termine sur un portail ET peut l'atteindre
             local dir = (endpos - start):GetNormalized()
             endpos = endpos + dir * 15
         end
@@ -244,7 +265,7 @@ hook.Add("PostDrawTranslucentRenderables", "EnvPortalLaser_Render", function()
 
         -- Rendu des lasers de la RenderList du système d'entité
         for laser, _ in pairs(EnvPortalLaser.RenderList) do
-            if IsValid(laser) and laser:GetState() then
+            if IsValid(laser) and laser.GetState and laser:GetState() then
                 if laser.DrawLaserSegments then
                     laser:DrawLaserSegments()
                 end
@@ -423,7 +444,9 @@ hook.Add("OnEntityCreated", "GP2_EnsureGetHitPosAndState", function(ent)
         if not ent.GetHitPos then
             function ent:GetHitPos()
                 if self.TraceResult and self.TraceResult.HitPos then
+                    print("[GP2] Warning: GetHitPos called on env_portal_laser without TraceResult")
                     return self.TraceResult.HitPos
+
                 end
                 return self:GetPos()
             end

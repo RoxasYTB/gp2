@@ -102,11 +102,6 @@ if SERVER then
 else
     -- CLIENT - Afficher les commandes disponibles
     hook.Add("Initialize", "GP2_ShowPortalCommands", function()
-        timer.Simple(2, function()
-            chat.AddText(Color(100, 255, 100), "[GP2] ", Color(255, 255, 255), "Commandes de test disponibles :")
-            chat.AddText(Color(255, 255, 100), "gp2_spawn_portal [type] [groupe] ", Color(255, 255, 255), "- Spawner un portail")
-            chat.AddText(Color(255, 255, 100), "gp2_link_portals [groupe] ", Color(255, 255, 255), "- Lier les portails d'un groupe")
-            chat.AddText(Color(200, 200, 200), "Types: 1=Bleu, 2=Orange")
-        end)
+            print("[GP2-SDK] Test commands loaded")
     end)
 end
