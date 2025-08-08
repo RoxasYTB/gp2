@@ -337,9 +337,15 @@ function ENT:Touch(ent)
 			self:PlayerEnterPortal(ent);
 		else
 			ent:SetGroundEntity(self);
-			self:DoPort(ent);
-			ent.AlreadyPorted = true;
-			self:SyncClone(ent);
+			local eyepos = ent:EyePos();
+			local function IsBehind(posA, posB, normal)
+				local Vec1 = (posB - posA):GetNormalized();
+				return normal:Dot(Vec1) < 0;
+			end;
+			if not IsBehind(eyepos, self:GetPos(), self:GetForward()) then
+				self:DoPort(ent);
+				ent.AlreadyPorted = true;
+			end;
 		end;
 	else
 		self:SyncClone(ent);
@@ -737,27 +743,54 @@ function ENT:DoPort(ent)
 	end;
 	if ent:IsPlayer() then
 		local eyepos = ent:EyePos();
-		local portalPos = self.StablePos or self:GetPos();
-		local portalNormal = self.StableAngles and self.StableAngles:Forward() or self:GetForward();
-		local isPlayerBehind = true;
-		if ent.InPortal == self then
-			ent.InPortal = nil;
-			ent:SetMoveType(MOVETYPE_NOCLIP);
-			if ent.GP2_SavedEyeAngles then
-				ent:SetEyeAngles(ent.GP2_SavedEyeAngles);
-				ent.GP2_SavedEyeAngles = nil;
-			end;
-			local ang = ent:EyeAngles();
-			if ang.p > 30 then
-				ang.p = 90;
-				ent:SetEyeAngles(ang);
-			end;
-			timer.Create("Walk_" .. ent:EntIndex(), 0.05, 1, function()
-				if IsValid(ent) then
-					ent:SetMoveType(MOVETYPE_WALK);
-					ent:ResetHull();
+		local vel = ent:GetVelocity();
+		local function IsBehind(posA, posB, normal)
+			local Vec1 = (posB - posA):GetNormalized();
+			return normal:Dot(Vec1) < 0;
+		end;
+		if not IsBehind(eyepos, self:GetPos(), self:GetForward()) then
+			local newPos = self:GetPortalPosOffsets(portal, ent);
+			ent:SetPos(newPos);
+			local nuVel = self:TransformOffset(vel, self:GetAngles(), portal:GetAngles()) * (-1);
+			if portal:OnFloor() and self:OnFloor() then
+				if nuVel:Length() < 340 then
+					nuVel = portal:GetForward() * 340;
 				end;
-			end);
+			elseif portal:OnFloor() then
+				if nuVel:Length() < 350 then
+					nuVel = portal:GetForward() * 350;
+				end;
+			elseif portal:OnRoof() and (not portal:IsHorizontal()) then
+				local vel_roof_max = GetConVar("portal_velocity_roof") or CreateConVar("portal_velocity_roof", "1000", FCVAR_ARCHIVE);
+				if nuVel:Length() > vel_roof_max:GetInt() then
+					nuVel = portal:GetForward() * vel_roof_max:GetInt();
+				end;
+			elseif not portal:IsHorizontal() and (not portal:OnRoof()) then
+				if nuVel:Length() < 300 then
+					nuVel = portal:GetForward() * 300;
+				end;
+			end;
+			ent:SetVelocity(nuVel);
+			local newang = self:GetPortalAngleOffsets(portal, ent);
+			ent:SetEyeAngles(newang);
+			ent.JustEntered = false;
+			ent.JustPorted = true;
+			portal:PlayerEnterPortal(ent);
+		elseif ent.InPortal == self then
+			ent.InPortal = nil;
+			ent:SetGroundEntity(NULL);
+			ent:SetMoveType(MOVETYPE_WALK);
+			for _, v in pairs(player.GetAll()) do
+				v:ResetHull();
+			end;
+			if SERVER then
+				local snd_portal2 = GetConVar("portal_sound") or CreateConVar("portal_sound", "0", FCVAR_ARCHIVE);
+				if not snd_portal2:GetBool() then
+					ent:EmitSound("PortalPlayer.ExitPortal", 80, 100 + 30 * (vel:Length() - 450) / 1000);
+				else
+					ent:EmitSound("PortalPlayer.ExitPortal", 80, 100 + 30 * (vel:Length() - 450) / 1000);
+				end;
+			end;
 			if ent.PortalClone and IsValid(ent.PortalClone) then
 				ent.PortalClone:Remove();
 				ent.PortalClone = nil;
@@ -823,15 +856,15 @@ function ENT:TransformVelocityBetweenPortals(vel, targetPortal)
 			transformedVel = targetPortal:GetForward() * speed;
 		end;
 	elseif sourceIsFloor and targetIsWall then
-		local localVel = self:WorldToLocal(vel);
+		local localVel = self:WorldToLocalVector(vel);
 		localVel.z = 0;
-		local wallVel = targetPortal:LocalToWorld(localVel);
+		local wallVel = targetPortal:LocalToWorldVector(localVel);
 		local forward = targetPortal:GetForward();
 		transformedVel = wallVel:GetNormalized() * speed + forward * 50;
 	elseif sourceIsWall and targetIsFloor then
-		local localVel = self:WorldToLocal(vel);
+		local localVel = self:WorldToLocalVector(vel);
 		localVel.y = 0;
-		local floorVel = targetPortal:LocalToWorld(localVel);
+		local floorVel = targetPortal:LocalToWorldVector(localVel);
 		local up = targetPortal:GetUp();
 		transformedVel = floorVel:GetNormalized() * speed + up * 50;
 	elseif sourceIsCeiling and targetIsFloor then
@@ -889,41 +922,34 @@ function ENT:EmitTeleportSound(ent)
 	end;
 end;
 function ENT:PlayerEnterPortal(ent)
+	if not IsValid(ent) or (not ent:IsPlayer()) then
+		return;
+	end;
 	ent.InPortal = self;
 	self:SetupPlayerClone(ent);
 	local phys = ent:GetPhysicsObject();
 	if IsValid(phys) then
 		phys:EnableDrag(true);
 	end;
-	ent:SetMoveType(MOVETYPE_FLY);
+	ent:SetMoveType(MOVETYPE_WALK);
 	ent:SetGroundEntity(self);
-	local placement = self.PlacementType or self:GetPlacementType();
-	if placement == "WALL" then
-		ent:SetHullDuck(Vector(-32, -32, -32), Vector(32, 32, 72));
-		ent.GP2_SavedEyeAngles = ent:EyeAngles();
-		local portalForward = self:GetForward();
-		local newAngles = portalForward:Angle();
-		newAngles.p = 0;
-		ent:SetEyeAngles(newAngles);
-		local push = (Vector(portalForward.x, portalForward.y, 0)):GetNormalized() * 100;
-		ent:SetVelocity(push);
-	elseif placement == "ROOF" then
-		ent:SetHullDuck(Vector(-32, -32, 0), Vector(32, 32, 72));
-	else
-		ent:SetHullDuck(Vector(-32, -32, 0), Vector(32, 32, 72));
-	end;
-	ent.OriginalCollisionGroup = ent:GetCollisionGroup();
-	ent:SetCollisionGroup(COLLISION_GROUP_PASSABLE_DOOR);
 	if ent.JustEntered then
-		if SERVER then
-			local snd_portal2 = GetConVar("portal_sound") or CreateConVar("portal_sound", "0", FCVAR_ARCHIVE);
-			local vel = ent:GetVelocity();
-			local pitch = 100 + 30 * (vel:Length() - 450) / 1000;
-		end;
 		ent.JustEntered = false;
 	end;
 end;
 function ENT:SetupPlayerClone(ply)
+	if not ply.PortalClone then
+		local ed = ents.Create("PortalPlayerClone");
+		if IsValid(ed) then
+			ed:SetEnt(ply);
+			ed:SetPortal(self);
+			ed:SetModel(ply:GetModel());
+			ed:Spawn();
+			ply.PortalClone = ed;
+		end;
+	elseif IsValid(ply.PortalClone) then
+		ply.PortalClone:SetPortal(self);
+	end;
 	if self.BaseSetupPlayerClone then
 		self:BaseSetupPlayerClone(ply);
 	end;

@@ -1,0 +1,83 @@
+-- ----------------------------------------------------------------------------
+-- GP2 Framework - Integration Summary: NewPortalGun Player Movement
+-- ----------------------------------------------------------------------------
+
+CHANGEMENTS EFFECTUÉS POUR INTÉGRER LE SYSTÈME DE MOUVEMENT NEWPORTALGUN DANS GP2
+==================================================================================
+
+1. FICHIERS MODIFIÉS:
+   - entities/prop_portal/init.lua : Fonctions PlayerEnterPortal, DoPort, Touch, SetupPlayerClone
+   - autorun/portalmove.lua : Désactivé l'ancien système de mouvement
+
+2. FICHIERS CRÉÉS:
+   - gp2/portalmovement_newportalgun.lua : Nouveau système de mouvement basé sur newPortalGun
+   - autorun/gp2_newportalgun_movement.lua : Chargeur pour le nouveau système
+
+3. FONCTIONNALITÉS INTÉGRÉES:
+
+   A) MOUVEMENT DES JOUEURS:
+   - MOVETYPE_NOCLIP au lieu de MOVETYPE_FLY pour les joueurs dans les portails
+   - Système de contrôle précis (CreateMove hook côté client)
+   - Gestion de la gravité et friction dans les portails
+   - Système de saut dans les portails horizontaux
+   - Système de pas (footsteps) avec sons
+   - Clamping des positions dans les limites du portail
+
+   B) TÉLÉPORTEMENT:
+   - Logique IsBehind pour détecter quand téléporter
+   - Transformation correcte des vélocités selon les types de portails
+   - Ajustements spéciaux pour portails au sol, plafond, murs
+   - Transformation des angles de vue
+   - Gestion des sons d'entrée/sortie
+
+   C) CLONES DES JOUEURS:
+   - Utilisation de l'entité PortalPlayerClone existante
+   - Setup automatique des clones lors de l'entrée dans un portail
+   - Nettoyage automatique à la sortie
+
+   D) HOOKS ET SYSTÈME:
+   - Hook Move "GP2_NewPortalGun_Movement" pour ipMove
+   - Hook CreateMove côté client pour les contrôles
+   - Hooks de nettoyage pour PreCleanupMap et DoPlayerDeath
+   - Extensions des métafunctions Vector et util
+
+4. COMPATIBILITÉ:
+   - Les objets (props) continuent d'utiliser l'ancien système GP2
+   - Seul le mouvement des joueurs utilise le nouveau système newPortalGun
+   - Toutes les fonctions GP2 existantes sont préservées
+   - Le système de rendu des portails n'est pas affecté
+
+5. AVANTAGES DU NOUVEAU SYSTÈME:
+   - Mouvement plus fluide et précis des joueurs
+   - Meilleure physique dans les portails
+   - Sons d'entrée/sortie comme dans Portal 2
+   - Gestion correcte des différents types de portails
+   - Pas de collisions glitchées
+   - Système de saut fonctionnel dans les portails
+
+6. VARIABLES IMPORTANTES:
+   - portal_sound : Active les sons Portal 2 au lieu des sons originaux
+   - portal_prototype : Change les modèles de portails utilisés
+   - portal_velocity_roof : Limite la vitesse maximale pour les portails au plafond
+
+UTILISATION:
+============
+Le système est maintenant automatiquement chargé avec GP2. Les joueurs bénéficient
+du système de mouvement newPortalGun tandis que les objets continuent d'utiliser
+le système GP2 optimisé.
+
+NOTES TECHNIQUES:
+================
+- L'ancien fichier portalmove.lua a été désactivé pour éviter les conflits
+- Le nouveau système est chargé via autorun/gp2_newportalgun_movement.lua
+- Les fonctions de transformation (TransformOffset, GetPortalAngleOffsets, etc.)
+  étaient déjà présentes dans GP2 et sont réutilisées
+- L'entité PortalPlayerClone existante dans GP2 est compatible avec newPortalGun
+
+COMPATIBILITÉ TESTÉE:
+====================
+- Multiplayer : Compatible
+- Singleplayer : Compatible
+- Portal 2 maps : Compatible
+- Portails colorés : Compatible
+- Système de rendu GP2 : Compatible

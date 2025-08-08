@@ -849,7 +849,7 @@ function ENT:DoPort(ent) --Shared so we can predict it.
 
 -- Fixed Portals Roofs
 
-			ent:SetMoveType(MOVETYPE_FLY)
+			ent:SetMoveType(MOVETYPE_WALK)
 -- print("MOVETYPE_FLY")
 
 timer.Create( "Walk", 0.05, 1, function()
