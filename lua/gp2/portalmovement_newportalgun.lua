@@ -70,6 +70,10 @@ local function IsInFront(posA, posB, normal)
 end;
 function GP2_ipMove(ply, mv)
 	local portal = ply.InPortal;
+	-- Si le joueur est en noclip manuel (ou sans portail valide) on ne touche pas à la physique
+	if ply:GetMoveType() == MOVETYPE_NOCLIP and (not IsValid(portal) or ply.GP2_ManualNoClip or (ply.GP2_NoClipSafeUntil and ply.GP2_NoClipSafeUntil > CurTime())) then
+		return;
+	end;
 	if IsValid(portal) and ply:GetMoveType() == MOVETYPE_NOCLIP then
 		local deltaTime = FrameTime();
 		local curTime = CurTime();
@@ -147,18 +151,26 @@ function GP2_ipMove(ply, mv)
 			localOrigin.z = math.Clamp(localOrigin.z, minZ, maxZ);
 			localOrigin.y = math.Clamp(localOrigin.y, minY, maxY);
 		else
+			local exitSpeed = newVelocity:Length();
 			ply.PortalClone = nil;
 			ply.InPortal = nil;
+			if SERVER then
+				ply:SetVelocity(-ply:GetVelocity()); // annule la vitesse résiduelle
+			end;
 			ply:SetGroundEntity(NULL);
+			local pos = mv:GetOrigin();
+			mv:SetOrigin(pos + Vector(0,0,2)); // petit offset vers le haut
+			mv:SetVelocity(Vector(0,0,0)); // pas de vitesse après sortie
 			ply:SetMoveType(MOVETYPE_WALK);
 			for _, v in pairs(player.GetAll()) do
 				v:ResetHull();
 			end;
 			if not snd_portal2:GetBool() then
-				ply:EmitSound("PortalPlayer.ExitPortal", 80, 100 + 30 * (newVelocity:Length() - 450) / 1000);
+				ply:EmitSound("PortalPlayer.ExitPortal", 80, 100 + 30 * (exitSpeed - 450) / 1000);
 			else
-				ply:EmitSound("PortalPlayer.ExitPortal", 80, 100 + 30 * (newVelocity:Length() - 450) / 1000);
+				ply:EmitSound("PortalPlayer.ExitPortal", 80, 100 + 30 * (exitSpeed - 450) / 1000);
 			end;
+			return true; // IMPORTANT: ne pas écraser mv après sortie
 		end;
 		local newOrigin = portal:LocalToWorld(localOrigin);
 		mv:SetVelocity(newVelocity);
@@ -223,6 +235,22 @@ if SERVER then
 					portal:Fizzle();
 				end;
 			end;
+		end;
+	end);
+	hook.Add("PlayerNoClip", "GP2_NewPortalGun_NoClipReset", function(ply, newState)
+		if newState then
+			ply.InPortal = nil;
+			ply.PortalClone = nil;
+			ply:SetGroundEntity(NULL);
+			ply.GP2_ManualNoClip = true;
+			ply.GP2_NoClipSafeUntil = CurTime() + 0.25;
+			timer.Simple(0, function()
+				if IsValid(ply) and ply:GetMoveType() == MOVETYPE_NOCLIP then
+					ply:SetVelocity(-ply:GetVelocity());
+				end;
+			end);
+		else
+			ply.GP2_ManualNoClip = false;
 		end;
 	end);
 end;

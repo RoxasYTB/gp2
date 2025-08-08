@@ -164,9 +164,32 @@ hook.Add("RenderScene", "seamless_portal_draw", function(eyePos, eyeAngles, fov)
 			render_PushRenderTarget(PortalRendering.PortalRTs[rtTimesRendered])
 			render_PushCustomClipPlane(up, up:Dot(linkedPartner:GetPos()))
 			render_RenderView(renderViewTable)
-			render_PopCustomClipPlane()
-			render_EnableClipping(oldClippingState)
-			render_PopRenderTarget()
+
+            -- Dessins clients additionnels à l'intérieur du RT (lasers, murs projetés, beams, etc.)
+            -- Réappliquer le clip plane pour l'étape manuelle (au cas où RenderView l'aurait modifié)
+            render_PushCustomClipPlane(up, up:Dot(linkedPartner:GetPos()))
+            cam.Start3D(renderViewTable.origin, renderViewTable.angles, fov, 0, 0, ScrW(), ScrH(), 0.1, 32768)
+                if EnvPortalLaser and type(EnvPortalLaser.DrawAllSegments) == "function" then
+                    local ok, err = pcall(EnvPortalLaser.DrawAllSegments)
+                    if not ok then GP2.Print("EnvPortalLaser.DrawAllSegments in RT failed: %s", tostring(err)) end
+                elseif EnvPortalLaser and type(EnvPortalLaser.Render) == "function" then
+                    local ok, err = pcall(EnvPortalLaser.Render)
+                    if not ok then GP2.Print("EnvPortalLaser.Render in RT failed: %s", tostring(err)) end
+                end
+                if ProjectedWallEntity and type(ProjectedWallEntity.Render) == "function" then
+                    local ok, err = pcall(ProjectedWallEntity.Render)
+                    if not ok then GP2.Print("ProjectedWall.Render in RT failed: %s", tostring(err)) end
+                end
+                if ProjectedTractorBeamEntity and type(ProjectedTractorBeamEntity.Render) == "function" then
+                    local ok, err = pcall(ProjectedTractorBeamEntity.Render)
+                    if not ok then GP2.Print("ProjectedTractorBeam.Render in RT failed: %s", tostring(err)) end
+                end
+            cam.End3D()
+            render_PopCustomClipPlane()
+
+            render_PopCustomClipPlane()
+            render_EnableClipping(oldClippingState)
+            render_PopRenderTarget()
 		end
 	end
 
