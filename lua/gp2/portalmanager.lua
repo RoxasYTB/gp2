@@ -54,7 +54,7 @@ function PortalManager.SetPortal(linkageGroup, entity)
 
 	-- Get opposite portal in group
 	local oppositePortal = PortalManager.GetLinkageGroup(linkageGroup)[oppositePortalType]
-	
+
 	GP2.Print("Setting portal for linkageGroup == " .. linkageGroup .. " to " .. tostring(entity) .. " (type " .. portalType .. ")")
 
 	-- If some portal already occupied place in group
@@ -91,7 +91,7 @@ function PortalManager.TransformPortal(a, b, pos, ang, offsetByThick)
 		end
 
 		editedPos = b:LocalToWorld(Vector(editedPos[1], -editedPos[2], -editedPos[3]))
-		
+
 		editedPos = editedPos + b:GetUp() * 0.01 -- so you dont become trapped
 	end
 
@@ -143,12 +143,12 @@ end
 --- @param portal Entity Portal to check
 --- @param eyePos Vector Eyes position
 --- @param eyeAngle Angle Eyes angles
---- @param distance number Threshold distance 
---- @return boolean shouldRender Render that portal? 
+--- @param distance number Threshold distance
+--- @return boolean shouldRender Render that portal?
 function PortalManager.ShouldRender(portal, eyePos, eyeAngle, distance)
     -- Check if the portal is dormant
     if portal:IsDormant() then return false end
-    
+
     local portalPos = portal:GetPos()
     local portalUp = portal:GetUp()
     local exitSize = portal:GetSize()

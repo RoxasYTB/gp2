@@ -22,12 +22,10 @@ local freezePly = false
 local function updateCalcViews(finalPos, finalVel)
 	timer.Remove("portals_eye_fix_delay")	--just in case you enter the portal while the timer is running
 
-	local addAngle = 1
 	finalPos = finalPos - finalVel * FrameTime()	-- why does this work? idk but it feels nice, could be a source prediction thing
 	hook.Add("CalcView", "GP2::PortalFix", function(ply, origin, angle, fov)
 		if ply:EyePos():DistToSqr(origin) > 10000 then return end
-		addAngle = addAngle * 0.9
-		angle.r = angle.r * addAngle
+		-- Removed roll scaling here to avoid double roll correction
 
 		-- position ping compensation
 		if freezePly and ply:Ping() > 5 then
@@ -55,7 +53,7 @@ local function updateCalcViews(finalPos, finalVel)
 			finalPos = _pos
 			ang = _ang
 		end
-		ang.r = ang.r * addAngle
+		-- Removed roll scaling here to avoid double roll correction
 		return finalPos, ang
 	end)
 
@@ -144,7 +142,7 @@ local function editPlayerCollision(mv, ply, t)
 				secondaryOffset = 36
 			end
 		elseif dotUp < -0.9 then
-			return 							-- the portal is on the ceiling
+			return 						-- the portal is on the ceiling
 		else
 			ply.PORTAL_STUCK_OFFSET = 0		-- the portal is not on the ground
 		end
@@ -268,7 +266,7 @@ hook.Add("Move", "seamless_portal_teleport", function(ply, mv)
 		end)
 
 		-- Correction du roll et du pitch pour éviter une vision penchée ou trop inclinée
-		editedAng.r = 0
+		-- editedAng.r = 0 -- removed to avoid double roll correction; handled in client Think hook
 		editedAng.p = math.Clamp(editedAng.p, -89, 89)
 
 		return true
@@ -295,6 +293,7 @@ if CLIENT then
             else
                 ang.r = ang.r - sign * step
             end
+		print(string.format("Yaw: %.2f | Pitch: %.2f | Roll: %.2f", ang.y, ang.p, ang.r))
             ply:SetEyeAngles(ang)
         else
             lastRoll = 0
