@@ -38,15 +38,8 @@ function ENT:AcceptInput(name, activator, caller, data)
 	end;
 end;
 if SERVER then
-	local savedWallCollision = nil;
 	function ENT:Enable()
 		if self.WallEntity and IsValid(self.WallEntity) then
-			savedWallCollision = {
-				Solid = self.WallEntity:GetSolid(),
-				CollisionGroup = self.WallEntity:GetCollisionGroup(),
-				Color = self.WallEntity:GetColor(),
-				RenderMode = self.WallEntity:GetRenderMode()
-			};
 			self.WallEntity:Remove();
 			self.WallEntity = nil;
 			self.ProjectedWall = nil;
@@ -65,37 +58,33 @@ if SERVER then
 			print("[GP2] prop_wall_projector: Clone détecté, mais retardement de la création du mur");
 			self.WallEntity:SetUpdated(false);
 		end;
-		if savedWallCollision then
-			self.WallEntity:SetSolid(savedWallCollision.Solid);
-			self.WallEntity:SetCollisionGroup(savedWallCollision.CollisionGroup);
-			self.WallEntity:SetColor(savedWallCollision.Color);
-			self.WallEntity:SetRenderMode(savedWallCollision.RenderMode);
-		end;
 		self.ProjectedWall = self.WallEntity;
 	end;
 	function ENT:Disable()
 		if self.WallEntity and IsValid(self.WallEntity) then
-			self.WallEntity:Remove();
+			// self.WallEntity:Remove();
 			self.WallEntity = nil;
 			self.ProjectedWall = nil;
 		end;
 	end;
 	function ENT:Think()
 		if SERVER and self.WallEntity and IsValid(self.WallEntity) then
-			local curPos = self:GetPos() + (self:GetAngles()):Forward() * 8;
+			local offset = (self:GetAngles()):Forward() * 8;
+			local curPos = self:GetPos() + offset;
 			local curAng = self:GetAngles();
-			if not self._lastWallPos or (not self._lastWallAng) or self._lastWallPos ~= curPos or self._lastWallAng ~= curAng then
-				self.WallEntity:SetPos(curPos);
-				self.WallEntity:SetAngles(curAng);
-				if self.WallEntity.CreateWall then
-					self.WallEntity:SetUpdated(false);
-					self.WallEntity:CreateWall();
-				end;
+			local posChanged = not self._lastWallPos or self._lastWallPos:DistToSqr(curPos) > 0.1;
+			local angChanged = not self._lastWallAng or (self._lastWallAng:Forward()):DistToSqr(curAng:Forward()) > 0.0001;
+			self.WallEntity:SetPos(curPos);
+			self.WallEntity:SetAngles(curAng);
+			if posChanged or angChanged then
 				self._lastWallPos = curPos;
 				self._lastWallAng = curAng;
 			end;
+			if self.WallEntity:GetSolid() == SOLID_NONE then
+				self.WallEntity:SetSolid(SOLID_VPHYSICS);
+			end;
 		end;
-		self:NextThink(CurTime() + 0.05);
+		self:NextThink(CurTime() + 0.1);
 		return true;
 	end;
 end;

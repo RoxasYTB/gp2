@@ -69,6 +69,14 @@ function ENT:Think()
 				self._lastSyncAng = newAng;
 			end;
 		end;
+		if self._originalCollisionData then
+			if self:GetSolid() ~= self._originalCollisionData.Solid then
+				self:SetSolid(self._originalCollisionData.Solid);
+			end;
+			if self:GetCollisionGroup() ~= self._originalCollisionData.CollisionGroup then
+				self:SetCollisionGroup(self._originalCollisionData.CollisionGroup);
+			end;
+		end;
 	end;
 	if SERVER and (not self.IsPortalClone) and (not self:GetIsProjectorCloned()) then
 		if not self._originalCollisionData then
@@ -347,26 +355,19 @@ function ENT:Think()
 					end;
 					local parent = self:GetParent();
 					if IsValid(parent) then
-						local entryClonePos = entryPortal:GetPos() + entryPortalAng:Forward() * 8;
-						if entryPortalAng.p == 90 or entryPortalAng.p == (-90) then
-							if entryPortalAng.p == 90 then
-								entryClonePos = entryClonePos - entryPortalAng:Forward() * 20;
-							else
-								entryClonePos = entryClonePos + entryPortalAng:Forward() * (-8);
-							end;
-							entryClonePos = entryClonePos - entryPortalAng:Up() * (-offsetZ);
-							entryClonePos = entryClonePos + entryPortalAng:Right() * (-offsetX);
-							entryClonePos.z = entryClonePos.z - offsetZ;
-							entryClonePos.x = entryClonePos.x - offsetX;
-							entryClonePos.y = entryClonePos.y - offsetY;
-							print("entryClonePos.z: " .. tostring(entryClonePos.z));
-							print("entryClonePos.x: " .. tostring(entryClonePos.x));
-							print("entryClonePos.y: " .. tostring(entryClonePos.y));
-						else
-							entryClonePos = entryClonePos - entryPortalAng:Forward() * (-8);
+						local entryClonePos = self:GetPos();
+						local entryCloneAng = self:GetAngles();
+						if self.GetManualOffsetZ then
+							entryCloneWall:SetManualOffsetZ(self:GetManualOffsetZ());
+						end;
+						if self.GetManualOffsetX then
+							entryCloneWall:SetManualOffsetX(self:GetManualOffsetX());
+						end;
+						if self.GetManualAngle then
+							entryCloneWall:SetManualAngle(self:GetManualAngle());
 						end;
 						entryCloneWall:SetPos(entryClonePos);
-						entryCloneWall:SetAngles(entryCloneAngle);
+						entryCloneWall:SetAngles(entryCloneAng);
 						entryCloneWall:SetParent(entryPortal);
 						entryCloneWall.IsPortalClone = true;
 						entryCloneWall.InvisibleClone = true;
