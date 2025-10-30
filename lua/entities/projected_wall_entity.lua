@@ -130,10 +130,15 @@ function ENT:Think()
 		end;
 	end;
 	if CLIENT then
-		self:SetNextClientThink(CurTime());
-		if ProjectedWallEntity and (not ProjectedWallEntity.IsAdded(self)) then
-			self:CreateWall();
+		local now = CurTime();
+		self._lastClientUpdate = self._lastClientUpdate or 0;
+		if now - self._lastClientUpdate > 0.5 then
+			self._lastClientUpdate = now;
+			if ProjectedWallEntity and (not ProjectedWallEntity.IsAdded(self)) then
+				self:CreateWall();
+			end;
 		end;
+		self:SetNextClientThink(now + 0.5);
 	end;
 	self._lastFullUpdate = self._lastFullUpdate or 0;
 	local currentTime = CurTime();
@@ -568,6 +573,13 @@ function ENT:CreateWall()
 	};
 	if CLIENT then
 		if not self.InvisibleClone then
+			self._meshPool = self._meshPool or {};
+			local mesh = self.Mesh;
+			if not mesh or (not mesh:IsValid()) then
+				mesh = Mesh();
+				self.Mesh = mesh;
+				table.insert(self._meshPool, mesh);
+			end;
 			local verts = {
 				{
 					pos = adjustedStartPos - right * halfWidth,
@@ -608,13 +620,9 @@ function ENT:CreateWall()
 					end;
 				end;
 			end;
-			if self.Mesh and self.Mesh:IsValid() then
-				self.Mesh:Destroy();
-			end;
-			self.Mesh = Mesh();
-			self.Mesh:BuildFromTriangles(verts);
+			mesh:BuildFromTriangles(verts);
 			if ProjectedWallEntity then
-				ProjectedWallEntity.AddToRenderList(self, self.Mesh);
+				ProjectedWallEntity.AddToRenderList(self, mesh);
 			end;
 		end;
 	end;

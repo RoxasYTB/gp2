@@ -223,6 +223,8 @@ hook.Add("Move", "seamless_portal_teleport", function(ply, mv)
 		end
 		finalPos = finalPos + offset * exitSize + Vector(0, 0, verticalOffset)
 
+
+
 		-- apply final velocity
 		mv:SetVelocity(editedVelocity:Forward() * max * exitSize)
 
@@ -240,6 +242,20 @@ hook.Add("Move", "seamless_portal_teleport", function(ply, mv)
 			if InfMap then
 				local final_pos_offset, chunk_offset = InfMap.localize_vector(finalPos)
 				finalPos = final_pos_offset
+
+		-- Correction GP2 : Si un projected_wall_entity est présent juste derrière le portail de sortie, relever le joueur
+		if SERVER then
+			local checkRadius = 32 -- rayon de détection autour de la sortie
+			local nearbyWalls = ents.FindInSphere(finalPos, checkRadius)
+			for _, ent in ipairs(nearbyWalls) do
+				if IsValid(ent) and ent:GetClass() == "projected_wall_entity" then
+					-- On relève le joueur de 8 unités pour éviter le blocage
+					print("Correction GP2 : Relevage du joueur pour éviter le blocage dans un projected_wall_entity.")
+					finalPos = finalPos + Vector(0, 0, 8)
+					break
+				end
+			end
+		end
 				InfMap.prop_update_chunk(ply, chunk_offset)
 			end
 
@@ -261,10 +277,8 @@ hook.Add("Move", "seamless_portal_teleport", function(ply, mv)
 			ply:SetEyeAngles(editedAng)
 			ply:SetPos(finalPos)
 		end
-
-		-- if they come out of a ground portal make the player hitbox tiny
 		ply.PORTAL_TELEPORTING = true
-		ply.PORTAL_STUCK_OFFSET = linkedPartner:GetUp():Dot(Vector(0, 0, 1)) > 0.999 and 72 or 0
+		ply.PORTAL_STUCK_OFFSET = 72
 		ply:SetHull(Vector(0, 0, ply.PORTAL_STUCK_OFFSET), Vector(0, 0, 72 + ply.PORTAL_STUCK_OFFSET * 0.5))
 		ply:SetHullDuck(Vector(0, 0, ply.PORTAL_STUCK_OFFSET), Vector(0, 0, 36 + ply.PORTAL_STUCK_OFFSET * 0.5))
 

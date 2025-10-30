@@ -76,40 +76,19 @@ local function UpdatePortalsAndSky()
 	local eye_pos = EyePos()
 
 	-- Met à jour la liste des portails à chaque frame
+	-- Optimisation: cache et filtrage par distance
 	portal_cache = ents.FindByClass("prop_portal")
-
-	-- Pré-calculer les distances au carré pour éviter les recalculs
-	local distances = {}
-	for i, portal in ipairs(portal_cache) do
-		if IsValid(portal) then
-			distances[i] = portal:GetPos():DistToSqr(eye_pos)
-		else
-			distances[i] = math.huge -- Portail invalide, placer en fin de liste
-		end
-	end
-
-	-- Nettoyer la table avant le tri pour ne garder que les portails valides et uniques
-	local cleaned_portal_cache = {}
-	local seen = {}
+	local maxDistanceSqr = (gp2_portal_drawdistance:GetFloat() * 192)^2
+	local filtered_portals = {}
 	for _, portal in ipairs(portal_cache) do
-		if IsValid(portal) and not seen[portal] then
-			table.insert(cleaned_portal_cache, portal)
-			seen[portal] = true
+		if IsValid(portal) and portal:GetPos():DistToSqr(eye_pos) < maxDistanceSqr then
+			table.insert(filtered_portals, portal)
 		end
 	end
-
-	-- Recalculer les distances pour la table nettoyée
-	local cleaned_distances = {}
-	for i, portal in ipairs(cleaned_portal_cache) do
-		cleaned_distances[i] = portal:GetPos():DistToSqr(eye_pos)
-	end
-
-	-- Tri optimisé : plus simple et toujours valide
-	table.sort(cleaned_portal_cache, function(a, b)
+	table.sort(filtered_portals, function(a, b)
 		return a:GetPos():DistToSqr(eye_pos) < b:GetPos():DistToSqr(eye_pos)
 	end)
-
-	portals = cleaned_portal_cache
+	portals = filtered_portals
 
 	-- update sky material (I guess it can change?)
 	if sky_name != sky_cvar:GetString() then
