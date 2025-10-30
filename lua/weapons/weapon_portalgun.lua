@@ -426,8 +426,6 @@ local function setPortalPlacementOld(owner, portal)
 		else
 			pos = closest:GetPos() - offset
 		end
-
-		print("[GP2] Portal bump: placement décalé sur old !")
 	end
 	return PORTAL_PLACEMENT_SUCCESFULL, tr, pos, ang
 end
