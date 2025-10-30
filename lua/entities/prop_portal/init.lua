@@ -199,31 +199,20 @@ function ENT:BootAllPlayers()
 		end;
 	end;
 end;
-function ENT:UpdatePhysmesh()
-	local size = self:GetSize();
-	if not PORTAL_HEIGHT or (not PORTAL_WIDTH) then
-		PORTAL_HEIGHT = PORTAL_HEIGHT or 112;
-		PORTAL_WIDTH = PORTAL_WIDTH or 64;
-		GP2.Print("Portal %d: Constants not loaded, using defaults", self:EntIndex());
-	end;
-	if not size or size == Vector(0, 0, 0) or size.x <= 0 or size.y <= 0 or size.z <= 0 then
-		size = Vector(PORTAL_HEIGHT / 2, PORTAL_WIDTH / 2, 7);
-		self:SetSizeInternal(size);
-	end;
-	if not PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
-		local meshTable = GP2.MakeCubeMesh(size.x, size.y, size.z, false, true);
-		self:PhysicsInitConvex(meshTable);
-		self:EnableCustomCollisions(true);
-		local phys = self:GetPhysicsObject();
-		if IsValid(phys) then
-			phys:EnableMotion(false);
+function ENT:BootAllProps()
+	for _, ent in pairs(ents.GetAll()) do
+		if IsValid(ent) and ent.InPortal == self and (not ent:IsPlayer()) then
+			ent.InPortal = nil;
+			if ent.clone and IsValid(ent.clone) then
+				ent.clone:Remove();
+				ent.clone = nil;
+			end;
+			if ent.OriginalCollisionGroup then
+				ent:SetCollisionGroup(ent.OriginalCollisionGroup);
+				ent.OriginalCollisionGroup = nil;
+			end;
 		end;
-		self:SetTrigger(true);
-		self:SetCollisionGroup(COLLISION_GROUP_PASSABLE_DOOR);
-	else
-		self:PhysicsInit(SOLID_NONE);
 	end;
-	self:SetCollisionGroup(COLLISION_GROUP_PASSABLE_DOOR);
 end;
 function ENT:StartTouch(ent)
 	if ent:GetModel() == "models/blackops/portal_sides.mdl" then
@@ -450,9 +439,10 @@ function ENT:TeleportEntityOptimized(ent, clone, phys, placementIn, placementOut
 	if not newVel then
 		return false;
 	end;
+	local outVel = newVel:GetNormalized() * oldVel:Length() * 0.75;
 	ent:SetPos(clone:GetPos());
 	ent:SetAngles(clone:GetAngles());
-	phys:SetVelocity(newVel);
+	phys:SetVelocity(outVel);
 	ent.GP2_PortalImmunity = CurTime() + 0.5;
 	return true;
 end;
@@ -513,7 +503,10 @@ function ENT:TransformVelocityOptimized(vel, placementIn, placementOut, portalOu
 		return transform and transform(vel) or Vector((-vel.y), (-vel.x), 0);
 	end;
 	if transformKey == "FLOOR_ROOF" then
-		return Vector(vel.x, -vel.y, vel.z);
+		return Vector(vel.x, vel.y, vel.z);
+	end;
+	if transformKey == "WALL_ROOF" then
+		return Vector(vel.x, vel.y, -vel.z);
 	end;
 	return vel;
 end;
@@ -647,7 +640,7 @@ function ENT:SyncClone(ent)
 	offset:Mul(transform.offsetMultiplier);
 	local newPos = portal:LocalToWorld(offset);
 	local newAngles = self:GetPortalAngleOffsets(portal, ent);
-	newAngles.r = -newAngles.r;
+	newAngles.r = newAngles.r;
 	clone:SetPos(newPos);
 	clone:SetAngles(newAngles);
 	if SERVER then
@@ -732,89 +725,6 @@ function ENT:DoPort(ent)
 	if not IsValid(portal) then
 		return;
 	end;
-	if ent:IsPlayer() then
-		local eyepos = ent:EyePos();
-		local vel = ent:GetVelocity();
-		local function IsBehind(posA, posB, normal)
-			local Vec1 = (posB - posA):GetNormalized();
-			return normal:Dot(Vec1) < 0;
-		end;
-		if not IsBehind(eyepos, self:GetPos(), self:GetForward()) then
-			local newPos = self:GetPortalPosOffsets(portal, ent);
-			if portal:OnRoof() then
-				local tr = util.TraceLine({
-					start = newPos,
-					endpos = newPos - Vector(0, 0, 1000),
-					filter = ent
-				});
-				if tr.Hit then
-					newPos = tr.HitPos + Vector(0, 0, 10);
-				end;
-			end;
-			ent:SetPos(newPos);
-			local nuVel = self:TransformOffset(vel, self:GetAngles(), portal:GetAngles()) * (-1);
-			if portal:OnFloor() and self:OnFloor() then
-				if nuVel:Length() < 340 then
-					nuVel = portal:GetForward() * 340;
-				end;
-			elseif portal:OnFloor() then
-				if nuVel:Length() < 350 then
-					nuVel = portal:GetForward() * 350;
-				end;
-			elseif portal:OnRoof() and (not portal:IsHorizontal()) then
-				local vel_roof_max = GetConVar("portal_velocity_roof") or CreateConVar("portal_velocity_roof", "1000", FCVAR_ARCHIVE);
-				if nuVel:Length() > vel_roof_max:GetInt() then
-					nuVel = portal:GetForward() * vel_roof_max:GetInt();
-				end;
-			elseif not portal:IsHorizontal() and (not portal:OnRoof()) then
-				if nuVel:Length() < 300 then
-					nuVel = portal:GetForward() * 300;
-				end;
-			end;
-			ent:SetVelocity(nuVel);
-			local newang = self:GetPortalAngleOffsets(portal, ent);
-			ent:SetEyeAngles(newang);
-			ent.JustEntered = false;
-			ent.JustPorted = true;
-		elseif ent.InPortal == self then
-			ent.InPortal = nil;
-			ent:SetGroundEntity(NULL);
-			ent:SetMoveType(MOVETYPE_WALK);
-			for _, v in pairs(player.GetAll()) do
-				v:ResetHull();
-			end;
-			if SERVER then
-				local snd_portal2 = GetConVar("portal_sound") or CreateConVar("portal_sound", "0", FCVAR_ARCHIVE);
-				if not snd_portal2:GetBool() then
-					ent:EmitSound("PortalPlayer.ExitPortal", 80, 100 + 30 * (vel:Length() - 450) / 1000);
-				else
-					ent:EmitSound("PortalPlayer.ExitPortal", 80, 100 + 30 * (vel:Length() - 450) / 1000);
-				end;
-			end;
-			if ent.PortalClone and IsValid(ent.PortalClone) then
-				ent.PortalClone:Remove();
-				ent.PortalClone = nil;
-			end;
-		end;
-	else
-		local vel = ent:GetVelocity();
-		if not vel then
-			return;
-		end;
-		local nuVel = self:TransformVelocityBetweenPortals(vel, portal);
-		local phys = ent:GetPhysicsObject();
-		if IsValid(phys) and ent.clone and IsValid(ent.clone) then
-			if not self:IsBehind(ent:GetPos(), self:GetPos(), self:GetForward()) then
-				ent:SetPos(ent.clone:GetPos());
-				ent:SetAngles(ent.clone:GetAngles());
-				phys:SetVelocity(nuVel);
-				ent.GP2_PortalImmunity = CurTime() + 1;
-				ent.InPortal = nil;
-				ent.clone:Remove();
-				ent.clone = nil;
-			end;
-		end;
-	end;
 end;
 function ENT:IsHorizontal(angles)
 	angles = angles or (self.OriginalAngles or self:GetAngles());
@@ -838,53 +748,6 @@ function ENT:IsWall(angles)
 	local pitch = math.Round(math.NormalizeAngle(angles.p));
 	return math.abs(pitch + 90) < 15;
 end;
-function ENT:TransformVelocityBetweenPortals(vel, targetPortal)
-	local speed = vel:Length();
-	local transformedVel = Vector(0, 0, 0);
-	local sourceAngles = self.OriginalAngles or self:GetAngles();
-	local targetAngles = targetPortal.OriginalAngles or targetPortal:GetAngles();
-	local sourceIsFloor = self:IsFloor(sourceAngles);
-	local sourceIsCeiling = self:IsCeiling(sourceAngles);
-	local sourceIsWall = self:IsWall(sourceAngles);
-	local targetIsFloor = targetPortal:IsFloor(targetAngles);
-	local targetIsCeiling = targetPortal:IsCeiling(targetAngles);
-	local targetIsWall = targetPortal:IsWall(targetAngles);
-	if sourceIsFloor and targetIsFloor then
-		if vel.z < (-50) then
-			transformedVel = Vector(vel.x, vel.y, -vel.z);
-		else
-			transformedVel = targetPortal:GetForward() * speed;
-		end;
-	elseif sourceIsFloor and targetIsWall then
-		local localVel = self:WorldToLocalVector(vel);
-		localVel.z = 0;
-		local wallVel = targetPortal:LocalToWorldVector(localVel);
-		local forward = targetPortal:GetForward();
-		transformedVel = wallVel:GetNormalized() * speed + forward * 50;
-	elseif sourceIsWall and targetIsFloor then
-		local localVel = self:WorldToLocalVector(vel);
-		localVel.y = 0;
-		local floorVel = targetPortal:LocalToWorldVector(localVel);
-		local up = targetPortal:GetUp();
-		transformedVel = floorVel:GetNormalized() * speed + up * 50;
-	elseif sourceIsCeiling and targetIsFloor then
-		transformedVel = Vector(vel.x, vel.y, math.abs(vel.z));
-	elseif sourceIsCeiling and targetIsCeiling then
-		transformedVel = targetPortal:GetForward() * speed;
-	elseif sourceIsCeiling and targetIsWall then
-		transformedVel = targetPortal:GetForward() * speed;
-	elseif sourceIsWall and targetIsCeiling then
-		transformedVel = targetPortal:GetForward() * speed;
-	elseif sourceIsWall and targetIsWall then
-		transformedVel = targetPortal:GetForward() * speed;
-	else
-		transformedVel = targetPortal:GetForward() * speed;
-	end;
-	if transformedVel:Length() < 100 then
-		transformedVel = targetPortal:GetForward() * 100;
-	end;
-	return transformedVel;
-end;
 function ENT:OnFloorWithAngles(angles)
 	angles = angles or self:GetAngles();
 	local up = angles:Up();
@@ -902,10 +765,6 @@ function ENT:OnRoofWithAngles(angles)
 end;
 function ENT:IsHorizontal()
 	return (self:GetAngles()).p == 0;
-end;
-function ENT:EmitTeleportSound(ent)
-	if ent:IsPlayer() then
-	end;
 end;
 function ENT:UpdatePhysmesh()
 	local size = self:GetSize();

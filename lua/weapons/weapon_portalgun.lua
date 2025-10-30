@@ -305,22 +305,25 @@ local cleanserCheck = {
 local rayHull = Vector(0.01, 0.01, 0.01)
 
 local function portalsOverlap(pos, ang, size, ignore)
-	local portals = ents.FindByClass("prop_portal")
-	local closest, closestDist = nil, math.huge
-	for _, p in ipairs(portals) do
-		if p ~= ignore and p:GetActivated() then
-			local dist = p:GetPos():Distance(pos)
-			local minDist = (p:GetSize():Length() + size:Length()) * 0.5 * 0.85
-			if dist < minDist and dist < closestDist then
-				closest = p
-				closestDist = dist
+		if not pos or not isvector(pos) or not size or not isvector(size) then
+			return false, nil
+		end
+		local portals = ents.FindByClass("prop_portal")
+		local closest, closestDist = nil, math.huge
+		for _, p in ipairs(portals) do
+			if p ~= ignore and p:GetActivated() then
+				local dist = p:GetPos():Distance(pos)
+				local minDist = (p:GetSize():Length() + size:Length()) * 0.5 * 0.85
+				if dist < minDist and dist < closestDist then
+					closest = p
+					closestDist = dist
+				end
 			end
 		end
-	end
-	if closest then
-		return true, closest
-	end
-	return false, nil
+		if closest then
+			return true, closest
+		end
+		return false, nil
 end
 
 
@@ -402,6 +405,9 @@ local function setPortalPlacementOld(owner, portal)
 		-au * siz[2]
 	}
 
+
+
+
 	for i = 1, 4 do
 		local extr = PortalManager.TraceLine({
 			start  = tr.HitPos + tr.HitNormal,
@@ -416,7 +422,7 @@ local function setPortalPlacementOld(owner, portal)
 
 	pos:Set(tr.HitNormal)
 	pos:Mul(mul)
-	pos:Add(tr.HitPos)
+	pos:Add(tr.HitPos + tr.HitNormal * 0.5)
 	local overlap, closest = portalsOverlap(pos, ang, siz, portal)
 	if overlap and IsValid(closest) and closest:GetType() ~= portal:GetType() then
 		local dir = (pos - closest:GetPos()):Dot(ang:Right())

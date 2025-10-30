@@ -214,7 +214,14 @@ hook.Add("Move", "seamless_portal_teleport", function(ply, mv)
 			end
 		end
 
-		finalPos = finalPos + offset * exitSize + Vector(0, 0, 0.1)	-- small offset so we arent in the floor
+		-- Correction sortie plafond : si le portail de sortie est au plafond, placer le joueur sous le portail
+		local outUp = linkedPartner:GetUp()
+		local isCeiling = outUp:Dot(Vector(0,0,-1)) > 0.9
+		local verticalOffset = 0.1
+		if isCeiling then
+			verticalOffset = -(eyeHeight.z + 2)
+		end
+		finalPos = finalPos + offset * exitSize + Vector(0, 0, verticalOffset)
 
 		-- apply final velocity
 		mv:SetVelocity(editedVelocity:Forward() * max * exitSize)
@@ -281,7 +288,7 @@ if CLIENT then
         local ang = ply:EyeAngles()
       --   print(string.format("Yaw: %.2f | Pitch: %.2f | Roll: %.2f", ang.y, ang.p, ang.r))
         -- Correction linéaire du roll (temps ajustable via la cvar gp2_roll_return_time)
-        local rollReturnTime = 0.75
+        local rollReturnTime = 0.50
         if math.abs(ang.r) > 0.01 then
             if math.abs(lastRoll) < 0.01 or math.abs(ang.r) > math.abs(lastRoll) then
                 lastRoll = ang.r -- nouvelle correction, on mémorise la valeur de départ
