@@ -304,97 +304,25 @@ local cleanserCheck = {
 
 local rayHull = Vector(0.01, 0.01, 0.01)
 
-local function setPortalPlacementNew(owner, portal)
-	local ang = Angle() -- The portal angle
-	local siz = portal:GetSize()
-	local pos = owner:GetShootPos()
-	local aim = owner:GetAimVector()
-
-	local tr = PortalManager.TraceLine({
-		start  = pos,
-		endpos = pos + aim * 99999,
-		filter = gtCheckFunc,
-		mask   = MASK_SHOT_PORTAL
-	})
-
-	debugoverlay.Cross(tr.HitPos, 16, 0.5)
-
-	local alongRay = ents.FindAlongRay(tr.StartPos, tr.HitPos, -rayHull, rayHull)
-
-	for i = 1, #alongRay do
-		local ent = alongRay[i]
-
-		-- Check if the entity is in the 'cleanserCheck' table
-		if cleanserCheck[ent:GetClass()] then
-			if not ent:GetEnabled() then continue end
-
-			local rayDirection = pos + aim * 99999
-
-			-- Intersect ray with collision bounds
-			local boundsMin, boundsMax = ent:GetCollisionBounds()
-			local hitPos = util.IntersectRayWithOBB(pos, rayDirection, ent:GetPos(), ent:GetAngles(), boundsMin,
-				boundsMax)
-
-			if hitPos then
-				tr.HitPos = hitPos
+local function portalsOverlap(pos, ang, size, ignore)
+	local portals = ents.FindByClass("prop_portal")
+	local closest, closestDist = nil, math.huge
+	for _, p in ipairs(portals) do
+		if p ~= ignore and p:GetActivated() then
+			local dist = p:GetPos():Distance(pos)
+			local minDist = (p:GetSize():Length() + size:Length()) * 0.5 * 0.85
+			if dist < minDist and dist < closestDist then
+				closest = p
+				closestDist = dist
 			end
-
-			return PORTAL_PLACEMENT_FIZZLER_HIT, tr
 		end
 	end
-
-	if
-		not gp2_portal_placement_never_fail:GetBool() and
-		(
-			not tr.Hit
-			or IsValid(tr.Entity)
-			or tr.HitTexture == "**studio**"
-			--or bit.band(tr.DispFlags, DISPSURF_WALKABLE) ~= 0
-			or bit.band(tr.SurfaceFlags, SURF_NOPORTAL) ~= 0
-			or bit.band(tr.SurfaceFlags, SURF_TRANS) ~= 0
-		)
-	then
-		return PORTAL_PLACEMENT_BAD_SURFACE, tr
+	if closest then
+		return true, closest
 	end
-
-	if tr.HitSky then
-		return PORTAL_PLACEMENT_UNKNOWN_SURFACE, tr
-	end
-
-	-- Align portals on 45 degree surfaces
-	if math.abs(tr.HitNormal:Dot(ang:Up())) < 0.71 then
-		ang:Set(tr.HitNormal:Angle())
-		ang:RotateAroundAxis(ang:Right(), -90)
-		ang:RotateAroundAxis(ang:Up(), 180)
-	else -- Place portals on any surface and angle
-		ang:Set(getSurfaceAngle(owner, tr.HitNormal))
-	end
-
-	-- Extrude portal from the ground
-	local af, au = ang:Forward(), ang:Right()
-	local angTab = {
-		af * siz[1],
-		-af * siz[1],
-		au * siz[2],
-		-au * siz[2]
-	}
-
-	for i = 1, 4 do
-		local extr = PortalManager.TraceLine({
-			start  = tr.HitPos + tr.HitNormal,
-			endpos = tr.HitPos + tr.HitNormal - angTab[i],
-			filter = ents.GetAll(),
-		})
-
-		if extr.Hit then
-			tr.HitPos = tr.HitPos + angTab[i] * (1 - extr.Fraction)
-		end
-	end
-
-	pos = tr.HitPos
-
-	return PORTAL_PLACEMENT_SUCCESFULL, tr, pos, ang
+	return false, nil
 end
+
 
 local function setPortalPlacementOld(owner, portal)
 	local ang = Angle() -- The portal angle
@@ -414,6 +342,10 @@ local function setPortalPlacementOld(owner, portal)
 
 	for i = 1, #alongRay do
 		local ent = alongRay[i]
+			-- Vérification du chevauchement avec d'autres portails
+			if portalsOverlap(pos, ang, siz, portal) then
+				return PORTAL_PLACEMENT_BAD_SURFACE, tr
+			end
 
 		-- Check if the entity is in the 'cleanserCheck' table
 		if cleanserCheck[ent:GetClass()] then
@@ -485,7 +417,18 @@ local function setPortalPlacementOld(owner, portal)
 	pos:Set(tr.HitNormal)
 	pos:Mul(mul)
 	pos:Add(tr.HitPos)
+	local overlap, closest = portalsOverlap(pos, ang, siz, portal)
+	if overlap and IsValid(closest) and closest:GetType() ~= portal:GetType() then
+		local dir = (pos - closest:GetPos()):Dot(ang:Right())
+		local offset = ang:Right() * ((closest:GetSize():Length() + siz:Length()) * 0.47 )
+		if dir >= 0 then
+			pos = closest:GetPos() + offset
+		else
+			pos = closest:GetPos() - offset
+		end
 
+		print("[GP2] Portal bump: placement décalé sur old !")
+	end
 	return PORTAL_PLACEMENT_SUCCESFULL, tr, pos, ang
 end
 
@@ -559,6 +502,10 @@ function SWEP:Deploy()
 	if not IsValid(self.HoldSound) then
 		local filter = RecipientFilter()
 		filter:AddPlayer(owner)
+	-- Vérification du chevauchement avec d'autres portails
+	if portalsOverlap(pos, ang, siz, portal) then
+		return PORTAL_PLACEMENT_BAD_SURFACE, tr
+	end
 		self.HoldSound = CreateSound(self, "PortalPlayer.ObjectUse", filter)
 	end
 	local seq = vm1:SelectWeightedSequence(ACT_VM_RELEASE)

@@ -462,12 +462,12 @@ function ENT:Think()
 			self.RingParticle:SetControlPoint(0, self:GetPos() - self:GetAngles():Up() * 7)
 		end
 		local ringAngles = Angle(RING_PITCH, RING_YAW, RING_ROLL)
-		self.RingParticle:SetControlPoint(0, self:GetPos())
+		self.RingParticle:SetControlPoint(0, self:GetPos() - self:GetAngles():Up() * 7)
 		self.RingParticle:SetControlPointOrientation(0, ringAngles:Forward(), ringAngles:Right(), ringAngles:Up())
 		-- Application correcte de la rotation personnalisée du ring
-		local pitch = 180
-		local yaw = 180
-		local roll = 180
+		local pitch = 0
+		local yaw = 0
+		local roll = 0
 		local baseAngles = self:GetAngles()
 		local ringAngles = Angle(pitch, yaw, roll)
 		local mat = Matrix()
@@ -475,7 +475,7 @@ function ENT:Think()
 		mat:Rotate(ringAngles)
 		local fwd = mat:GetForward()
 		local right = mat:GetRight()
-		local up = mat:GetUp()
+		local up = mat:GetUp() * 0.5
 		self.RingParticle:SetControlPointOrientation(0, right, fwd, up)
 
 		-- Ajout : mise à jour dynamique de la couleur du ring

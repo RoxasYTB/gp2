@@ -293,7 +293,6 @@ if CLIENT then
             else
                 ang.r = ang.r - sign * step
             end
-		print(string.format("Yaw: %.2f | Pitch: %.2f | Roll: %.2f", ang.y, ang.p, ang.r))
             ply:SetEyeAngles(ang)
         else
             lastRoll = 0

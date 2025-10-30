@@ -155,6 +155,9 @@ hook.Add("RenderScene", "seamless_portal_draw", function(eyePos, eyeAngles, fov)
 			renderViewTable.angles = transformedAng
 			renderViewTable.fov = fov
 
+			-- Pousser la caméra légèrement en arrière pour éviter de voir l'out of bounds
+			renderViewTable.origin = transformedPos - transformedAng:Forward() * 5
+
 			rtTimesRendered = rtTimesRendered + 1
 			portal.PORTAL_RT_NUMBER = rtTimesRendered
 

@@ -283,19 +283,11 @@ function ENT:StartTouch(ent)
 		return;
 	end;
 	if ent:IsPlayer() then
-		local pos;
-		if not (ent.GP2_PortalCooldown and ent.GP2_PortalCooldown > CurTime()) then
-			ent.GP2_PortalCooldown = CurTime() + 1;
-			pos = ent:GetPos() + self:GetUp() * 20;
-		else
-			pos = ent:GetPos();
-		end;
-		ent:SetPos(pos);
+		local pos = ent:GetPos();
 		if not self:PlayerWithinBounds(ent) then
 			return;
 		end;
 		ent.JustEntered = true;
-		self:PlayerEnterPortal(ent);
 	elseif self:CanPort(ent) then
 		local phys = ent:GetPhysicsObject();
 		if IsValid(phys) then
@@ -334,7 +326,6 @@ function ENT:Touch(ent)
 				return;
 			end;
 			ent.JustEntered = true;
-			self:PlayerEnterPortal(ent);
 		else
 			ent:SetGroundEntity(self);
 			local eyepos = ent:EyePos();
@@ -750,6 +741,16 @@ function ENT:DoPort(ent)
 		end;
 		if not IsBehind(eyepos, self:GetPos(), self:GetForward()) then
 			local newPos = self:GetPortalPosOffsets(portal, ent);
+			if portal:OnRoof() then
+				local tr = util.TraceLine({
+					start = newPos,
+					endpos = newPos - Vector(0, 0, 1000),
+					filter = ent
+				});
+				if tr.Hit then
+					newPos = tr.HitPos + Vector(0, 0, 10);
+				end;
+			end;
 			ent:SetPos(newPos);
 			local nuVel = self:TransformOffset(vel, self:GetAngles(), portal:GetAngles()) * (-1);
 			if portal:OnFloor() and self:OnFloor() then
@@ -775,7 +776,6 @@ function ENT:DoPort(ent)
 			ent:SetEyeAngles(newang);
 			ent.JustEntered = false;
 			ent.JustPorted = true;
-			portal:PlayerEnterPortal(ent);
 		elseif ent.InPortal == self then
 			ent.InPortal = nil;
 			ent:SetGroundEntity(NULL);
@@ -881,7 +881,7 @@ function ENT:TransformVelocityBetweenPortals(vel, targetPortal)
 		transformedVel = targetPortal:GetForward() * speed;
 	end;
 	if transformedVel:Length() < 100 then
-		transformedVel = targetPortal:GetForward() * 250;
+		transformedVel = targetPortal:GetForward() * 100;
 	end;
 	return transformedVel;
 end;
@@ -900,58 +900,11 @@ function ENT:OnRoofWithAngles(angles)
 	local result = forward.z < (-0.7);
 	return result;
 end;
-function ENT:OnFloor()
-	local up = self:GetUp();
-	local angles = self:GetAngles();
-	local isFloorUp = up.z > 0.7;
-	local isFloorForward = (self:GetForward()).z > 0.7;
-	local result = isFloorUp and isFloorForward;
-	return result;
-end;
-function ENT:OnRoof()
-	local up = self:GetUp();
-	local forward = self:GetForward();
-	local result = forward.z < (-0.7);
-	return result;
-end;
 function ENT:IsHorizontal()
 	return (self:GetAngles()).p == 0;
 end;
 function ENT:EmitTeleportSound(ent)
 	if ent:IsPlayer() then
-	end;
-end;
-function ENT:PlayerEnterPortal(ent)
-	if not IsValid(ent) or (not ent:IsPlayer()) then
-		return;
-	end;
-	ent.InPortal = self;
-	self:SetupPlayerClone(ent);
-	local phys = ent:GetPhysicsObject();
-	if IsValid(phys) then
-		phys:EnableDrag(true);
-	end;
-	ent:SetMoveType(MOVETYPE_WALK);
-	ent:SetGroundEntity(self);
-	if ent.JustEntered then
-		ent.JustEntered = false;
-	end;
-end;
-function ENT:SetupPlayerClone(ply)
-	if not ply.PortalClone then
-		local ed = ents.Create("PortalPlayerClone");
-		if IsValid(ed) then
-			ed:SetEnt(ply);
-			ed:SetPortal(self);
-			ed:SetModel(ply:GetModel());
-			ed:Spawn();
-			ply.PortalClone = ed;
-		end;
-	elseif IsValid(ply.PortalClone) then
-		ply.PortalClone:SetPortal(self);
-	end;
-	if self.BaseSetupPlayerClone then
-		self:BaseSetupPlayerClone(ply);
 	end;
 end;
 function ENT:UpdatePhysmesh()
@@ -1044,38 +997,6 @@ function ENT:UpdatePhysmesh()
 			self:SetSolid(SOLID_NONE);
 			self:SetMoveType(MOVETYPE_NONE);
 		end;
-	else
-		self:PhysicsInit(6);
-		if (self:GetPhysicsObject()):IsValid() then
-			local meshSize = size * 2;
-			local x0, x1 = (-meshSize.x) / 2, meshSize.x / 2;
-			local y0, y1 = (-meshSize.y) / 2, meshSize.y / 2;
-			local z0, z1 = -meshSize.z, meshSize.z;
-			local mesh = {
-				Vector(x0, y0, z0),
-				Vector(x0, y0, z1),
-				Vector(x0, y1, z0),
-				Vector(x0, y1, z1),
-				Vector(x1, y0, z0),
-				Vector(x1, y0, z1),
-				Vector(x1, y1, z0),
-				Vector(x1, y1, z1)
-			};
-			local success, err = pcall(self.PhysicsInitConvex, self, mesh);
-			if not success then
-				GP2.Print("Portal %d: New environment PhysicsInitConvex failed: %s", self:EntIndex(), err or "unknown error");
-				self:PhysicsDestroy();
-			else
-				local phys = self:GetPhysicsObject();
-				if IsValid(phys) then
-					phys:EnableMotion(false);
-					phys:SetContents((_G.CONTENTS_SOLID or 0) + (_G.CONTENTS_MOVEABLE or 0) + (_G.CONTENTS_BLOCKLOS or 0));
-				end;
-			end;
-		else
-			self:PhysicsDestroy();
-			GP2.Print("Failure to create a portal physics mesh %d - New environment invalid physics object", self:EntIndex());
-		end;
 	end;
 end;
 if game.SinglePlayer() then
@@ -1096,83 +1017,6 @@ function ENT:GetGroundZ()
 		filter = self
 	});
 	return tr.HitPos.z;
-end;
-function ENT:SpawnWoodenCratesBelow()
-	local up = self:GetUp();
-	local isFloor = up:Dot(Vector(0, 0, 1)) > 0.9;
-	local isCeiling = up:Dot(Vector(0, 0, -1)) > 0.9;
-	local isWall = not isFloor and (not isCeiling);
-	if isWall then
-		local realPortalPos = self:GetPos();
-		if not PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
-			realPortalPos = realPortalPos - self:GetUp() * 7.1;
-		end;
-		local groundZ = self:GetGroundZ();
-		local portalPos = realPortalPos;
-		local basePos = Vector(portalPos.x, portalPos.y, groundZ - 15);
-		local offsets = {
-			Vector(0, 0, 0),
-			Vector(40, 0, 0),
-			Vector(-40, 0, 0),
-			Vector(0, 40, 0),
-			Vector(0, -40, 0),
-			Vector(40, 40, 0),
-			Vector(-40, 40, 0),
-			Vector(40, -40, 0),
-			Vector(-40, -40, 0)
-		};
-		for _, offset in ipairs(offsets) do
-			local cube = ents.Create("prop_physics");
-			if IsValid(cube) then
-				cube:SetModel("models/props_junk/wood_crate001a.mdl");
-				cube:SetPos(basePos + offset);
-				cube:Spawn();
-				cube:SetOwner(self);
-				cube.InPortalCube = true;
-				cube.GP2_IsPortalCrate = true;
-				cube:SetColor(Color(255, 255, 255, 255));
-				cube:SetRenderMode(RENDERMODE_TRANSALPHA);
-				cube:SetSolid(SOLID_NONE);
-				cube:SetCollisionGroup(COLLISION_GROUP_WORLD);
-				timer.Simple(0.1, function()
-					if IsValid(cube) then
-						cube:SetSolid(SOLID_VPHYSICS);
-						cube:SetCollisionGroup(COLLISION_GROUP_DEBRIS_TRIGGER);
-						cube.StartTouch = function(self, ent)
-							if ent:IsPlayer() then
-								return;
-							end;
-						end;
-					end;
-				end);
-				local phys = cube:GetPhysicsObject();
-				if IsValid(phys) then
-					phys:EnableMotion(false);
-					phys:EnableGravity(false);
-					phys:SetVelocity(Vector(0, 0, 0));
-					phys:AddAngleVelocity(-phys:GetAngleVelocity());
-					phys:SetAngleVelocity(Vector(0, 0, 0));
-					phys:Sleep();
-				end;
-				cube:SetMoveType(MOVETYPE_NONE);
-				table.insert(self.SpawnedCubes, cube);
-			end;
-		end;
-	end;
-end;
-function ENT:SpawnCratesBelow()
-	local groundZ = self:GetGroundZ();
-	local portalPos = self:GetPos();
-	local spawnZ = groundZ + 1;
-	local centerPos = Vector(portalPos.x, portalPos.y, spawnZ);
-	local crate = ents.Create("prop_physics");
-	crate:SetModel("models/props/wood_crate001a.mdl");
-	crate:SetPos(centerPos);
-	crate:Spawn();
-	crate.GP2_IsPortalCrate = true;
-	for _, ply in ipairs(player.GetAll()) do
-		constraint.NoCollide(crate, ply, 0, 0);
-	end;
 end;
 if SERVER then
 	util.AddNetworkString("GP2_ChatMessage");
