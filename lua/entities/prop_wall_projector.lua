@@ -84,6 +84,12 @@ if SERVER then
 				self.WallEntity:SetSolid(SOLID_VPHYSICS);
 			end;
 		end;
+		if SERVER then
+			local phys = self:GetPhysicsObject();
+			if IsValid(phys) and phys:IsMotionEnabled() and GP2_ApplyPortalBelowImpulse then
+				GP2_ApplyPortalBelowImpulse(self, phys);
+			end;
+		end;
 		self:NextThink(CurTime() + 0.1);
 		return true;
 	end;

@@ -166,22 +166,8 @@ function ENT:Think()
 		end;
 		local phys = self:GetPhysicsObject();
 		if IsValid(phys) and phys:IsMotionEnabled() then
-			local portals = ents.FindInSphere(self:GetPos(), 80);
-			local portalBelow = false;
-			for _, ent in ipairs(portals) do
-				if ent ~= self and ent:GetClass() == "prop_portal" then
-					local portalPos = ent:GetPos();
-					if portalPos.z < (self:GetPos()).z then
-						portalBelow = true;
-						break;
-					end;
-				end;
-			end;
-			if portalBelow then
-				local vel = phys:GetVelocity();
-				if vel.x == 0 and vel.y == 0 and vel.z == 0 then
-					phys:SetVelocityInstantaneous(Vector(0, 0, -100));
-				end;
+			if GP2_ApplyPortalBelowImpulse then
+				GP2_ApplyPortalBelowImpulse(self, phys);
 			end;
 		end;
 		if self._visualOrigin and self._visualAngles then
