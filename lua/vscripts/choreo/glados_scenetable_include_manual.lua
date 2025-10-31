@@ -9,7 +9,7 @@ if curMapName=="sp_a1_intro1" then
 	sp_a1_intro1_door_opened = false
 
 	--Hello?
-	SceneTable["-600_01"] = 
+	SceneTable["-600_01"] =
 	{
 		vcd=CreateSceneEntity("scenes/npc/sphere03/OpeningHello01.vcd"),
 		char="wheatley",
@@ -21,11 +21,11 @@ if curMapName=="sp_a1_intro1" then
 		fires=
 		{
 			{entity="container_door_knock_2_relay",input="trigger",parameter="",delay=0.0}
-		}		
+		}
 	}
-	
-    --Helloooo? 
-	SceneTable["-600_02"] = 
+
+    --Helloooo?
+	SceneTable["-600_02"] =
 	{
 		vcd=CreateSceneEntity("scenes/npc/sphere03/OpeningHello12.vcd"),
 		char="wheatley",
@@ -36,7 +36,7 @@ if curMapName=="sp_a1_intro1" then
 		noDingOn = true,
 	}
 	--Are you going to open the door? At any time?
-	SceneTable["-600_03"] = 
+	SceneTable["-600_03"] =
 	{
 		vcd=CreateSceneEntity("scenes/npc/sphere03/OpeningHello13.vcd"),
 		char="wheatley",
@@ -47,7 +47,7 @@ if curMapName=="sp_a1_intro1" then
 		noDingOn = true,
 	}
 	--Hello? Can y--no?
-	SceneTable["-600_05"] = 
+	SceneTable["-600_05"] =
 	{
 		vcd=CreateSceneEntity("scenes/npc/sphere03/OpeningHello15.vcd"),
 		char="wheatley",
@@ -58,7 +58,7 @@ if curMapName=="sp_a1_intro1" then
 		noDingOn = true,
 	}
 	--Are you going to open this door? Because it's fairly urgent.
-	SceneTable["-600_07"] = 
+	SceneTable["-600_07"] =
 	{
 		vcd=CreateSceneEntity("scenes/npc/sphere03/OpeningHello17.vcd"),
 		char="wheatley",
@@ -69,7 +69,7 @@ if curMapName=="sp_a1_intro1" then
 		noDingOn = true,
 	}
 	--Oh, just open the door! [to self] That's too aggressive. [loud again] Hello, friend! Why not open the door?
-	SceneTable["-600_08"] = 
+	SceneTable["-600_08"] =
 	{
 		vcd=CreateSceneEntity("scenes/npc/sphere03/OpeningHello18.vcd"),
 		char="wheatley",
@@ -80,7 +80,7 @@ if curMapName=="sp_a1_intro1" then
 		noDingOn = true,
 	}
 	--[to self] Hm. Could be Spanish, could be Spanish. [loud again] Hola, amigo! Abre la puerta! Donde esta--no. Um...
-	SceneTable["-600_09"] = 
+	SceneTable["-600_09"] =
 	{
 		vcd=CreateSceneEntity("scenes/npc/sphere03/OpeningHello19.vcd"),
 		char="wheatley",
@@ -91,7 +91,7 @@ if curMapName=="sp_a1_intro1" then
 		noDingOn = true,
 	}
 	--Fine! No, absolutely fine. It's not like I don't have, you know, ten thousand other test subjects begging me to help them escape. You know, it's not like this place is about to EXPLODE.
-	SceneTable["-600_11"] = 
+	SceneTable["-600_11"] =
 	{
 		vcd=CreateSceneEntity("scenes/npc/sphere03/OpeningHello21.vcd"),
 		char="wheatley",
@@ -106,7 +106,7 @@ if curMapName=="sp_a1_intro1" then
 		}
 	}
 	--Alright, look, okay, I'll be honest. You're the LAST test subject left. And if you DON'T help me, we're both going to die. Alright? I didn't want to say it, you dragged it out of me. Alright? Dead. Dos Muerte.
-	SceneTable["-600_12"] = 
+	SceneTable["-600_12"] =
 	{
 		vcd=CreateSceneEntity("scenes/npc/sphere03/OpeningHello22.vcd"),
 		char="wheatley",
@@ -120,10 +120,10 @@ if curMapName=="sp_a1_intro1" then
 			{entity="@glados",input="RunScriptCode",parameter="sp_a1_intro1_open_door_nags()",delay=1.0}
 		}
 	}
-	
+
 	----------------------------------------------/
 	----------------------------------------------/
-	
+
 	--Hello!
 	SceneTable["-601_01"] =
 	{
@@ -140,7 +140,7 @@ if curMapName=="sp_a1_intro1" then
 		idlemaxsecs=2.600,
 		idlegroup="sp_a1_intro1_open_door_nag",
 		idleorderingroup=1
-	}	
+	}
 	--Helloooooooooooo!
 	SceneTable["-601_02"] =
 	{
@@ -189,12 +189,12 @@ if curMapName=="sp_a1_intro1" then
 		idlegroup="sp_a1_intro1_open_door_nag",
 		idleorderingroup=5
 	}
-	
+
 	----------------------------------------------/
 	----------------------------------------------/
 
 	--YES! I KNEW someone was alive in here!
-	SceneTable["-602_01"] = 
+	SceneTable["-602_01"] =
 	{
 		vcd=CreateSceneEntity("scenes/npc/sphere03/intro_ride01.vcd"),
 		char="wheatley",
@@ -210,9 +210,9 @@ if curMapName=="sp_a1_intro1" then
 			{entity="@rl_container_ride_wheatley_enter",input="Trigger",parameter="",delay=3.5},
 		}
 	}
-	
+
 	--AGH! You look TERRIB--you look good. Looking good, actually. If I'm honest.
-	SceneTable["-602_02"] = 
+	SceneTable["-602_02"] =
 	{
 		vcd=CreateSceneEntity("scenes/npc/sphere03/intro_ride02.vcd"),
 		char="wheatley",
@@ -223,9 +223,9 @@ if curMapName=="sp_a1_intro1" then
 		noDingOn = true,
 		talkover=true,
 	}
-	
+
 	--there's PLENTY of time to recover. Just take it slow.
-	SceneTable["-602_04"] = 
+	SceneTable["-602_04"] =
 	{
 		vcd=CreateSceneEntity("scenes/npc/sphere03/intro_ride03.vcd"),
 		char="wheatley",
@@ -241,9 +241,9 @@ if curMapName=="sp_a1_intro1" then
 			{entity="@sphere",input="setidlesequence",parameter="sphere_glance_up_concerned",delay=0.0},
 		}
 	}
-	
+
 	--please prepare for emergency evacuation [UPGRADED]
-	SceneTable["-608_01"] = 
+	SceneTable["-608_01"] =
 	{
 		vcd=CreateSceneEntity("scenes/npc/announcer/evacuationmisc01.vcd"),
 		char="announcerglados",
@@ -254,10 +254,10 @@ if curMapName=="sp_a1_intro1" then
 		noDingOn = true,
 		talkover=true,
 	}
-	
+
 
 	--Don't panic! Prepare. That's all they're saying. I'm going to get us out of here.
-	SceneTable["-602_06"] = 
+	SceneTable["-602_06"] =
 	{
 		vcd=CreateSceneEntity("scenes/npc/sphere03/intro_ride04.vcd"),
 		char="wheatley",
@@ -273,8 +273,8 @@ if curMapName=="sp_a1_intro1" then
 			{entity="@sphere",input="setidlesequence",parameter="",delay=0.0},
 		}
 	}
-	
-	SceneTable["-602_07"] = 
+
+	SceneTable["-602_07"] =
 	{
 		vcd=CreateSceneEntity("scenes/npc/sphere03/OpeningPrepare04.vcd"),
 		char="wheatley",
@@ -345,12 +345,12 @@ if curMapName=="sp_a1_intro1" then
 			{entity="sphere_player_has_pressed_space_second",input="Trigger",parameter="",delay=1.5},
 		}
 	}
-	
+
 		----------------------------------------------/
 	----------------------------------------------/
-	
+
 	-- Let me explain. Most test subjects do experience some cognitive deterioration after a few months in suspension.
-	SceneTable["-607_01"] = 
+	SceneTable["-607_01"] =
 	{
 		vcd=CreateSceneEntity("scenes/npc/sphere03/OpeningBrainDamage01.vcd"),
 		char="wheatley",
@@ -364,7 +364,7 @@ if curMapName=="sp_a1_intro1" then
 	}
 
 	--Straight away you're thinking, "Oo, that doesn't sound good. But don't be alarmed, alright? Because ah... well, actually, if you DO feel alarmed, hold onto that.
-	SceneTable["-607_02"] = 
+	SceneTable["-607_02"] =
 	{
 		vcd=CreateSceneEntity("scenes/npc/sphere03/intro_ride07.wav"),
 		char="wheatley",
@@ -372,9 +372,9 @@ if curMapName=="sp_a1_intro1" then
 		predelay = 0.0,
 		next = "-607_03",
 	}
-	
+
 	--Do you understand what I'm saying? Does any of this make sense? Just tell me 'Yes'.
-	SceneTable["-607_03"] = 
+	SceneTable["-607_03"] =
 	{
 		vcd=CreateSceneEntity("scenes/npc/sphere03/intro_ride08.vcd"),
 		char="wheatley",
@@ -387,12 +387,12 @@ if curMapName=="sp_a1_intro1" then
 			{entity="sphere_player_has_pressed_space_first",input="Enable",parameter="",delay=0.0},
 		}
 	}
-	
+
 	----------------------------------------------/
 	----------------------------------------------/
 
 	--Okay, you know what? That's close enough. Just hold tight.
-	SceneTable["-604_01"] = 
+	SceneTable["-604_01"] =
 	{
 		vcd=CreateSceneEntity("scenes/npc/sphere03/OpeningCloseEnough01.vcd"),
 		char="wheatley",
@@ -409,7 +409,7 @@ if curMapName=="sp_a1_intro1" then
 end
 
 -- ****************************************************************************************************
--- SP_A1_INTRO1 scenetable			  
+-- SP_A1_INTRO1 scenetable
 -- ****************************************************************************************************
 
 SceneTableLookup[-600] = "-600_01" -- start of the open the door string of dialog
@@ -434,7 +434,7 @@ function sp_a1_intro1_open_door_sequence()
 	GladosPlayVcd( -600 )
 end
 
-function sp_a1_intro1_open_door_nags() 
+function sp_a1_intro1_open_door_nags()
     if not sp_a1_intro1_door_opened then
         GladosPlayVcd( -601 )
     end
@@ -476,7 +476,7 @@ end
 function sp_a1_intro_cognitive_gauntlet()
 	GladosPlayVcd(359)
 end
-	
+
 function sp_a1_intro_cognitive_gauntlet_over()
 	sp_a1_intro_cognitive_gauntlet_said = true
 end
@@ -631,7 +631,7 @@ function sp_a1_intro7_DontLeaveMeNag()
 end
 
 -- ****************************************************************************************************
--- sp_a1_wakeup scenetable			  
+-- sp_a1_wakeup scenetable
 -- ****************************************************************************************************
 
 if curMapName == "sp_a1_wakeup" then
@@ -748,7 +748,15 @@ function sp_a1_wakeup_WheatleyGettingGrabbed()
 end
 
 function sp_a1_wakeup_transport()
+
 end
+
+function sp_a1_wakeup_DroppedInIncinerator()
+	game.ConsoleCommand("changelevel sp_a2_intro\n")
+end
+
+
+
 
 -- ****************************************************************************************************
 -- sp_a2_trust_fling scenetable
@@ -857,7 +865,7 @@ if curMapName == "sp_a2_pit_flings" then
         noDingOff = true,
         noDingOn = true
     }
-    
+
     SceneTable["-201_01"] = {
         vcd = CreateSceneEntity("scenes/npc/glados/fizzlecube03.vcd"), -- Go ahead and grab another one so that it won't also fizzle and you won't look stupid again.
         char = "glados",
@@ -870,7 +878,7 @@ if curMapName == "sp_a2_pit_flings" then
             {entity = "drop_new_box_relay", input = "trigger", parameter = "", delay = 1.0, fireatstart = true},
         }
     }
-    
+
     -- triggered when player picks up the second box
     SceneTable["-203_01"] = {
         vcd = CreateSceneEntity("scenes/npc/glados/fizzlecube05.vcd"), -- Oh. No. I fizzled that one too.
@@ -886,7 +894,7 @@ if curMapName == "sp_a2_pit_flings" then
             {entity = "companion_cube_trigger", input = "kill", parameter = "", delay = 0.0, fireatstart = true},
         }
     }
-    
+
     SceneTable["-204_01"] = {
         vcd = CreateSceneEntity("scenes/npc/glados/fizzlecube06.vcd"), -- Oh well. We have warehouses FULL of the things. Absolutely worthless. I'm happy to get rid of them.
         char = "glados",
@@ -896,7 +904,7 @@ if curMapName == "sp_a2_pit_flings" then
         noDingOff = true,
         noDingOn = true
     }
-    
+
     -- This line plays from the PuzzleCompleted call
     SceneTable["sp_a2_pit_flingsCubeSmuggleEnding01"] = {
         vcd = CreateSceneEntity("scenes/npc/glados/sp_a2_pit_flings03.vcd"), -- Every test chamber is equiped with a fizzler. This one is broken.
@@ -907,7 +915,7 @@ if curMapName == "sp_a2_pit_flings" then
         noDingOff = true,
         noDingOn = true
     }
-    
+
     SceneTable["sp_a2_pit_flingsCubeSmuggleEnding02"] = {
         vcd = CreateSceneEntity("scenes/npc/glados/sp_a2_pit_flings02.vcd"), -- Don't take anything with you.
         char = "glados",
@@ -933,7 +941,7 @@ if curMapName == "sp_a2_pit_flings" then
         noDingOn = true,
         fires = {{entity = "@transition_script", input = "runscriptcode", parameter = "TransitionReady()", delay = 0.0}}
     }
-    
+
     -- Player got stuck, glados taunts then spawns another cube
     SceneTable["-207_01"] = {
         vcd = CreateSceneEntity("scenes/npc/glados/fizzlecube02.vcd"), -- go ahead and grab another one
@@ -1028,7 +1036,7 @@ end
 -- sp_a2_ricochet
 -- ****************************************************************************************************
 function RicochetFutureStarter()
-	GladosPlayVcd(631)	
+	GladosPlayVcd(631)
 end
 
 -- ****************************************************************************************************
@@ -1054,7 +1062,7 @@ if curMapName == "sp_a2_bridge_the_gap" then
             {entity = "start_wheatley_window_scene_relay", input = "trigger", parameter = "", delay = 3.0}
         },
         predelay = 0.2,
-        queue = 1 
+        queue = 1
     }
 
     -- Hey! Hey! Up here!
@@ -1085,11 +1093,11 @@ if curMapName == "sp_a2_bridge_the_gap" then
         noDingOff = true,
         noDingOn = true,
         fires = {
-            {entity = "bird_attack_end_relay", input = "Trigger", parameter = "", delay = 0.0, fireatstart = true} 
+            {entity = "bird_attack_end_relay", input = "Trigger", parameter = "", delay = 0.0, fireatstart = true}
         }
     }
 
-    -- Okay, look, the point is, we're gonna break out of here! Very soon, I promise! 
+    -- Okay, look, the point is, we're gonna break out of here! Very soon, I promise!
     SceneTable["-500_05"] = {vcd = CreateSceneEntity("scenes/npc/sphere03/sp_a2_bridge_the_gap_expo01.vcd"), postdelay = 0.1, next = "-500_06", char = "wheatley", noDingOff = true, noDingOn = true}
 
     -- I just have to figure out how.
@@ -1125,7 +1133,7 @@ if curMapName == "sp_a2_bridge_the_gap" then
             {entity = "start_wheatley_window_scene_relay", input = "trigger", parameter = "", delay = 3.0}
         },
         predelay = 0.2,
-        queue = 1 
+        queue = 1
     }
 
     -- Hey! Hey! Up here!
@@ -1156,11 +1164,11 @@ if curMapName == "sp_a2_bridge_the_gap" then
         noDingOff = true,
         noDingOn = true,
         fires = {
-            {entity = "bird_attack_end_relay", input = "Trigger", parameter = "", delay = 0.0, fireatstart = true} 
+            {entity = "bird_attack_end_relay", input = "Trigger", parameter = "", delay = 0.0, fireatstart = true}
         }
     }
 
-    -- Okay, look, the point is, we're gonna break out of here! Very soon, I promise! 
+    -- Okay, look, the point is, we're gonna break out of here! Very soon, I promise!
     SceneTable["-500_05"] = {vcd = CreateSceneEntity("scenes/npc/sphere03/sp_a2_bridge_the_gap_expo01.vcd"), postdelay = 0.1, next = "-500_06", char = "wheatley", noDingOff = true, noDingOn = true}
 
     -- I just have to figure out how.
@@ -1182,7 +1190,7 @@ if curMapName == "sp_a2_bridge_the_gap" then
 
 	SceneTableLookup[-500] = "-500_00" 	-- Perfect, the door's malfunctioning. I guess somebody's going to have to repair that too. [beat] No, don't get up. I'll be right back. Don't touch anything.
 	SceneTableLookup[-501] = "-500_01" 	-- /Hey! Hey! Up here!
-										-- I found some bird eggs up here. Just dropped 'em into the door mechanism.  Shut it right down. I--AGH!					
+										-- I found some bird eggs up here. Just dropped 'em into the door mechanism.  Shut it right down. I--AGH!
 										-- BIRD BIRD BIRD BIRD
 										-- [out of breath] Okay. That's probably the bird, isn't it? That laid the eggs! Livid!
 										-- Anyway, look, the point is we're gonna break out of here, alright? But we can't do it yet. Look for me fifteen chambers ahead.
@@ -1214,7 +1222,7 @@ if curMapName == "sp_a2_column_blocker" then
             {entity = "surprise_room_lights_on", input = "Trigger", parameter = "", delay = 0.2},
         }
     }
-    
+
     SceneTable["-401_01"] = {
         vcd = CreateSceneEntity("scenes/npc/glados/testchambermisc35.vcd"), -- i made it all up
         char = "glados",
@@ -1228,7 +1236,7 @@ if curMapName == "sp_a2_column_blocker" then
             {entity = "surprise_room_party_horn_sound", input = "playsound", parameter = "", delay = 0.3}
         }
     }
-    
+
     SceneTable["-402_01"] = {
         vcd = CreateSceneEntity("scenes/npc/glados/testchambermisc41.vcd"), -- surprise.
         char = "glados",
@@ -1238,7 +1246,7 @@ if curMapName == "sp_a2_column_blocker" then
         noDingOff = true,
         noDingOn = true
     }
-    
+
     SceneTable["-403_01"] = {
         vcd = CreateSceneEntity("scenes/npc/glados/sp_a2_column_blocker01.vcd"), -- your parents are probably dead. ...i doubt they'd want to see you.
         char = "glados",
@@ -1261,11 +1269,11 @@ end
 function Wheatley_Elevator_Scene_Start()
 	GladosPlayVcd(495)
 end
-	
+
 function Wheatley_Elevator_Scene_Ow()
 	GladosPlayVcd(496)
 end
-	
+
 -- ****************************************************************************************************
 -- sp_a2_bts1
 -- ****************************************************************************************************
@@ -1288,12 +1296,12 @@ function JailbreakICanHearYou()
 end
 
 function JailbreakWheatleyCloseChamber()
-    WheatleyStopNag()   
+    WheatleyStopNag()
     GladosPlayVcd(500)
 end
 
 function WheatleyKeepMoving()
-    -- WheatleyStopNag()        
+    -- WheatleyStopNag()
     -- GladosPlayVcd(501)
 end
 
@@ -1302,40 +1310,40 @@ function WheatleyGoGoGoNag()
 end
 
 function JailbreakLastTestIntro()
-    WheatleyStopNag()   
+    WheatleyStopNag()
     GladosPlayVcd(503)
 end
 
 function JailbreakLastChamberMain()
-    WheatleyStopNag()   
+    WheatleyStopNag()
     GladosPlayVcd(504)
 end
 
 function JailbreakLastTestDeer()
     sp_a2_bts1_FakeEntered = true
-    WheatleyStopNag()   
+    WheatleyStopNag()
     GladosPlayVcd(505)
 end
 
 function JailBreakHowStupid()
     if not sp_a2_bts1_FakeEntered then
-        WheatleyStopNag()       
+        WheatleyStopNag()
         GladosPlayVcd(506)
-    end 
+    end
 end
 
 function JailbreakBridgeDisappear()
-    WheatleyStopNag()   
+    WheatleyStopNag()
     GladosPlayVcd(507)
 end
 
 function JailbreakLookOutTurrets()
-    WheatleyStopNag()   
+    WheatleyStopNag()
     GladosPlayVcd(508)
 end
 
 function JailBreak2Trapped()
-    WheatleyStopNag()   
+    WheatleyStopNag()
     GladosPlayVcd(573)
 end
 
@@ -1356,32 +1364,32 @@ function JailBreak2BringingDown()
 end
 
 function JailbreakHurryHurry()
-    WheatleyStopNag()   
+    WheatleyStopNag()
     GladosPlayVcd(509)
 end
 
 function JailbreakGetInTheLift()
-    WheatleyStopNag()   
+    WheatleyStopNag()
     GladosPlayVcd(510)
 end
 
 function jailbreak_player_in_exit_elevator()
-    WheatleyStopNag()   
+    WheatleyStopNag()
     GladosPlayVcd(511)
 end
 
 function Jailbreak2ThisWay()
-    WheatleyStopNag()   
+    WheatleyStopNag()
     GladosPlayVcd(512)
 end
 
 function JailbreakGoGo()
-    WheatleyStopNag()   
+    WheatleyStopNag()
     GladosPlayVcd(513)
 end
 
 function JailbreakComeOnComeOn()
-    WheatleyStopNag()   
+    WheatleyStopNag()
     GladosPlayVcd(514)
 end
 
@@ -1391,7 +1399,7 @@ end
 
 if curMapName == "sp_a2_bts3" then
     -- ====================================== Ghost Story scene
-    
+
     SceneTable["-2500_01"] = {
         vcd = CreateSceneEntity("scenes/npc/sphere03/sphere_flashlight_tour07.vcd"), -- Ooh.  Dark down here, isn't it.
         char = "wheatley",
@@ -1401,7 +1409,7 @@ if curMapName == "sp_a2_bts3" then
         noDingOff = true,
         noDingOn = true
     }
-    
+
     SceneTable["-2500_02"] = {
         vcd = CreateSceneEntity("scenes/npc/sphere03/sphere_flashlight_tour57.vcd"), -- They say that the old caretaker of this place...
         char = "wheatley",
@@ -1410,8 +1418,8 @@ if curMapName == "sp_a2_bts3" then
         next = nil,
         noDingOff = true,
         noDingOn = true
-    }   
-    
+    }
+
     -- ====================================== Smelly Humans scene
     SceneTable["-2503_01"] = {
         vcd = CreateSceneEntity("scenes/npc/sphere03/sphere_flashlight_tour58.vcd"), -- Here's an interesting story.. (smelly humans story)
@@ -1422,7 +1430,7 @@ if curMapName == "sp_a2_bts3" then
         noDingOff = true,
         noDingOn = true
     }
-    
+
     SceneTable["-2503_02"] = {
         vcd = CreateSceneEntity("scenes/npc/sphere03/sphere_flashlight_tour59.vcd"), -- the um.. sorry, that's.. just tending to the humans.
         char = "wheatley",
@@ -1432,7 +1440,7 @@ if curMapName == "sp_a2_bts3" then
         noDingOff = true,
         noDingOn = true
     }
-    
+
     SceneTable["-2503_03"] = {
         vcd = CreateSceneEntity("scenes/npc/sphere03/sphere_flashlight_tour60.vcd"), -- Sorry about that.  That just slipped out.
         char = "wheatley",
@@ -1442,7 +1450,7 @@ if curMapName == "sp_a2_bts3" then
         noDingOff = true,
         noDingOn = true
     }
-    
+
     SceneTable["-2504_01"] = {
         vcd = CreateSceneEntity("scenes/npc/sphere03/sphere_flashlight_tour62.vcd"), -- Ahh. Humans!  Love 'em!
         char = "wheatley",
@@ -1490,7 +1498,7 @@ if curMapName == "sp_a2_bts4" then
 	sp_a2_bts4_Science_Fair_Busy = false
 	sp_a2_bts4_Did_Big_Potato = false
 	sp_a2_bts4_Did_Volcano = 0
-end	
+end
 
 
 function bts4_redemption_line_turret_safe()
@@ -1529,7 +1537,7 @@ function bts4_redemption_line_turret_babble()
 		if sp_a2_bts4_redemption_turret_held then
 			if sp_a2_bts4_redemption_turret_babble_index < 8 then
 				sp_a2_bts4_redemption_turret_babble_index = sp_a2_bts4_redemption_turret_babble_index + 1
-				GladosPlayVcd(614+sp_a2_bts4_redemption_turret_babble_index, nil, "conveyor_turret_body")				
+				GladosPlayVcd(614+sp_a2_bts4_redemption_turret_babble_index, nil, "conveyor_turret_body")
 			end
 		end
 	end
@@ -1631,7 +1639,7 @@ function FactoryStillThinkingNag()
 		if characterCurscene("wheatley") ~= nil then
 		sp_a2_bts4_StillThinkingNagTime = CurTime()
 		return
-		end  
+		end
 		if CurTime() - sp_a2_bts4_StillThinkingNagTime > 5 and math.random(1, 100) > 50 then
 		sp_a2_bts4_StillThinkingNagIdx = sp_a2_bts4_StillThinkingNagIdx + 1
 		sp_a2_bts4_StillThinkingNagTime = CurTime()
@@ -1734,7 +1742,7 @@ function PlayerNearScienceFairVolcano()
 		sp_a2_bts4_Did_Volcano = 2
 		GladosPlayVcd(584)
 		end
-	end  
+	end
 end
 
 function PlayerLeavingScienceFairVolcano()
@@ -2011,7 +2019,7 @@ function PlayerEnteredElevator()
 	CorePlayerInElevator = 1 -- this will prevent the elevator nag from being triggered by subsequent IO
 	EntFire("@exit_elevator_music_relay","trigger", 0, 0 )
 	GladosPlayVcd(-13) -- I knew it was going to be cool being in charge..
-	
+
 	-- delete many of the small_pos arms
 	EntFire("small_pos1", "kill", 0, 0 )
 	EntFire("small_pos3", "kill", 0, 0 )
@@ -2067,7 +2075,7 @@ SceneTableLookup[-33] = "-10_01"
 SceneTableLookup[-34] = "-11_01"
 SceneTableLookup[-37] = "-12_01"
 SceneTableLookup[-44] = "-13_01"
-SceneTableLookup[-45] = "-45_01"                                                                                                                                  
+SceneTableLookup[-45] = "-45_01"
 
 -- ****************************************************************************************************
 -- GLaDOS Battle
@@ -2084,7 +2092,7 @@ if curMapName == "sp_a2_core" then -- TODO: CHANGE THIS TO CORRECT MAP NAME
 		noDingOff = true,
 		noDingOn = true
 	}
-	
+
 	SceneTable ["-20_02" ] =
 	{
 		vcd = CreateSceneEntity("scenes/npc/glados/fgbrvtrap03.vcd"), -- In fact, I devised a much more elaborate trap ahead, for when you got through this easy one.
@@ -2095,7 +2103,7 @@ if curMapName == "sp_a2_core" then -- TODO: CHANGE THIS TO CORRECT MAP NAME
 		noDingOff = true,
 		noDingOn = true
 	}
-	
+
 	SceneTable ["-20_03" ] =
 	{
 		vcd = CreateSceneEntity("scenes/npc/glados/fgbrvtrap05.vcd"), -- If I had known it would be this easy, I would have just dangled a turkey leg
@@ -2109,10 +2117,10 @@ if curMapName == "sp_a2_core" then -- TODO: CHANGE THIS TO CORRECT MAP NAME
 		{
 			{entity="rv_start_moving_trigger",input="enable",parameter="",delay=0.5}
 		}
-		
-		
+
+
 	}
-	
+
 -- ======================================  Plays when player lands in moving vault
 	SceneTable ["-21_01" ] =
 	{
@@ -2124,7 +2132,7 @@ if curMapName == "sp_a2_core" then -- TODO: CHANGE THIS TO CORRECT MAP NAME
 		noDingOff = true,
 		noDingOn = true
 	}
-	
+
 	SceneTable ["-21_02" ] =
 	{
 		vcd = CreateSceneEntity("scenes/npc/glados/fgb_trap01.vcd"), -- I hope you brought something more powerful than the portal gun this time
@@ -2140,10 +2148,10 @@ if curMapName == "sp_a2_core" then -- TODO: CHANGE THIS TO CORRECT MAP NAME
 			{entity="glados_chamber_body",input="setdefaultanimation",parameter="glados_idle_rightside",delay=0,fireatstart=true}
 		}
 	}
-	
+
 	SceneTable ["-21_03" ] =
 	{
-		vcd = CreateSceneEntity("scenes/npc/glados/fgb_trap02.vcd"), -- Otherwise you're about to become the past president of the being alive club, ha ha. 
+		vcd = CreateSceneEntity("scenes/npc/glados/fgb_trap02.vcd"), -- Otherwise you're about to become the past president of the being alive club, ha ha.
 		char = "glados",
 		postdelay = 0.6,
 		predelay = 0.0,
@@ -2153,7 +2161,7 @@ if curMapName == "sp_a2_core" then -- TODO: CHANGE THIS TO CORRECT MAP NAME
 		talkover=true,
 		fires=
 		{
-			{entity="deploy_turrets_relay",input="Trigger",parameter="",delay=4,fireatstart=true}	
+			{entity="deploy_turrets_relay",input="Trigger",parameter="",delay=4,fireatstart=true}
 		}
 	}
 
@@ -2166,10 +2174,10 @@ if curMapName == "sp_a2_core" then -- TODO: CHANGE THIS TO CORRECT MAP NAME
 		next = nil,
 		noDingOff = true,
 		noDingOn = true,
-		talkover=true	
-	}	
-	
-	
+		talkover=true
+	}
+
+
 /*	SceneTable ["-21_04" ] =
 	{
 		vcd = CreateSceneEntity("scenes/npc/glados/fgbturrets02.vcd"), -- You remember my turrets don't you... oh wait, that's you in 5 seconds. goodbye.
@@ -2182,10 +2190,10 @@ if curMapName == "sp_a2_core" then -- TODO: CHANGE THIS TO CORRECT MAP NAME
 		talkover=true,
 		fires=
 		{
-			{entity="deploy_turrets_relay",input="Trigger",parameter="",delay=4,fireatstart=true},		
+			{entity="deploy_turrets_relay",input="Trigger",parameter="",delay=4,fireatstart=true},
 		}
 	}
-*/	
+*/
 -- ====================================== Turrets deployed scene
 
 	SceneTable ["-700_01" ] =
@@ -2197,10 +2205,10 @@ if curMapName == "sp_a2_core" then -- TODO: CHANGE THIS TO CORRECT MAP NAME
 		next = "-700_02",
 		noDingOff = true,
 		noDingOn = true,
-		talkover=true,	
+		talkover=true,
 		settarget1="turret_02-chamber_npc_turret"
 	}
-	
+
 	SceneTable ["-700_02" ] =
 	{
 		vcd = CreateSceneEntity("scenes/npc/turret/sp_sabotage_factory_defect_dryfire05.vcd"), -- dry fire
@@ -2217,7 +2225,7 @@ if curMapName == "sp_a2_core" then -- TODO: CHANGE THIS TO CORRECT MAP NAME
 			{entity="box_turret_push_trigger",input="enable",parameter="",delay=0.0,fireatstart=true}	-- turret falls over
 		}
 	}
-	
+
 	SceneTable ["-700_03" ] =
 	{
 		vcd = CreateSceneEntity("scenes/npc/turret/glados_battle_defect_arrive01.vcd"), -- it's my big chance!
@@ -2227,7 +2235,7 @@ if curMapName == "sp_a2_core" then -- TODO: CHANGE THIS TO CORRECT MAP NAME
 		next = "-700_04",
 		noDingOff = true,
 		noDingOn = true,
-		talkover=true,		
+		talkover=true,
 		settarget1="turret_01-chamber_npc_turret",
 		fires=
 		{
@@ -2235,7 +2243,7 @@ if curMapName == "sp_a2_core" then -- TODO: CHANGE THIS TO CORRECT MAP NAME
 			{entity="turret_01-chamber_npc_turret",input="ignite",parameter="",delay=0},
 		}
 	}
-	
+
 	SceneTable ["-700_04" ] =
 	{
 		vcd = CreateSceneEntity("scenes/npc/turret/sp_sabotage_factory_defect_dryfire07.vcd"), -- dry fire
@@ -2248,7 +2256,7 @@ if curMapName == "sp_a2_core" then -- TODO: CHANGE THIS TO CORRECT MAP NAME
 		talkover=true,
 		settarget1="turret_01-chamber_npc_turret"
 	}
-	
+
 	SceneTable ["-700_05" ] =
 	{
 		vcd = CreateSceneEntity("scenes/npc/turret/glados_battle_defect_arrive15.vcd"), --  This is trouble
@@ -2262,11 +2270,11 @@ if curMapName == "sp_a2_core" then -- TODO: CHANGE THIS TO CORRECT MAP NAME
 		settarget1="turret_01-chamber_npc_turret",
 		fires=
 		{
-			{entity="turret_01-chamber_npc_turret",input="selfdestructimmediately",parameter="",delay=0.0},		
+			{entity="turret_01-chamber_npc_turret",input="selfdestructimmediately",parameter="",delay=0.0},
 			{entity="turret_02-chamber_npc_turret",input="ignite",parameter="",delay=0.1}
 		}
 	}
-	
+
 	SceneTable ["-700_06" ] =
 	{
 		vcd = CreateSceneEntity("scenes/npc/turret/glados_battle_defect_arrive17.vcd"), -- [muffled turret talking while on fire]
@@ -2276,14 +2284,14 @@ if curMapName == "sp_a2_core" then -- TODO: CHANGE THIS TO CORRECT MAP NAME
 		next = "-700_07",
 		noDingOff = true,
 		noDingOn = true,
-		talkover=true,		
+		talkover=true,
 		settarget1="turret_02-chamber_npc_turret",
 		fires=
 		{
 			{entity="turret_02-chamber_npc_turret",input="selfdestructimmediately",parameter="",delay=0.0}
 		}
 	}
-	
+
 	SceneTable ["-700_07" ] =
 	{
 		vcd = CreateSceneEntity("scenes/npc/turret/glados_battle_defect_arrive12.vcd"), -- ahhh not again!
@@ -2301,7 +2309,7 @@ if curMapName == "sp_a2_core" then -- TODO: CHANGE THIS TO CORRECT MAP NAME
 			{entity="turret_03-chamber_npc_turret",input="selfdestructimmediately",parameter="",delay=0.5}
 		}
 	}
-	
+
 	SceneTable ["-700_08" ] =
 	{
 		vcd = CreateSceneEntity("scenes/npc/turret/glados_battle_defect_arrive07.vcd"), -- Here it comes, pal!
@@ -2318,8 +2326,8 @@ if curMapName == "sp_a2_core" then -- TODO: CHANGE THIS TO CORRECT MAP NAME
 			{entity="turret_04-chamber_npc_turret_guns_out_ss",input="beginsequence",parameter="",delay=0, fireatstart=true}, -- pop out guns
 		}
 	}
-	
-	
+
+
 	SceneTable ["-700_09" ] =
 	{
 		vcd = CreateSceneEntity("scenes/npc/turret/glados_battle_defect_arrive08.vcd"), -- Locked and loaded!
@@ -2336,7 +2344,7 @@ if curMapName == "sp_a2_core" then -- TODO: CHANGE THIS TO CORRECT MAP NAME
 			{entity="turret_05 -chamber_npc_turret_guns_out_ss",input="beginsequence",parameter="",delay=0, fireatstart=true}, -- pop out guns
 		}
 	}
-	
+
 	SceneTable ["-700_10" ] =
 	{
 		vcd = CreateSceneEntity("scenes/npc/turret/sp_sabotage_factory_defect_dryfire01.vcd"), -- dry fire
@@ -2354,12 +2362,12 @@ if curMapName == "sp_a2_core" then -- TODO: CHANGE THIS TO CORRECT MAP NAME
 			{entity="turret_04-chamber_npc_turret",input="selfdestructimmediately",parameter="",delay=1.0},
 			{entity="turret_05-chamber_npc_turret",input="ignite",parameter="",delay=0},
 		}
-		
+
 		-- explodes, cracks glass
 		-- sets turret 5 on fire
 	}
-	
-	
+
+
 	SceneTable ["-700_11" ] =
 	{
 		vcd = CreateSceneEntity("scenes/npc/turret/glados_battle_defect_arrive16.vcd"), -- Oh this aint' good
@@ -2376,9 +2384,9 @@ if curMapName == "sp_a2_core" then -- TODO: CHANGE THIS TO CORRECT MAP NAME
 			{entity="@glados",input="RunScriptCode",parameter="TurretDeathReactionDialog()",delay=0.3}
 		}
 	}
-	
+
 	/*
-	
+
 	-- ====================================== Turret Death Reaction
 	SceneTable["-22_01"] =
 	{
@@ -2391,7 +2399,7 @@ if curMapName == "sp_a2_core" then -- TODO: CHANGE THIS TO CORRECT MAP NAME
 		noDingOn=true
 	}
 	*/
-	
+
 	SceneTable["-22_01"] =
 	{
 		vcd=CreateSceneEntity("scenes/npc/glados/fgb_trap05.vcd"), -- Ohhhhh. You were busy back there.
@@ -2402,7 +2410,7 @@ if curMapName == "sp_a2_core" then -- TODO: CHANGE THIS TO CORRECT MAP NAME
 		noDingOff=true,
 		noDingOn=true
 	}
-	
+
 	SceneTable["-22_03"] =
 	{
 		vcd=CreateSceneEntity("scenes/npc/glados/fgb_trap06.vcd"), --I suppose we could just sit in this room and glare at each other until somebody drops dead, but I have a better idea.
@@ -2417,7 +2425,7 @@ if curMapName == "sp_a2_core" then -- TODO: CHANGE THIS TO CORRECT MAP NAME
 			{entity="deploy_neurotoxin_tube_relay",input="Trigger",parameter="",delay=5.00, fireatstart=true}
 		}
 	}
-	
+
 	/*(SceneTable["-22_04"] =
 	{
 		vcd=CreateSceneEntity("scenes/npc/glados/gladosbattle_pre07.vcd") -- Your old friend, deadly neurotoxin.
@@ -2428,7 +2436,7 @@ if curMapName == "sp_a2_core" then -- TODO: CHANGE THIS TO CORRECT MAP NAME
 		noDingOff=true
 		noDingOn=true
 	}*/
-	
+
 	SceneTable["-22_05"] =
 	{
 		vcd=CreateSceneEntity("scenes/npc/glados/fgb_trap08.vcd"), --Your old friend, deadly neurotoxin. If I were you, I'd take a deep breath right now and hold it.
@@ -2819,7 +2827,7 @@ function StopWheatleyPluginNag()
 end
 
 -- ====================================== Wheatley Plugged in
-SceneTable["-24_01"] = 
+SceneTable["-24_01"] =
 {
     vcd=CreateSceneEntity("scenes/npc/announcer/gladosbattle14.vcd"), --Substitute core accepted. [UPGRADED]
     char="announcer",
@@ -2836,7 +2844,7 @@ SceneTable["-24_01"] =
     }
 }
 
-SceneTable["-24_02"] = 
+SceneTable["-24_02"] =
 {
     vcd=CreateSceneEntity("scenes/npc/announcer/gladosbattle15.vcd"), --Substitute core, are you ready to start the procedure? [UPGRADED]
     char="announcer",
@@ -2848,7 +2856,7 @@ SceneTable["-24_02"] =
     talkover=true
 }
 
-SceneTable["-24_03"] = 
+SceneTable["-24_03"] =
 {
     vcd=CreateSceneEntity("scenes/npc/sphere03/fgb_ready_glados01.vcd"),    -- Yes!
     char="wheatley",
@@ -2859,7 +2867,7 @@ SceneTable["-24_03"] =
     noDingOn=true
 }
 
-SceneTable["-24_04"] = 
+SceneTable["-24_04"] =
 {
     vcd=CreateSceneEntity("scenes/npc/announcer/gladosbattle16.vcd"), --Corrupted core, are you ready to start the procedure? [UPGRADED]
     char="announcer",
@@ -2876,7 +2884,7 @@ SceneTable["-24_04"] =
     }
 }
 
-SceneTable["-24_05"] = 
+SceneTable["-24_05"] =
 {
     vcd=CreateSceneEntity("scenes/npc/glados/gladosbattle_xfer07.vcd"), --No!
     char="glados",
@@ -2888,7 +2896,7 @@ SceneTable["-24_05"] =
     talkover=true
 }
 
-SceneTable["-24_06"] = 
+SceneTable["-24_06"] =
 {
     vcd=CreateSceneEntity("scenes/npc/glados/gladosbattle_xfer08.vcd"),     -- Nonononono!
     char="glados",
@@ -2900,7 +2908,7 @@ SceneTable["-24_06"] =
     talkover=true
 }
 
-SceneTable["-24_07"] = 
+SceneTable["-24_07"] =
 {
     vcd=CreateSceneEntity("scenes/npc/announcer/gladosbattle17.vcd"),    --Stalemate detected. Transfer procedure cannot continue. [UPGRADED]
     char="announcer",
@@ -2911,9 +2919,9 @@ SceneTable["-24_07"] =
     noDingOn=true
 }
 
-SceneTable["-24_08"] = 
+SceneTable["-24_08"] =
 {
-    vcd=CreateSceneEntity("scenes/npc/glados/gladosbattle_xfer10.vcd"), --Yes! 
+    vcd=CreateSceneEntity("scenes/npc/glados/gladosbattle_xfer10.vcd"), --Yes!
     char="glados",
     postdelay=0.0,
     predelay = 0.0,
@@ -2927,7 +2935,7 @@ SceneTable["-24_08"] =
     }
 }
 
-SceneTable["-24_09"] = 
+SceneTable["-24_09"] =
 {
     vcd = CreateSceneEntity("scenes/npc/announcer/gladosbattle18.vcd"), -- ...unless a stalemate associate is present to press the stalemate resolution button. [UPGRADED]
     char = "announcer",
@@ -2944,7 +2952,7 @@ SceneTable["-24_09"] =
     }
 }
 
-SceneTable["-24_10"] = 
+SceneTable["-24_10"] =
 {
     vcd = CreateSceneEntity("scenes/npc/sphere03/fgb_leave_me_in01.vcd"), -- Leave me in! Leave me in! Go press it!
     char = "wheatley",
@@ -2955,7 +2963,7 @@ SceneTable["-24_10"] =
     noDingOn = true
 }
 
-SceneTable["-24_11"] = 
+SceneTable["-24_11"] =
 {
     vcd = CreateSceneEntity("scenes/npc/glados/gladosbattle_xfer13.vcd"), -- Don't do it.
     char = "glados",
@@ -2970,7 +2978,7 @@ SceneTable["-24_11"] =
     }
 }
 
-SceneTable["-24_12"] = 
+SceneTable["-24_12"] =
 {
     vcd = CreateSceneEntity("scenes/npc/sphere03/fgb_doit_nags01.vcd"), -- Yes, do do it!
     char = "wheatley",
@@ -2981,7 +2989,7 @@ SceneTable["-24_12"] =
     noDingOn = true
 }
 
-SceneTable["-24_13"] = 
+SceneTable["-24_13"] =
 {
     vcd = CreateSceneEntity("scenes/npc/glados/gladosbattle_xfer11.vcd"), -- Don't press that button. You don't know what you're doing.
     char = "glados",
@@ -2992,7 +3000,7 @@ SceneTable["-24_13"] =
     noDingOn = true
 }
 
-SceneTable["-24_14"] = 
+SceneTable["-24_14"] =
 {
     vcd = CreateSceneEntity("scenes/npc/sphere03/fgb_stalemate_nags05.vcd"), -- I think she's lying.
     char = "wheatley",
@@ -3023,7 +3031,7 @@ SceneTable["-755_01"] = {
 	idlegroup = "pressthebutton",
 	idleorderingroup = 1,
   }
-  
+
   SceneTable["-755_02"] = {
 	vcd = CreateSceneEntity("scenes/npc/sphere03/bw_a4_2nd_first_test_solve_nags07.vcd"),
 	postdelay = 3.1,
@@ -3035,7 +3043,7 @@ SceneTable["-755_01"] = {
 	idlegroup = "pressthebutton",
 	idleorderingroup = 2,
   }
-  
+
   SceneTable["-755_03"] = {
 	vcd = CreateSceneEntity("scenes/npc/sphere03/bw_a4_2nd_first_test_solve_nags08.vcd"),
 	postdelay = 3.1,
@@ -3047,7 +3055,7 @@ SceneTable["-755_01"] = {
 	idlegroup = "pressthebutton",
 	idleorderingroup = 3,
   }
-  
+
   SceneTable["-755_04"] = {
 	vcd = CreateSceneEntity("scenes/npc/sphere03/bw_a4_2nd_first_test_solve_nags09.vcd"),
 	postdelay = 3.1,
@@ -3059,7 +3067,7 @@ SceneTable["-755_01"] = {
 	idlegroup = "pressthebutton",
 	idleorderingroup = 4,
   }
-  
+
   SceneTable["-755_05"] = {
 	vcd = CreateSceneEntity("scenes/npc/sphere03/bw_a4_2nd_first_test_solve_nags10.vcd"),
 	postdelay = 3.1,
@@ -3102,7 +3110,7 @@ function StartStalemateButtonPressNag()
 end
 
 function StopStalemateButtonPressNag()
-	nuke()	
+	nuke()
 end
 
 function sp_sabotage_glados_specials(arg)
@@ -3126,7 +3134,7 @@ SceneTable["-25_01"] = {
 	  {entity = "glados_chamber_body", input = "setanimation", parameter = "gladosbattle_xfer14", delay = 0, fireatstart = true} --ANIM
 	}
   }
-  
+
   SceneTable["-25_02"] = {
 	vcd = CreateSceneEntity("scenes/npc/glados/gladosbattle_xfer15.vcd"), --Think about this.
 	postdelay = 0.2,
@@ -3136,7 +3144,7 @@ SceneTable["-25_01"] = {
 	noDingOn = true,
 	talkover = false
   }
-  
+
   SceneTable["-25_03"] = {
 	vcd = CreateSceneEntity("scenes/npc/glados/gladosbattle_xfer16.vcd"), --You need to be a trained stalemate associate to press that button. You're unqualified. I know this sounds like an obvious ploy, but I'm really not joking.
 	postdelay = 0.2,
@@ -3146,7 +3154,7 @@ SceneTable["-25_01"] = {
 	noDingOn = true,
 	talkover = false
   }
-  
+
   --Don't listen to her! It IS true that you don't have the qualifications. But you've got something more important than that. A finger, with which to press that button, so that she won't kill us.
   SceneTable["-25_04"] = {
 	vcd = CreateSceneEntity("scenes/npc/sphere03/fgb_stalemate_nags06.vcd"),
@@ -3157,7 +3165,7 @@ SceneTable["-25_01"] = {
 	noDingOn = true,
 	talkover = false
   }
-  
+
   --Impersonating a stalemate associate. I just added that to the list. It's a list I made of all the things you've done. Well, it's a list that I AM making, because you're still doing things right now, even though I'm telling you to stop. Stop, by the way.
   SceneTable["-25_05"] = {
 	vcd = CreateSceneEntity("scenes/npc/glados/gladosbattle_xfer17.vcd"),
@@ -3168,7 +3176,7 @@ SceneTable["-25_01"] = {
 	noDingOn = true,
 	talkover = false
   }
-  
+
   --I... that's probably correct. But where it is incorrect is while I've been stalling you WE JUST PRESSED THE BUTTON! USE THE MOMENT OF CONFUSION I'VE JUST CREATED TO PRESS THE BUTTON!
   SceneTable["-25_06"] = {
 	vcd = CreateSceneEntity("scenes/npc/sphere03/fgb_stalemate_nags12.vcd"),
@@ -3179,7 +3187,7 @@ SceneTable["-25_01"] = {
 	noDingOn = true,
 	talkover = false
   }
-  
+
   --Have I ever told you the qualities I love most in you? In order: Number one: resolving things, disputes highest among them. Number one, tied: Button-pushing.
   SceneTable["-25_07"] = {
 	vcd = CreateSceneEntity("scenes/npc/sphere03/fgb_stalemate_nags08.vcd"),
@@ -3190,7 +3198,7 @@ SceneTable["-25_01"] = {
 	noDingOn = true,
 	talkover = false
   }
-  
+
   --First thing I thought about you...
   SceneTable["-25_08"] = {
 	vcd = CreateSceneEntity("scenes/npc/sphere03/fgb_stalemate_nags07.vcd"),
@@ -3201,7 +3209,7 @@ SceneTable["-25_01"] = {
 	noDingOn = true,
 	talkover = false
   }
-  
+
   --Don't want to rush you...
   SceneTable["-25_08a"] = {
 	vcd = CreateSceneEntity("scenes/npc/sphere03/fgb_stalemate_nags09.vcd"),
@@ -3212,7 +3220,7 @@ SceneTable["-25_01"] = {
 	noDingOn = true,
 	talkover = false
   }
-  
+
   --Here's a good idea...
   SceneTable["-25_09"] = {
 	vcd = CreateSceneEntity("scenes/npc/sphere03/fgb_stalemate_nags04.vcd"),
@@ -3229,9 +3237,9 @@ SceneTable["-25_01"] = {
 
 function StartStalemateRoomLeadLights()
 	SetArmSkinOff()
-	
+
 	StalemateRoomLeadLightsOn = 1
-	
+
 	EntFire("@glados", "RunScriptCode", "StalemateRoomLeadLights()", 0 )
 end
 
@@ -3321,7 +3329,7 @@ SceneTable ["-45_01" ] =
 	noDingOff = true,
 	noDingOn = true,
 	fires=
-	{	
+	{
 		{entity="@glados",input="runscriptcode",parameter="sp_a2_core_leave_annex_nag()",delay=7.0}
 	}
 }
@@ -3340,7 +3348,7 @@ SceneTable["-26_01"] = {
 	  {entity = "glados_chamber_body", input = "setdefaultanimation", parameter = "glados_pit_eyegrab", delay = 0, fireatstart = true}
 	}
   }
-  
+
   SceneTable["-26_02"] = {
 	vcd = CreateSceneEntity("scenes/npc/announcer/gladosbattle19.vcd"), -- Stalemate Resolved. Core Transfer Initiated. [UPGRADED]
 	char = "announcer",
@@ -3369,7 +3377,7 @@ SceneTable["-4_01"] = {
 	noDingOn = true,
 	talkover = true,
   }
-  
+
   SceneTable["-4_02"] = {
 	vcd = CreateSceneEntity("scenes/npc/sphere03/fgb_xfer_start04.vcd"), -- Wait, what if this hurts? What if this really hurts?
 	char = "wheatley",
@@ -3380,7 +3388,7 @@ SceneTable["-4_01"] = {
 	noDingOn = true,
 	talkover = true,
   }
-  
+
   SceneTable["-4_03"] = {
 	vcd = CreateSceneEntity("scenes/npc/glados/fgbwheatleytransfer03.vcd"), -- Oh it will.  Believe me, it will.
 	char = "glados",
@@ -3394,7 +3402,7 @@ SceneTable["-4_01"] = {
 	  {entity = "glados_chamber_body", input = "setdefaultanimation", parameter = "glados_pit_eyegrab", delay = 0, fireatstart = true}
 	}
   }
-  
+
   SceneTable["-4_04"] = {
 	vcd = CreateSceneEntity("scenes/npc/sphere03/fgb_transfer_pain01.vcd"), -- Are you just saying that, or is it really going to hurt? You're just saying that, no, you're not aren't you, it's really going to hurt, isn't it?
 	char = "wheatley",
@@ -3404,8 +3412,8 @@ SceneTable["-4_01"] = {
 	noDingOff = true,
 	noDingOn = true,
   }
-  
-  
+
+
   SceneTable["-4_05"] = {
 	vcd = CreateSceneEntity("scenes/npc/sphere03/sp_a2_core_goingtohurt01.vcd"), -- Exactly how much pain are we tAGGGHHH!
 	char = "wheatley",
@@ -3422,8 +3430,8 @@ SceneTable["-4_01"] = {
 	  {entity = "@glados", input = "RunScriptCode", parameter = "GladosCharacterStopScene('wheatley')", delay = 0.2} -- idon't know this is just hack to prevent wheatley speaking twice :/ and breaking whole sequence
 	}
   }
-  
-  
+
+
   -- Glados initial grab by small pit arms
   SceneTable["-27_00"] = {
 	vcd = CreateSceneEntity("scenes/npc/glados/fgbgladostransfer15.vcd"), -- Get your hands off me!
@@ -3578,12 +3586,12 @@ function CoreRoomUnWiltAnim()
 
 	EntFire("@glados", "RunScriptCode", "SetArmSkinOn()", 1.1 )
 	EntFire("@glados", "RunScriptCode", "SetArmSkinOff()", 1.2 )
-	
+
 	EntFire("@glados", "RunScriptCode", "SetArmSkinOn()", 1.3 )
 	EntFire("@glados", "RunScriptCode", "SetArmSkinOff()", 1.4 )
-	
+
 	EntFire("@glados", "RunScriptCode", "SetArmSkinOn()", 1.5 )
-	
+
 	-- ripple the room once the light blinking stops
 	EntFire("@glados", "RunScriptCode", "CoreRoomRippleAnim()", 1.5 )
 
@@ -4226,9 +4234,9 @@ SceneTable["-12_13"] = {
     }
 }
 
-SceneTable["-12_14"] = 
+SceneTable["-12_14"] =
 {
-    -- YES YOU ARE! YOU'RE THE MORON THEY BUILT TO MAKE ME AN IDIOT! 
+    -- YES YOU ARE! YOU'RE THE MORON THEY BUILT TO MAKE ME AN IDIOT!
     vcd = CreateSceneEntity("scenes/npc/glados/potatos_fgb_confrontation19.vcd"),
     char = "glados",
     postdelay = 0.0,
@@ -4239,7 +4247,7 @@ SceneTable["-12_14"] =
     talkover = true
 }
 
-SceneTable["-12_15"] = 
+SceneTable["-12_15"] =
 {
     -- How about NOW? Now who's a moron?
     vcd = CreateSceneEntity("scenes/npc/sphere03/bw_fgb_heel_turn15.vcd"),
@@ -4256,7 +4264,7 @@ SceneTable["-12_15"] =
     }
 }
 
---[[SceneTable["-12_16"] = 
+--[[SceneTable["-12_16"] =
 {
     -- I hate to tell you this...
     vcd = CreateSceneEntity("scenes/npc/glados/potatos_fgbprefallelevator04.vcd"),
@@ -4266,13 +4274,13 @@ SceneTable["-12_15"] =
     next = nil,
     noDingOff = true,
     noDingOn = true,
-    fires = 
+    fires =
     {
     }
 }]]--
 
 -- Announcer: Please return to the core transfer bay
-SceneTable["-45_01"] = 
+SceneTable["-45_01"] =
 {
     vcd = CreateSceneEntity("scenes/npc/announcer/gladosbattle20.vcd"), -- Stalemate resolved.
     char = "announcer",
@@ -4281,14 +4289,14 @@ SceneTable["-45_01"] =
     next = nil,
     noDingOff = true,
     noDingOn = true,
-    fires = 
-    {   
+    fires =
+    {
         {entity = "@glados", input = "runscriptcode", parameter = "sp_a2_core_leave_annex_nag()", delay = 7.0}
     }
 }
 
 -- Elevator conclusion
-SceneTable["-13_01"] = 
+SceneTable["-13_01"] =
 {
     vcd = CreateSceneEntity("scenes/npc/sphere03/bw_sp_a2_core_pitpunch02.vcd"), -- Could a moron punch you into this pit?
     char = "wheatley",
@@ -4298,15 +4306,15 @@ SceneTable["-13_01"] =
     noDingOff = true,
     noDingOn = true,
     fires =
-    {   
+    {
         {entity = "exit_elevator_groan_sound", input = "playsound", parameter = "", delay = 0.2},
         {entity = "elevator_prebreak_shake", input = "startshake", parameter = "", delay = 0.2}
     }
 }
 
-SceneTable["-13_02"] = 
+SceneTable["-13_02"] =
 {
-    vcd = CreateSceneEntity("scenes/npc/sphere03/bw_sp_a2_core_pitpunch03.vcd"), -- uh oh.
+    vcd = CreateSceneEntity("scenes/npc/sphere03/bw_sp_a2_core_pitpunch03.vcd"),
     char = "wheatley",
     postdelay = 0.0,
     predelay = 0.0,
@@ -4320,3 +4328,40 @@ SceneTable["-13_02"] =
         {entity = "ghostAnim_potatos", input = "setanimation", parameter = "reach1_fall", delay = 0.0}
     }
 }
+
+function PlaySceneTableEntry(sceneKey)
+	if not sceneKey then
+		print("[GP2] PlaySceneTableEntry: Erreur - sceneKey est nil")
+		return false
+	end
+
+	if not SceneTable[sceneKey] then
+		print("[GP2] PlaySceneTableEntry: Erreur - SceneTable['" .. tostring(sceneKey) .. "'] n'existe pas")
+		return false
+	end
+
+	print("[GP2] PlaySceneTableEntry: Lecture de la scène '" .. sceneKey .. "'")
+	GladosPlayVcd(sceneKey)
+	return true
+end
+
+function ListSceneTableKeys()
+	if not SceneTable then
+		print("[GP2] ListSceneTableKeys: Erreur - SceneTable n'existe pas")
+		return
+	end
+
+	print("[GP2] ========== Clés SceneTable disponibles ==========")
+	local keys = {}
+	for key, _ in pairs(SceneTable) do
+		table.insert(keys, key)
+	end
+	table.sort(keys)
+
+	for _, key in ipairs(keys) do
+		print("  " .. key)
+	end
+	print("[GP2] Total: " .. #keys .. " entrées SceneTable")
+	print("[GP2] Utilisation: playscenetable <clé>")
+	print("[GP2] Exemple: playscenetable -600_01")
+end
