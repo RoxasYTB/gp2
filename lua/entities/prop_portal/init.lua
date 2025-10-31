@@ -138,6 +138,28 @@ function ENT:Initialize()
 	self.ClonedEntities = {};
 	self.SpawnedCubes = {};
 end;
+function ENT:Think()
+	if SERVER then
+		local portalMins, portalMaxs = self:OBBMins(), self:OBBMaxs();
+		local props = ents.FindInBox(self:LocalToWorld(portalMins), self:LocalToWorld(portalMaxs));
+		for _, ent in ipairs(props) do
+			if IsValid(ent) and ent:GetClass() == "prop_physics" then
+				local phys = ent:GetPhysicsObject();
+				if IsValid(phys) and (phys:GetVelocity()):Length() < 5 then
+					if self:CanPort(ent) and self:IsLinked() and self:GetActivated() then
+						if not ent.InPortal then
+							self:StartTouch(ent);
+						end;
+						phys:EnableMotion(true);
+						phys:SetVelocity(self:GetUp() * (-400));
+					end;
+				end;
+			end;
+		end;
+	end;
+	self:NextThink(CurTime() + 0.1);
+	return true;
+end;
 if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
 	function ENT:BuildPortalEnvironment()
 		self.__portalenvironmentphymesh = ents.Create("__portalenvironmentphymesh");
@@ -640,7 +662,9 @@ function ENT:SyncClone(ent)
 	offset:Mul(transform.offsetMultiplier);
 	local newPos = portal:LocalToWorld(offset);
 	local newAngles = self:GetPortalAngleOffsets(portal, ent);
-	newAngles.r = newAngles.r;
+	newAngles.r = newAngles.p;
+	newAngles.y = -newAngles.y;
+	newAngles.p = newAngles.r;
 	clone:SetPos(newPos);
 	clone:SetAngles(newAngles);
 	if SERVER then
