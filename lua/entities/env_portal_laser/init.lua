@@ -353,23 +353,26 @@ local function GetPortalCardinalDirection(portal)
     if not IsValid(portal) then return "unknown" end
 
     local yaw = portal:GetAngles().y
+    local roll = portal:GetAngles().r
 
     -- Normaliser l'angle entre 0 et 360
     while yaw < 0 do yaw = yaw + 360 end
     while yaw >= 360 do yaw = yaw - 360 end
 
     -- Déterminer l'orientation avec tolérance de ±10°
-    if (yaw >= 350 or yaw <= 10) then
-        return "north"  -- 0° ± 10°
-    elseif (yaw >= 80 and yaw <= 100) then
-        return "east"   -- 90° ± 10°
-    elseif (yaw >= 170 and yaw <= 190) then
-        return "south"  -- 180° ± 10°
-    elseif (yaw >= 260 and yaw <= 280) then
-        return "west"   -- 270° ± 10°
-    else
-        return "diagonal" -- Orientation diagonale
-    end
+	if roll == 180 then
+		return "floor";
+	elseif yaw >= 350 or yaw <= 10 then
+		return "north";
+	elseif yaw >= 80 and yaw <= 100 then
+		return "east";
+	elseif yaw >= 170 and yaw <= 190 then
+		return "south";
+	elseif yaw >= 260 and yaw <= 280 then
+		return "west";
+	else
+		return "ceiling";
+	end;
 end
 
 -- Table des offsets positionnels et angulaires selon les transitions d'orientation
