@@ -654,19 +654,45 @@ function ENT:SyncClone(ent)
 	if not transform then
 		transform = {
 			offsetMultiplier = Vector(1, -1, -1),
-			angleMultiplier = Vector(1, 1, -1)
+			angleMultiplier = Vector(1, 1, 1)
 		};
 		self.TransformCache[cacheKey] = transform;
 	end;
 	local offset = self:WorldToLocal(ent:GetPos());
 	offset:Mul(transform.offsetMultiplier);
 	local newPos = portal:LocalToWorld(offset);
-	local newAngles = self:GetPortalAngleOffsets(portal, ent);
-	newAngles.r = newAngles.p;
-	newAngles.y = -newAngles.y;
-	newAngles.p = newAngles.r;
-	clone:SetPos(newPos);
-	clone:SetAngles(newAngles);
+	local inAngles = self:GetAngles();
+	local outAngles = portal:GetAngles();
+	local entAngles = ent:GetAngles();
+	local relYaw = math.AngleDifference(entAngles.y, inAngles.y);
+	local relPitch = math.AngleDifference(entAngles.p, inAngles.p);
+	local relRoll = math.AngleDifference(entAngles.r, inAngles.r);
+	// print("OutAngles (Yaw, Pitch, Roll): ", outAngles.y, outAngles.p, outAngles.r);
+	// print("EntAngles (Yaw, Pitch, Roll): ", entAngles.y, entAngles.p, entAngles.r);
+	local transformKey = self:GetPlacementType() .. "_" .. portal:GetPlacementType();
+	local newYaw;
+	if transformKey == "WALL_WALL" then
+		newYaw = outAngles.y + relYaw;
+		newPitch = entAngles.p;
+		newRoll = entAngles.r;
+	elseif transformKey == "FLOOR_FLOOR" then
+		newYaw = outAngles.y - relYaw + 180;
+		newPitch = entAngles.p;
+		newRoll = entAngles.r;
+	elseif transformKey == "WALL_FLOOR" then
+		newYaw = entAngles.p;
+		newPitch = outAngles.r + relYaw;
+		newRoll = entAngles.y - relYaw;
+	elseif transformKey == "FLOOR_WALL" then
+		newYaw = entAngles.r + relPitch;
+		newPitch = -entAngles.p;
+		newRoll = entAngles.y;
+	end;
+	local newAngles = Angle(newPitch, newYaw, newRoll);
+	if clone:GetPos() ~= newPos or clone:GetAngles() ~= newAngles then
+		clone:SetPos(newPos);
+		clone:SetAngles(newAngles);
+	end;
 	if SERVER then
 		local origPhys = ent:GetPhysicsObject();
 		local clonePhys = clone:GetPhysicsObject();
