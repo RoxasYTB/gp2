@@ -378,6 +378,29 @@ end
 -- Table des offsets positionnels et angulaires selon les transitions d'orientation
 local PORTAL_TRANSITION_OFFSETS = {
     -- Nord vers autres directions
+    ["north_to_floor"] = { pos = Vector(0, -40, 0), ang = Angle(90, 0, 0) },
+    ["north_to_ceiling"] = { pos = Vector(0, 0, 0), ang = Angle(90, 0, 0) },
+    
+    ["south_to_floor"] = { pos = Vector(0, 40, 0), ang = Angle(90, 0, 0) },
+    ["south_to_ceiling"] = { pos = Vector(0, 0, 0), ang = Angle(90, 0, 0) },
+    
+    ["east_to_floor"] = { pos = Vector(-40, 0, 0), ang = Angle(90, 0, 0) },
+    ["east_to_ceiling"] = { pos = Vector(0, 0, 0), ang = Angle(90, 0, 0) },
+    
+    ["west_to_floor"] = { pos = Vector(40, 0, 0), ang = Angle(90, 0, 0) },
+    ["west_to_ceiling"] = { pos = Vector(0, 0, 0), ang = Angle(90, 0, 0) },
+
+
+    ["ceiling_to_ceiling"] = { pos = Vector(0, 0, 0), ang = Angle(0, 0, 0) }, --OK
+    ["ceiling_to_floor"] = { pos = Vector(0, 0, 0), ang = Angle(90, 0, 0) }, --OK
+    ["ceiling_to_north"] = { pos = Vector(0, 0, 0), ang = Angle(90, 0, 0) }, --OK
+    ["ceiling_to_south"] = { pos = Vector(0, 0, 0), ang = Angle(90, 0, 0) }, --OK
+    ["ceiling_to_east"] = { pos = Vector(0, 0, 0), ang = Angle(90, 0, 0) }, --OK
+    ["ceiling_to_west"] = { pos = Vector(0, 0, 0), ang = Angle(90, 0, 0) }, --OK
+
+    ["floor_to_ceiling"] = { pos = Vector(0, 0, 0), ang = Angle(0, 0, 0) }, --OK
+    ["floor_to_floor"] = { pos = Vector(0, 0, 0), ang = Angle(0, 0, 0) }, --OK
+
     ["north_to_south"] = { pos = Vector(0, 0, 0), ang = Angle(0, 180, 0) }, --OK
     ["north_to_east"] = { pos = Vector(0, 0, 0), ang = Angle(90, 0, 180) }, --OK
     ["north_to_west"] = { pos = Vector(0, 0, 0), ang = Angle(90, -90, 0) }, --OK
@@ -853,12 +876,25 @@ function ENT:CalculatePortalExitSegments(startPos, direction)
             -- Appliquer l'offset X local sur l'axe Right du portail de sortie (négatif comme dans projected_wall_entity)
             newPos = newPos + exitPortal:GetRight() * (-offsetXLocal)
 
+            entryDir = GetPortalCardinalDirection(entryPortal)
+		exitDir = GetPortalCardinalDirection(exitPortal)
+
+		print("Entry Direction: " .. entryDir .. ", Exit Direction: " .. exitDir)
+
+		if exitDir == "ceiling" or exitDir == "floor" then
+			newPos = newPos + exitPortal:GetForward() * (-offsetZ)
+		end
+
+
+
             -- Application de l'offset Z selon l'orientation du portail (exactement comme projected_wall_entity)
             if math.abs(exitPortalPitch - 90) < 10 then
+			print("Applying ceiling portal offset Z")
                 -- Portail au plafond (pitch = 90°) : l'offset Z devient un offset sur l'axe Forward du portail
-                newPos = newPos - exitPortal:GetUp() * offsetZ
+                newPos = newPos - exitPortal:GetForward() * offsetZ
             elseif math.abs(exitPortalPitch - 270) < 10 or math.abs(exitPortalPitch - 270) < 10 then
-                -- Portail au sol (pitch = 270°) : l'offset Z devient un offset sur l'axe Forward du portail (inversé)
+                print("Applying floor portal offset Z")
+			-- Portail au sol (pitch = 270°) : l'offset Z devient un offset sur l'axe Forward du portail (inversé)
                 newPos = newPos - exitPortal:GetUp() * offsetZ
             else
                 -- Mur : application normale de l'offset Z (soustraction comme dans projected_wall_entity)
@@ -871,15 +907,15 @@ function ENT:CalculatePortalExitSegments(startPos, direction)
 
             -- Décaler légèrement pour éviter de retoucher le portail
 
-            if newAng.p > 80 and newAng.p < 100 then
+            if newAng.r > 80 and newAng.r < 100 then
                 -- Si le portail est horizontal, on applique un offset Z
-        newPos = newPos - newAng:Forward() * 30
-                newPos = newPos - newAng:Up() * offsetZ
+       		newPos = newPos - newAng:Forward() * 30
+                newPos = newPos - newAng:Forward() * offsetZ
             end
 
-            if newAng.p < -80 and newAng.p > -100 then
+            if newAng.r < -80 and newAng.r > -100 then
                 -- Si le portail est horizontal, on applique un offset Z
-        newPos = newPos - newAng:Forward() * 30
+        		newPos = newPos - newAng:Forward() * 30
                 newPos = newPos - newAng:Up() * offsetZ
             end
 
