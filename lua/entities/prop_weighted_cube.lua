@@ -150,11 +150,17 @@ function ENT:Think()
 			self._nextImpulse = CurTime() + math.Rand(0.3, 0.5);
 		end;
 		local shakeActive = false;
-		for _, ent in ipairs(ents.FindByClass("prop_dynamic")) do
-			if IsValid(ent) and (ent:GetPos()):Distance(self:GetPos()) < 32 then
-				shakeActive = true;
-				break;
+		if not self.LastShakeCheck or CurTime() - self.LastShakeCheck > 0.5 then
+			for _, ent in ipairs(ents.FindInSphere(self:GetPos(), 32)) do
+				if IsValid(ent) and ent:GetClass() == "prop_dynamic" then
+					shakeActive = true;
+					break;
+				end;
 			end;
+			self.LastShakeCheck = CurTime();
+			self.ShakeActiveCached = shakeActive;
+		else
+			shakeActive = self.ShakeActiveCached or false;
 		end;
 		if shakeActive then
 			local phys = self:GetPhysicsObject();

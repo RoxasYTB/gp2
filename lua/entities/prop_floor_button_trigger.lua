@@ -63,12 +63,10 @@ function ENT:Think()
 	end;
 	for entClass, _ in pairs(BUTTON_VALID_ENTS) do
 		if entClass ~= "player" then
-			for _, ent in ipairs(ents.FindByClass(entClass)) do
-				if IsValid(ent) then
-					local distance = buttonPos:Distance(ent:GetPos());
-					if distance <= self.CheckRadius then
-						table.insert(nearbyEnts, ent);
-					end;
+			local entsInSphere = ents.FindInSphere(buttonPos, self.CheckRadius);
+			for _, ent in ipairs(entsInSphere) do
+				if IsValid(ent) and ent:GetClass() == entClass then
+					table.insert(nearbyEnts, ent);
 				end;
 			end;
 		end;
@@ -130,8 +128,9 @@ function ENT:Think()
 					if stillEmpty then
 						for entClass, _ in pairs(BUTTON_VALID_ENTS) do
 							if entClass ~= "player" then
-								for _, ent in ipairs(ents.FindByClass(entClass)) do
-									if IsValid(ent) then
+								local entsInSphere = ents.FindInSphere(buttonPos, self.CheckRadius);
+								for _, ent in ipairs(entsInSphere) do
+									if IsValid(ent) and ent:GetClass() == entClass then
 										local distance = buttonPos:Distance(ent:GetPos());
 										if distance <= self.CheckRadius then
 											stillEmpty = false;

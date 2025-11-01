@@ -31,6 +31,10 @@ local sky_name = ""
 local sky_materials = {}
 
 local portals = {}
+local portal_cache = {}
+local last_portal_update = 0
+local portal_update_interval = 0.5 -- Mettre à jour toutes les 0.5 secondes
+
 local oldHalo = 0
 local timesRendered = 0
 
@@ -74,10 +78,15 @@ local function UpdatePortalsAndSky()
 	if not PortalManager or PortalManager.PortalIndex < 1 then return end
 
 	local eye_pos = EyePos()
+	local curTime = CurTime()
 
-	-- Met à jour la liste des portails à chaque frame
-	-- Optimisation: cache et filtrage par distance
-	portal_cache = ents.FindByClass("prop_portal")
+	-- Mettre à jour le cache des portails périodiquement
+	if curTime - last_portal_update > portal_update_interval then
+		portal_cache = ents.FindByClass("prop_portal")
+		last_portal_update = curTime
+	end
+
+	-- Filtrage par distance
 	local maxDistanceSqr = (gp2_portal_drawdistance:GetFloat() * 192)^2
 	local filtered_portals = {}
 	for _, portal in ipairs(portal_cache) do
