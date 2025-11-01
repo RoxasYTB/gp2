@@ -1,83 +1,72 @@
--- ----------------------------------------------------------------------------
--- GP2 Framework
--- Player's movement
--- ----------------------------------------------------------------------------
-
-AddCSLuaFile()
-
-GP2.GameMovement = {}
-local playersInTB = {}
-local developer = GetConVar("developer")
-
+AddCSLuaFile();
+GP2.GameMovement = {};
+local playersInTB = {};
+local developer = GetConVar("developer");
 function GP2.GameMovement.PlayerEnteredToTractorBeam(ply, beam)
-    playersInTB[ply] = beam
-end
-
+	playersInTB[ply] = beam;
+end;
 function GP2.GameMovement.PlayerExitedFromTractorBeam(ply, beam)
-    playersInTB[ply] = nil
-end
-
+	playersInTB[ply] = nil;
+end;
 local function TractorBeamMovement(ply, mv)
-    local beam = playersInTB[ply]
-
-    if IsValid(beam) then
-        ply:SetGroundEntity(NULL)
-
-        local plyPos = ply:WorldSpaceCenter()
-        local plyAng = ply:GetAngles()
-        local centerPos = beam:WorldSpaceCenter()
-        local angles = beam:GetAngles()
-
-        local toCenter = centerPos - plyPos
-        local sidewayForce = angles:Right() * toCenter:Dot(angles:Right()) + angles:Up() * toCenter:Dot(angles:Up())
-        local baseForce = (beam.LinearForce or 0) * 0.5
-        local forwardForce = angles:Forward() * baseForce
-
-        local totalForce = forwardForce + sidewayForce
-        local moveDirection = Vector()
-
-        if bit.band(mv:GetButtons(), IN_FORWARD) ~= 0 then
-            moveDirection = mv:GetMoveAngles():Forward()
-        elseif bit.band(mv:GetButtons(), IN_BACK) ~= 0 then
-            moveDirection = -plyAng:Forward()
-        elseif bit.band(mv:GetButtons(), IN_MOVELEFT) ~= 0 then
-            moveDirection = -plyAng:Right()
-        elseif bit.band(mv:GetButtons(), IN_MOVERIGHT) ~= 0 then
-            moveDirection = plyAng:Right()
-        end
-
-        local dot = angles:Forward():Dot(moveDirection)
-        dot = 1 - math.abs(dot)
-
-        totalForce = totalForce + (moveDirection * ply:GetWalkSpeed()) * dot
-
-        mv:SetVelocity(totalForce)
-    end
-end
-
+	local beam = playersInTB[ply];
+	if IsValid(beam) then
+		ply:SetGroundEntity(NULL);
+		local plyPos = ply:WorldSpaceCenter();
+		local plyAng = ply:GetAngles();
+		local centerPos = beam:WorldSpaceCenter();
+		local angles = beam:GetAngles();
+		local toCenter = centerPos - plyPos;
+		local sidewayForce = angles:Right() * toCenter:Dot(angles:Right()) + angles:Up() * toCenter:Dot(angles:Up());
+		local baseForce = (beam.LinearForce or 0) * 0.5;
+		local forwardForce = angles:Forward() * baseForce;
+		local totalForce = forwardForce + sidewayForce;
+		local moveDirection = Vector();
+		if bit.band(mv:GetButtons(), IN_FORWARD) ~= 0 then
+			moveDirection = (mv:GetMoveAngles()):Forward();
+		elseif bit.band(mv:GetButtons(), IN_BACK) ~= 0 then
+			moveDirection = -plyAng:Forward();
+		elseif bit.band(mv:GetButtons(), IN_MOVELEFT) ~= 0 then
+			moveDirection = -plyAng:Right();
+		elseif bit.band(mv:GetButtons(), IN_MOVERIGHT) ~= 0 then
+			moveDirection = plyAng:Right();
+		end;
+		local dot = (angles:Forward()):Dot(moveDirection);
+		dot = 1 - math.abs(dot);
+		totalForce = totalForce + moveDirection * ply:GetWalkSpeed() * dot;
+		mv:SetVelocity(totalForce);
+	end;
+end;
 hook.Add("Move", "GP2::Move", function(ply, mv)
-    TractorBeamMovement(ply, mv)
-    if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
-        -- Protection contre l'absence de PortalMovement
-        if PortalMovement and PortalMovement.LookForPortalEnvironment then
-            PortalMovement.LookForPortalEnvironment(ply, mv)
-            if PortalMovement.Move and PortalMovement.Move(ply, mv) then
-                return true
-            end
-        else
-            -- Fallback si PortalMovement n'est pas chargé
-            if developer and developer:GetBool() then
-                print("[GP2-SDK] Warning: PortalMovement not loaded, portal movement disabled")
-            end
-        end
-    end
-end)
-
+	TractorBeamMovement(ply, mv);
+	if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
+		if PortalMovement and PortalMovement.LookForPortalEnvironment then
+			PortalMovement.LookForPortalEnvironment(ply, mv);
+			if PortalMovement.Move and PortalMovement.Move(ply, mv) then
+				return true;
+			end;
+		elseif developer and developer:GetBool() then
+			print("[GP2-SDK] Warning: PortalMovement not loaded, portal movement disabled");
+		end;
+	end;
+end);
 hook.Add("Think", "GP2_DisableSprint", function()
-    for _, ply in ipairs(player.GetAll()) do
-        if ply.SetRunSpeed and ply.SetWalkSpeed then
-            local walk = ply:GetWalkSpeed()
-            ply:SetRunSpeed(walk)
-        end
-    end
-end)
+	for _, ply in ipairs(player.GetAll()) do
+		if ply.SetRunSpeed and ply.SetWalkSpeed then
+			local walk = ply:GetWalkSpeed();
+			ply:SetRunSpeed(walk);
+		end;
+	end;
+end);
+hook.Add("EntityTakeDamage", "GP2_DisableFallDamage", function(ent, dmginfo)
+	if ent:IsPlayer() and dmginfo:IsFallDamage() then
+		return true;
+	end;
+end);
+hook.Add("Think", "GP2_AutoRegen", function()
+	for _, ply in ipairs(player.GetAll()) do
+		if ply:Alive() and ply:Health() < ply:GetMaxHealth() then
+			ply:SetHealth(math.min(ply:Health() + 1, ply:GetMaxHealth()));
+		end;
+	end;
+end);

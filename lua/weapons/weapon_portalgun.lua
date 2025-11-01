@@ -45,7 +45,7 @@ local vector_origin = Vector(0,0,0)
 
 if SERVER then
     HUD_PRINTCONSOLE = HUD_PRINTCONSOLE or 2
-    HUD_PRINTCHAT = HUD_PRINTCHAT or 3
+    HUD_PRINTCONSOLE = HUD_PRINTCONSOLE or 3
 
 	CreateConVar("gp2_portal_placement_never_fail", "0", FCVAR_CHEAT + FCVAR_NOTIFY,
 		"Can portal be placed on every surface?")
@@ -102,12 +102,7 @@ if SERVER then
 		-- Message de confirmation
 		if upgraded then
 			if ply.PrintMessage then
-				ply:PrintMessage(HUD_PRINTCHAT, "[GP2] Portal Gun amélioré avec succès!")
 				ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Vous pouvez maintenant tirer les deux types de portails!")
-			end
-		else
-			if ply.PrintMessage then
-				ply:PrintMessage(HUD_PRINTCHAT, "[GP2] Portal Gun donné - équipez-le et retapez la commande!")
 			end
 		end
 	end, nil, "Améliore votre Portal Gun pour tirer les deux types de portails")
@@ -134,10 +129,9 @@ if SERVER then
 
 		-- Message de confirmation
 		if upgraded then
-			ply:PrintMessage(HUD_PRINTCHAT, "[GP2] Portal Gun en mode Potato activé!")
 			ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Mode Potato Gun activé - GLaDOS vous surveille...")
 		else
-			ply:PrintMessage(HUD_PRINTCHAT, "[GP2] Vous devez d'abord avoir un Portal Gun! Utilisez 'upgrade_portalgun'")
+			ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Vous devez d'abord avoir un Portal Gun! Utilisez 'upgrade_portalgun'")
 		end
 	end, nil, "Active le mode Potato sur votre Portal Gun")
 
@@ -161,10 +155,10 @@ if SERVER then
 		end
 
 		if downgraded then
-			ply:PrintMessage(HUD_PRINTCHAT, "[GP2] Mode Potato désactivé!")
+			ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Mode Potato désactivé!")
 			ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Portal Gun restauré en mode normal")
 		else
-			ply:PrintMessage(HUD_PRINTCHAT, "[GP2] Aucun Portal Gun trouvé!")
+			ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Aucun Portal Gun trouvé!")
 		end
 	end, nil, "Désactive le mode Potato de votre Portal Gun")
 
@@ -181,7 +175,7 @@ if SERVER then
 		ply:PrintMessage(HUD_PRINTCONSOLE, "reset_portalgun - Réinitialiser l'état du Portal Gun")
 		ply:PrintMessage(HUD_PRINTCONSOLE, "portalgun_help - Afficher cette aide")
 		ply:PrintMessage(HUD_PRINTCONSOLE, "===================================")
-		ply:PrintMessage(HUD_PRINTCHAT, "[GP2] Commandes Portal Gun affichées dans la console!")
+		ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Commandes Portal Gun affichées dans la console!")
 	end, nil, "Affiche l'aide des commandes Portal Gun")
 
 	-- Commande pour réinitialiser l'état du Portal Gun
@@ -204,11 +198,27 @@ if SERVER then
 		if reset then
 			ply:ConCommand("gp2_portalgun_upgraded 0")
 			ply:ConCommand("gp2_portalgun_potato 0")
-			ply:PrintMessage(HUD_PRINTCHAT, "[GP2] Portal Gun réinitialisé en mode normal!")
-		else
-			ply:PrintMessage(HUD_PRINTCHAT, "[GP2] Aucun Portal Gun trouvé!")
+			ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Portal Gun réinitialisé en mode normal!")
 		end
 	end, nil, "Réinitialise le Portal Gun en mode normal")
+
+	concommand.Add("remove_portalgun", function(ply, cmd, args)
+		if not IsValid(ply) then return end
+
+		local removed = false
+		for _, weapon in ipairs(ply:GetWeapons()) do
+			if weapon:GetClass() == "weapon_portalgun" then
+				ply:StripWeapon("weapon_portalgun")
+				removed = true
+			end
+		end
+
+		if removed then
+			ply:ConCommand("gp2_portalgun_upgraded 0")
+			ply:ConCommand("gp2_portalgun_potato 0")
+			ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Portal Gun retiré de votre inventaire.")
+		end
+	end, nil, "Retire le Portal Gun de votre inventaire")
 else
 	CreateClientConVar("gp2_portal_color1", "2 114 210", true, true, "Color for Portal 1")
 	CreateClientConVar("gp2_portal_color2", "210 114 2", true, true, "Color for Portal 2")
@@ -478,9 +488,6 @@ function SWEP:Deploy()
 											elseif isUpgraded then
 						if not self:GetCanFirePortal2() then
 							self:UpdatePortalGun()
-														if owner.PrintMessage then
-								owner:PrintMessage(HUD_PRINTCHAT, "[GP2] Portal Gun automatiquement amélioré!")
-							end
 						end
 					end
 				else
