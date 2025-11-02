@@ -25,51 +25,17 @@ function EnvPortalLaser.RefreshRenderList()
 	for _, ent in ipairs(ents.FindByClass("env_portal_laser")) do
 		if IsValid(ent) and ent:GetState() then
 			EnvPortalLaser.RenderList[ent] = true;
-			EnvPortalLaser.CreateSegmentsFromSimpleData(ent);
 		end;
 	end;
 end;
 function EnvPortalLaser.CreateSegmentsFromSimpleData(laser)
-	if not IsValid(laser) then
-		return;
-	end;
-	if laser.LaserSegments and #laser.LaserSegments > 0 then
-		return;
-	end;
-	local startPos = laser:GetPos();
-	local hitPos = laser:GetHitPos();
-	local INVALID_HIT_POS = Vector(2 ^ 16, 2 ^ 16, 2 ^ 16);
-	if hitPos == INVALID_HIT_POS then
-		return;
-	end;
-	local hitsPortal = false;
-	local canReachPortal = true;
-	local entsAtEnd = ents.FindInSphere(hitPos, 15);
-	for _, ent in ipairs(entsAtEnd) do
-		if IsValid(ent) and ent:GetClass() == "prop_portal" then
-			hitsPortal = true;
-			local traceToPortal = util.TraceLine({
-				start = startPos,
-				endpos = hitPos,
-				filter = function(checkEnt)
-					return checkEnt ~= laser and checkEnt:GetClass() ~= "env_portal_laser";
-				end,
-				mask = MASK_OPAQUE_AND_NPCS
-			});
-			if traceToPortal.Hit and traceToPortal.Entity ~= ent then
-				canReachPortal = false;
-			end;
-			break;
+end;
+function EnvPortalLaser.DrawAllSegments()
+	for laser, _ in pairs(EnvPortalLaser.RenderList) do
+		if IsValid(laser) and laser.GetState and laser:GetState() and laser.DrawLaserSegments then
+			laser:DrawLaserSegments();
 		end;
 	end;
-	laser.LaserSegments = {
-		{
-			start = startPos,
-			endpos = hitPos,
-			hitsPortal = hitsPortal,
-			canReachPortal = canReachPortal
-		}
-	};
 end;
 net.Receive("LaserSegments", function()
 	local laser = net.ReadEntity();
@@ -90,6 +56,7 @@ net.Receive("LaserSegments", function()
 			canReachPortal = canReachPortal
 		});
 	end;
+	EnvPortalLaser.RenderList[laser] = true;
 end);
 function ENT:Initialize()
 	if self:GetState() then
