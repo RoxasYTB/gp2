@@ -462,7 +462,7 @@ local function setPortalPlacementOld(owner, portal)
 	end
 
 	local portalValid = true
-	local numTests = 16
+	local numTests = 6
 	local adjustedHitPos = tr.HitPos
 	local adjustedPos = pos
 
@@ -520,7 +520,7 @@ local function setPortalPlacementOld(owner, portal)
 	local semicircle1Valid, semicircle1InvalidIndex = testSemicircle1(adjustedHitPos, ang)
 
 	if not semicircle1Valid then
-		local maxAdjustments = 8
+		local maxAdjustments = 4
 		local adjustmentStep = 10
 		local foundValidPosition = false
 
