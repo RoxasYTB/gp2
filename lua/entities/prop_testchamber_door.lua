@@ -18,7 +18,7 @@ function ENT:SpawnDoorTriggers()
 	if not foundOpen then
 		local entFront = ents.Create("prop_door_trigger");
 		if IsValid(entFront) then
-			entFront:SetPos(pos + forward * 100);
+			entFront:SetPos(pos + forward * 100 + Vector(0, 0, 20));
 			entFront:SetAngles(ang);
 			entFront.DoorTriggerType = "open";
 			entFront:Spawn();
@@ -28,7 +28,7 @@ function ENT:SpawnDoorTriggers()
 	if not foundClose then
 		local entBack = ents.Create("prop_door_trigger");
 		if IsValid(entBack) then
-			entBack:SetPos(pos - forward * 100);
+			entBack:SetPos(pos - forward * 100 + Vector(0, 0, 20));
 			entBack:SetAngles(ang);
 			entBack.DoorTriggerType = "close";
 			entBack:Spawn();

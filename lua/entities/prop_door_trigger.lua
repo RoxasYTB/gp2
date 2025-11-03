@@ -3,7 +3,7 @@ ENT.Type = "anim";
 ENT.Base = "base_anim";
 function ENT:Initialize()
 	self:SetModel("models/hunter/plates/plate1x2.mdl");
-	self:SetColor(Color(255, 255, 255, 128));
+	self:SetColor(Color(255, 255, 255, 0));
 	self:SetRenderMode(RENDERMODE_TRANSALPHA);
 	self:SetMaterial("models/debug/debugwhite");
 	self:SetSolid(SOLID_BBOX);
