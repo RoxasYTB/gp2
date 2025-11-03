@@ -22,7 +22,6 @@ function ENT:SpawnDoorTriggers()
 			entFront:SetAngles(ang);
 			entFront.DoorTriggerType = "open";
 			entFront:Spawn();
-			print("[DOOR] Trigger OPEN créé à : " .. tostring(entFront:GetPos()));
 		end;
 	end;
 	if not foundClose then
@@ -32,7 +31,6 @@ function ENT:SpawnDoorTriggers()
 			entBack:SetAngles(ang);
 			entBack.DoorTriggerType = "close";
 			entBack:Spawn();
-			print("[DOOR] Trigger CLOSE créé à : " .. tostring(entBack:GetPos()));
 		end;
 	end;
 end;
@@ -55,7 +53,6 @@ local NO_CLOSE_DOORS = {
 };
 ENT.__input2func = {
 	open = function(self, activator, caller, data)
-		print("Ouverture de la porte (EntIndex " .. self:EntIndex() .. ")");
 		if self:GetIsLocked() then
 			return;
 		end;
@@ -107,7 +104,6 @@ ENT.__input2func = {
 	end,
 	lock = function(self, activator, caller, data)
 		if NO_CLOSE_DOORS[self:EntIndex()] then
-			print("Lock annulé pour cette porte (EntIndex " .. self:EntIndex() .. ")");
 			return;
 		end;
 		if self:GetIsLocked() then
