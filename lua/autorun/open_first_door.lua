@@ -2,28 +2,7 @@ if SERVER then
 	util.AddNetworkString("gp2_first_door_pos")
 end
 
-if CLIENT then
-    local playerPos = Vector(0,0,0)
-    local doorPos = nil
-    net.Receive("gp2_first_door_pos", function()
-        doorPos = net.ReadVector()
-    end)
-    local function UpdatePositions()
-        local ply = LocalPlayer()
-        if IsValid(ply) then
-            playerPos = ply:GetPos()
-        end
-    end
-    timer.Create("gp2_hud_update_pos", 0.3, 0, UpdatePositions)
-    hook.Add("HUDPaint", "gp2_hud_show_pos", function()
-        draw.SimpleText("Player: " .. tostring(playerPos), "DermaDefault", 20, 20, Color(255,255,255), 0, 0)
-        if doorPos then
-            draw.SimpleText("First Door: " .. tostring(doorPos), "DermaDefault", 20, 40, Color(200,200,255), 0, 0)
-        else
-            draw.SimpleText("First Door: (non détectée)", "DermaDefault", 20, 40, Color(200,200,255), 0, 0)
-        end
-    end)
-end
+-- HUD supprimé
 local function SpawnDoorTriggers()
 	if not firstDoorEntIndex then return end;
 	local door = Entity(firstDoorEntIndex);
