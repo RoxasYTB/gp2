@@ -391,6 +391,10 @@ if CLIENT then
 		hook.Add("InitPostEntity", "GP2_AddQuickinfoPortal", AddQuickinfoPortal);
 		hook.Add("PostCleanupMap", "GP2_RestoreCrosshairAfterLoad", function()
 			timer.Simple(0.1, AddQuickinfoPortal);
+			timer.Simple(0.1, CreateHudElements);
+		end);
+		concommand.Add("gp2_rebuild_crosshair", function()
+			CreateHudElements();
 		end);
 	end;
 end;

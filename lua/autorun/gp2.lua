@@ -222,6 +222,7 @@ if SERVER then
                     end
                 end
                 GP2.Print("Refreshed lasers for player %s", ply:Nick())
+                ply:ConCommand("gp2_rebuild_crosshair")
             end
         end)
     end)

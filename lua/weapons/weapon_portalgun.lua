@@ -59,47 +59,64 @@ PORTAL_PLACEMENT_FIZZLER_HIT = 4
 local vector_origin = Vector(0,0,0)
 
 if SERVER then
-    HUD_PRINTCONSOLE = HUD_PRINTCONSOLE or 2
-    HUD_PRINTCONSOLE = HUD_PRINTCONSOLE or 3
 
-	CreateConVar("gp2_portal_placement_never_fail", "0", FCVAR_CHEAT + FCVAR_NOTIFY,
-		"Can portal be placed on every surface?")
-
-	-- ConVars pour sauvegarder l'état du Portal Gun par joueur
-	CreateConVar("gp2_save_portalgun_state", "1", FCVAR_ARCHIVE,
-		"Save Portal Gun state (normal/upgraded/potato) when picking up the weapon")
-else
-	-- ConVars côté client pour sauvegarder l'état
-	CreateClientConVar("gp2_portalgun_upgraded", "0", true, false, "Portal Gun upgraded state")
-	CreateClientConVar("gp2_portalgun_potato", "0", true, false, "Portal Gun potato mode state")
+local function ForcePortalGunStateForPlayer(ply)
+	local map = game.GetMap()
+	local no_portal_gun = {
+		["sp_a1_intro1"] = true,
+		["sp_a1_intro2"] = true
+	}
+	local single_portal_gun = {
+		["sp_a1_intro3"] = true,
+		["sp_a1_intro4"] = true,
+		["sp_a1_intro5"] = true,
+		["sp_a1_intro6"] = true,
+		["sp_a1_wakeup"] = true
+	}
+	if not string.StartWith(map, "sp_") then return end
+	if no_portal_gun[map] then
+		ply:StripWeapon("weapon_portalgun")
+		ply:ConCommand("gp2_portalgun_upgraded 0")
+		ply:ConCommand("gp2_portalgun_potato 0")
+		if ply.PrintMessage then ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Portal Gun interdit sur cette map.") end
+		return true
+	elseif single_portal_gun[map] then
+		for _, weapon in ipairs(ply:GetWeapons()) do
+			if weapon:GetClass() == "weapon_portalgun" then
+				weapon:UpdatePotatoGun(false)
+				weapon:SetCanFirePortal2(false)
+			end
+		end
+		ply:ConCommand("gp2_portalgun_upgraded 0")
+		ply:ConCommand("gp2_portalgun_potato 0")
+		if ply.PrintMessage then ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Portal Gun limité sur cette map.") end
+		return true
+	end
+	return false
 end
+HUD_PRINTCONSOLE = HUD_PRINTCONSOLE or 2
+HUD_PRINTCONSOLE = HUD_PRINTCONSOLE or 3
+
+CreateConVar("gp2_portal_placement_never_fail", "0", FCVAR_CHEAT + FCVAR_NOTIFY,
+	"Can portal be placed on every surface?")
+
+-- ConVars pour sauvegarder l'état du Portal Gun par joueur
+CreateConVar("gp2_save_portalgun_state", "1", FCVAR_ARCHIVE,
+	"Save Portal Gun state (normal/upgraded/potato) when picking up the weapon")
 
 concommand.Add("gp2_change_linkage_group_id", function(ply, cmd, args)
-	if SERVER then
-		local wep = ply:GetActiveWeapon()
-
-		if IsValid(wep) then
-			if wep:GetClass() == "weapon_portalgun" then
-				wep:SetLinkageGroup(tonumber(args[1]) or 0)
-			end
+	local wep = ply:GetActiveWeapon()
+	if IsValid(wep) then
+		if wep:GetClass() == "weapon_portalgun" then
+			wep:SetLinkageGroup(tonumber(args[1]) or 0)
 		end
 	end
 end)
-
-local gp2_portal_placement_never_fail = GetConVar("gp2_portal_placement_never_fail")
-
-if SERVER then
 	-- Commande pour upgrader le portal gun (disponible pour tous)
 	concommand.Add("upgrade_portalgun", function(ply, cmd, args)
-		-- Vérifier que le joueur est valide
-		if not IsValid(ply) then
-						return
-		end
-
-		-- Donner l'arme au joueur
+		if not IsValid(ply) then return end
+		if ForcePortalGunStateForPlayer(ply) then return end
 		ply:Give("weapon_portalgun")
-
-		-- Mettre à jour toutes les armes portal gun du joueur
 		local upgraded = false
 		for _, weapon in ipairs(ply:GetWeapons()) do
 			if weapon:GetClass() == "weapon_portalgun" then
@@ -107,14 +124,10 @@ if SERVER then
 				upgraded = true
 			end
 		end
-
-		-- Sauvegarder l'état upgraded côté client
 		if upgraded then
 			ply:ConCommand("gp2_portalgun_upgraded 1")
-			ply:ConCommand("gp2_portalgun_potato 0") -- Reset potato si upgraded
+			ply:ConCommand("gp2_portalgun_potato 0")
 		end
-
-		-- Message de confirmation
 		if upgraded then
 			if ply.PrintMessage then
 				ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Vous pouvez maintenant tirer les deux types de portails!")
@@ -124,11 +137,8 @@ if SERVER then
 
 	-- Commande pour activer le mode potato (disponible pour tous)
 	concommand.Add("upgrade_potatogun", function(ply, cmd, args)
-		-- Vérifier que le joueur est valide
-		if not IsValid(ply) then
-						return
-		end
-
+		if not IsValid(ply) then return end
+		if ForcePortalGunStateForPlayer(ply) then return end
 		local upgraded = false
 		for _, weapon in ipairs(ply:GetWeapons()) do
 			if weapon:GetClass() == "weapon_portalgun" then
@@ -136,13 +146,9 @@ if SERVER then
 				upgraded = true
 			end
 		end
-
-		-- Sauvegarder l'état potato côté client
 		if upgraded then
 			ply:ConCommand("gp2_portalgun_potato 1")
 		end
-
-		-- Message de confirmation
 		if upgraded then
 			ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Mode Potato Gun activé - GLaDOS vous surveille...")
 		else
@@ -152,10 +158,8 @@ if SERVER then
 
 	-- Commande pour désactiver le mode potato
 	concommand.Add("downgrade_potatogun", function(ply, cmd, args)
-		if not IsValid(ply) then
-						return
-		end
-
+		if not IsValid(ply) then return end
+		if ForcePortalGunStateForPlayer(ply) then return end
 		local downgraded = false
 		for _, weapon in ipairs(ply:GetWeapons()) do
 			if weapon:GetClass() == "weapon_portalgun" then
@@ -163,12 +167,9 @@ if SERVER then
 				downgraded = true
 			end
 		end
-
-		-- Sauvegarder l'état potato côté client
 		if downgraded then
 			ply:ConCommand("gp2_portalgun_potato 0")
 		end
-
 		if downgraded then
 			ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Mode Potato désactivé!")
 			ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Portal Gun restauré en mode normal")
@@ -195,21 +196,16 @@ if SERVER then
 
 	-- Commande pour réinitialiser l'état du Portal Gun
 	concommand.Add("reset_portalgun", function(ply, cmd, args)
-		if not IsValid(ply) then
-						return
-		end
-
-		-- Remettre l'arme en état normal
+		if not IsValid(ply) then return end
+		if ForcePortalGunStateForPlayer(ply) then return end
 		local reset = false
 		for _, weapon in ipairs(ply:GetWeapons()) do
 			if weapon:GetClass() == "weapon_portalgun" then
 				weapon:UpdatePotatoGun(false)
-				weapon:SetCanFirePortal2(false) -- Remettre en mode simple
+				weapon:SetCanFirePortal2(false)
 				reset = true
 			end
 		end
-
-		-- Réinitialiser les convars
 		if reset then
 			ply:ConCommand("gp2_portalgun_upgraded 0")
 			ply:ConCommand("gp2_portalgun_potato 0")
@@ -219,20 +215,15 @@ if SERVER then
 
 	concommand.Add("remove_portalgun", function(ply, cmd, args)
 		if not IsValid(ply) then return end
-
-		local removed = false
-		for _, weapon in ipairs(ply:GetWeapons()) do
-			if weapon:GetClass() == "weapon_portalgun" then
-				ply:StripWeapon("weapon_portalgun")
-				removed = true
-			end
-		end
-
-		if removed then
-			ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Portal Gun retiré de votre inventaire.")
-		end
+		ForcePortalGunStateForPlayer(ply)
 	end, nil, "Retire le Portal Gun de votre inventaire")
-else
+end
+
+local gp2_portal_placement_never_fail = GetConVar("gp2_portal_placement_never_fail")
+
+if CLIENT then
+	CreateClientConVar("gp2_portalgun_upgraded", "0", true, false, "Portal Gun upgraded state")
+	CreateClientConVar("gp2_portalgun_potato", "0", true, false, "Portal Gun potato mode state")
 	CreateClientConVar("gp2_portal_color1", "2 114 210", true, true, "Color for Portal 1")
 	CreateClientConVar("gp2_portal_color2", "210 114 2", true, true, "Color for Portal 2")
 
@@ -266,6 +257,29 @@ else
 		chat.AddText(Color(255, 255, 100), "gp2_help", Color(255, 255, 255), " - Cette aide")
 		chat.AddText(Color(255, 255, 100), "=====================================")
 	end, nil, "Affiche l'aide des commandes Portal Gun")
+
+	hook.Add("InitPostEntity", "GP2_ForcePortalGunState", function()
+		local no_portal_gun = {
+			["sp_a1_intro1"] = true,
+			["sp_a1_intro2"] = true
+		}
+		local single_portal_gun = {
+			["sp_a1_intro3"] = true,
+			["sp_a1_intro4"] = true,
+			["sp_a1_intro5"] = true,
+			["sp_a1_intro6"] = true,
+			["sp_a1_wakeup"] = true
+		}
+		local map = game.GetMap()
+		if not string.StartWith(map, "sp_") then return end
+		if no_portal_gun[map] then
+			RunConsoleCommand("remove_portalgun")
+		elseif single_portal_gun[map] then
+			RunConsoleCommand("reset_portalgun")
+		else
+			RunConsoleCommand("upgrade_portalgun")
+		end
+	end)
 
 	net.Receive(GP2.Net.SendPortalPlacementNotPortalable, function()
 		local hitPos = net.ReadVector()
