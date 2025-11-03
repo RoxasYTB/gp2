@@ -562,7 +562,7 @@ local function setPortalPlacementOld(owner, portal)
 	local semicircle2Valid, semicircle2InvalidIndex = testSemicircle2(adjustedHitPos, ang)
 
 	if not semicircle2Valid then
-		local maxAdjustments = 80
+		local maxAdjustments = 8
 		local adjustmentStep = 10
 		local foundValidPosition = false
 
