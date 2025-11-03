@@ -2,7 +2,6 @@ AddCSLuaFile();
 ENT.Type = "brush";
 ENT.Base = "base_trigger";
 function ENT:Initialize()
-	self:SetModel("models/hunter/plates/plate1x2.mdl");
 	self:SetColor(Color(255, 255, 255, 0));
 	self:SetRenderMode(RENDERMODE_TRANSALPHA);
 	self:SetMaterial("models/debug/debugwhite");
