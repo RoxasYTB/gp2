@@ -406,10 +406,12 @@ local function setPortalPlacementOld(owner, portal)
 			or bit.band(tr.SurfaceFlags, SURF_TRANS) ~= 0
 		)
 	then
+		print("[PORTAL] PLACEMENT FAIL: tr.Hit=" .. tostring(tr.Hit) .. " IsValid(tr.Entity)=" .. tostring(IsValid(tr.Entity)) .. " HitTexture=" .. tostring(tr.HitTexture) .. " NOPORTAL=" .. tostring(bit.band(tr.SurfaceFlags, SURF_NOPORTAL)) .. " TRANS=" .. tostring(bit.band(tr.SurfaceFlags, SURF_TRANS)))
 		return PORTAL_PLACEMENT_BAD_SURFACE, tr
 	end
 
 	if tr.HitSky then
+		print("[PORTAL] PLACEMENT FAIL: tr.HitSky = true")
 		return PORTAL_PLACEMENT_UNKNOWN_SURFACE, tr
 	end
 
@@ -457,7 +459,8 @@ local function setPortalPlacementOld(owner, portal)
 		mask   = MASK_SHOT_PORTAL
 	})
 
-	if not trBehind.Hit or not trBehind.HitNormal or tr.HitNormal:Dot(trBehind.HitNormal) > -0.5 then
+	if trBehind.Hit and trBehind.HitNormal and tr.HitNormal:Dot(trBehind.HitNormal) > -0.5 then
+		print("[PORTAL] PLACEMENT FAIL: Surface opposée détectée avec angle invalide. Dot=" .. tostring(tr.HitNormal:Dot(trBehind.HitNormal)))
 		return PORTAL_PLACEMENT_BAD_SURFACE, tr
 	end
 
@@ -468,6 +471,8 @@ local function setPortalPlacementOld(owner, portal)
 
 	-- Fonction pour tester le demi-cercle 1 (Left/Right)
 	local function testSemicircle1(testHitPos, testAng)
+		local validCount = 0
+		local firstInvalidIndex = -1
 		for i = 0, numTests - 1 do
 			local angle = math.pi + (i / (numTests - 1)) * math.pi
 			local radius = siz:Length() * 0.45
@@ -484,15 +489,20 @@ local function setPortalPlacementOld(owner, portal)
 
 			local valid = testTrace.Hit and testTrace.Fraction >= 0.05 and testTrace.Fraction <= 0.95
 			debugDrawPoint(testPos, valid)
-			if not valid then
-				return false, i
+			if valid then
+				validCount = validCount + 1
+			elseif firstInvalidIndex == -1 then
+				firstInvalidIndex = i
 			end
 		end
-		return true, -1
+		local isValid = validCount >= numTests
+		return isValid, firstInvalidIndex
 	end
 
 	-- Fonction pour tester le demi-cercle 2 (Forward/Backward)
 	local function testSemicircle2(testHitPos, testAng)
+		local validCount = 0
+		local firstInvalidIndex = -1
 		for i = 0, numTests - 1 do
 			local angle = math.pi + (i / (numTests - 1)) * math.pi
 			local radius = siz:Length() * 0.45
@@ -509,11 +519,14 @@ local function setPortalPlacementOld(owner, portal)
 
 			local valid = testTrace.Hit and testTrace.Fraction >= 0.05 and testTrace.Fraction <= 0.95
 			debugDrawPoint(testPos, valid)
-			if not valid then
-				return false, i
+			if valid then
+				validCount = validCount + 1
+			elseif firstInvalidIndex == -1 then
+				firstInvalidIndex = i
 			end
 		end
-		return true, -1
+		local isValid = validCount >= numTests
+		return isValid, firstInvalidIndex
 	end
 
 	-- PHASE 1 : Valider et ajuster le demi-cercle 1 (Left/Right)
@@ -565,7 +578,7 @@ local function setPortalPlacementOld(owner, portal)
 
 	if not semicircle2Valid then
 		local maxAdjustments = 16
-		local adjustmentStep = 10
+		local adjustmentStep = 8
 		local foundValidPosition = false
 
 		local movePositive = semicircle2InvalidIndex < (numTests / 2)
