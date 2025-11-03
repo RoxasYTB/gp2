@@ -217,6 +217,21 @@ end)
 		if not IsValid(ply) then return end
 		ForcePortalGunStateForPlayer(ply)
 	end, nil, "Retire le Portal Gun de votre inventaire")
+
+	hook.Add("Think", "GP2_EnforceNoPortalGunMaps", function()
+		local no_portal_gun = {
+			["sp_a1_intro1"] = true,
+			["sp_a1_intro2"] = true
+		}
+		local map = game.GetMap()
+		if no_portal_gun[map] then
+			for _, ply in ipairs(player.GetAll()) do
+				if IsValid(ply) and ply:HasWeapon("weapon_portalgun") then
+					ply:StripWeapon("weapon_portalgun")
+				end
+			end
+		end
+	end)
 end
 
 local gp2_portal_placement_never_fail = GetConVar("gp2_portal_placement_never_fail")
@@ -278,6 +293,19 @@ if CLIENT then
 			RunConsoleCommand("reset_portalgun")
 		else
 			RunConsoleCommand("upgrade_portalgun")
+		end
+	end)
+
+	hook.Add("PlayerGiveWeapon", "GP2_BlockPortalGunSpawn", function(ply, wepname)
+		if wepname == "weapon_portalgun" then
+			local no_portal_gun = {
+				["sp_a1_intro1"] = true,
+				["sp_a1_intro2"] = true
+			}
+			local map = game.GetMap()
+			if no_portal_gun[map] then
+				return false
+			end
 		end
 	end)
 
