@@ -1,3 +1,18 @@
+local gp2_portal_debug_points = true
+concommand.Add("gp2_portal_debug_points", function(ply, cmd, args)
+	gp2_portal_debug_points = not gp2_portal_debug_points
+	if gp2_portal_debug_points then
+		print("[GP2] Debug points visuels activés.")
+	else
+		print("[GP2] Debug points visuels désactivés.")
+	end
+end, nil, "Active/désactive le debug visuel des points de validation du portail.")
+
+local function debugDrawPoint(pos, valid)
+	if not gp2_portal_debug_points then return end
+	local color = valid and Color(0,255,0) or Color(255,0,0)
+	debugoverlay.Cross(pos, 5, 1, color, true)
+end
 -- ----------------------------------------------------------------------------
 -- GP2 Framework
 -- Portal gun
@@ -434,6 +449,163 @@ local function setPortalPlacementOld(owner, portal)
 	pos:Set(tr.HitNormal)
 	pos:Mul(mul)
 	pos:Add(tr.HitPos + tr.HitNormal * 0.5)
+
+	local trBehind = PortalManager.TraceLine({
+		start  = tr.HitPos + tr.HitNormal,
+		endpos = tr.HitPos + tr.HitNormal * 1000,
+		filter = gtCheckFunc,
+		mask   = MASK_SHOT_PORTAL
+	})
+
+	if not trBehind.Hit or not trBehind.HitNormal or tr.HitNormal:Dot(trBehind.HitNormal) > -0.5 then
+		return PORTAL_PLACEMENT_BAD_SURFACE, tr
+	end
+
+	local portalValid = true
+	local numTests = 16
+	local adjustedHitPos = tr.HitPos
+	local adjustedPos = pos
+
+	-- Fonction pour tester le demi-cercle 1 (Left/Right)
+	local function testSemicircle1(testHitPos, testAng)
+		for i = 0, numTests - 1 do
+			local angle = math.pi + (i / (numTests - 1)) * math.pi
+			local radius = siz:Length() * 0.45
+			local offsetX = math.cos(angle) * radius
+			local offsetY = math.sin(angle) * radius
+
+			local testPos = testHitPos + testAng:Right() * offsetX + testAng:Up() * offsetY
+			local testTrace = PortalManager.TraceLine({
+				start  = testPos - tr.HitNormal * 50,
+				endpos = testPos + tr.HitNormal * 50,
+				filter = gtCheckFunc,
+				mask   = MASK_SHOT_PORTAL
+			})
+
+			local valid = testTrace.Hit and testTrace.Fraction >= 0.05 and testTrace.Fraction <= 0.95
+			debugDrawPoint(testPos, valid)
+			if not valid then
+				return false, i
+			end
+		end
+		return true, -1
+	end
+
+	-- Fonction pour tester le demi-cercle 2 (Forward/Backward)
+	local function testSemicircle2(testHitPos, testAng)
+		for i = 0, numTests - 1 do
+			local angle = math.pi + (i / (numTests - 1)) * math.pi
+			local radius = siz:Length() * 0.45
+			local offsetX = math.cos(angle) * radius
+			local offsetY = math.sin(angle) * radius
+
+			local testPos = testHitPos + testAng:Forward() * offsetX + testAng:Up() * offsetY
+			local testTrace = PortalManager.TraceLine({
+				start  = testPos - tr.HitNormal * 50,
+				endpos = testPos + tr.HitNormal * 50,
+				filter = gtCheckFunc,
+				mask   = MASK_SHOT_PORTAL
+			})
+
+			local valid = testTrace.Hit and testTrace.Fraction >= 0.05 and testTrace.Fraction <= 0.95
+			debugDrawPoint(testPos, valid)
+			if not valid then
+				return false, i
+			end
+		end
+		return true, -1
+	end
+
+	-- PHASE 1 : Valider et ajuster le demi-cercle 1 (Left/Right)
+	local semicircle1Valid, semicircle1InvalidIndex = testSemicircle1(adjustedHitPos, ang)
+
+	if not semicircle1Valid then
+		local maxAdjustments = 8
+		local adjustmentStep = 10
+		local foundValidPosition = false
+
+		local movePositive = semicircle1InvalidIndex < (numTests / 2)
+
+		for attempt = 1, maxAdjustments do
+			local direction = ((attempt % 2 == 1) == movePositive) and 1 or -1
+			local offset = math.ceil(attempt / 2) * adjustmentStep * direction
+
+			local newHitPos = adjustedHitPos + ang:Right() * offset
+
+			local testValid, _ = testSemicircle1(newHitPos, ang)
+
+			if testValid then
+				adjustedHitPos = newHitPos
+				tr.HitPos = newHitPos
+
+				local newPos = Vector()
+				newPos:Set(tr.HitNormal)
+				newPos:Mul(mul)
+				newPos:Add(newHitPos + tr.HitNormal * 0.5)
+				adjustedPos = newPos
+				pos:Set(newPos)
+
+				semicircle1Valid = true
+				foundValidPosition = true
+				print("[GP2 Portal] Demi-cercle 1 : Position ajustée de " .. offset .. " unités sur Left/Right (tentative " .. attempt .. ")")
+				break
+			end
+		end
+
+		if not foundValidPosition then
+			print("[GP2 Portal] Demi-cercle 1 : Impossible de trouver une position valide après " .. maxAdjustments .. " tentatives")
+			return PORTAL_PLACEMENT_BAD_SURFACE, tr
+		end
+	end
+
+	-- PHASE 2 : Valider et ajuster le demi-cercle 2 (Forward/Backward)
+	local semicircle2Valid, semicircle2InvalidIndex = testSemicircle2(adjustedHitPos, ang)
+
+	if not semicircle2Valid then
+		local maxAdjustments = 80
+		local adjustmentStep = 10
+		local foundValidPosition = false
+
+		local movePositive = semicircle2InvalidIndex < (numTests / 2)
+
+		for attempt = 1, maxAdjustments do
+			local direction = ((attempt % 2 == 1) == movePositive) and 1 or -1
+			local offset = math.ceil(attempt / 2) * adjustmentStep * direction
+
+			local newHitPos = adjustedHitPos + ang:Forward() * offset
+
+			local testValid, _ = testSemicircle2(newHitPos, ang)
+
+			if testValid then
+				adjustedHitPos = newHitPos
+				tr.HitPos = newHitPos
+
+				local newPos = Vector()
+				newPos:Set(tr.HitNormal)
+				newPos:Mul(mul)
+				newPos:Add(newHitPos + tr.HitNormal * 0.5)
+				adjustedPos = newPos
+				pos:Set(newPos)
+
+				semicircle2Valid = true
+				foundValidPosition = true
+				print("[GP2 Portal] Demi-cercle 2 : Position ajustée de " .. offset .. " unités sur Forward/Backward (tentative " .. attempt .. ")")
+				break
+			end
+		end
+
+		if not foundValidPosition then
+			print("[GP2 Portal] Demi-cercle 2 : Impossible de trouver une position valide après " .. maxAdjustments .. " tentatives")
+			return PORTAL_PLACEMENT_BAD_SURFACE, tr
+		end
+	end
+
+	portalValid = semicircle1Valid and semicircle2Valid
+
+	if not portalValid then
+		return PORTAL_PLACEMENT_BAD_SURFACE, tr
+	end
+
 	local overlap, closest = portalsOverlap(pos, ang, siz, portal)
 	if overlap and IsValid(closest) and closest:GetType() ~= portal:GetType() then
 		local dir = (pos - closest:GetPos()):Dot(ang:Right())

@@ -94,9 +94,6 @@ function ENT:Initialize()
 		self:SetCollisionGroup(COLLISION_GROUP_PASSABLE_DOOR);
 		self:SetMoveType(MOVETYPE_NONE);
 		self:DrawShadow(false);
-		if not PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
-			self:SetPos(self:GetPos() + (self:GetAngles()):Up() * 7.1);
-		end;
 		PortalManager.PortalIndex = PortalManager.PortalIndex + 1;
         if self:GetPlacedByMap() then
             print("[GP2] Portail placé via la map (Hammer), linkageGroup:", self:GetLinkageGroup(), "type:", self:GetType())
@@ -129,6 +126,9 @@ function ENT:Initialize()
 				end;
 			end;
 		end);
+		if not PORTAL_USE_NEW_ENVIRONMENT_SYSTEM and self:GetPlacedByMap() then
+			self:SetPos(self:GetPos() + (self:GetAngles()):Up() * 7.1);
+		end;
 	end;
 	if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
 		if SERVER and self:GetPlacedByMap() then

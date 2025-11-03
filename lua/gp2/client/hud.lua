@@ -270,7 +270,10 @@ if CLIENT then
 					return;
 				end;
 				local wep = ply:GetActiveWeapon();
-				if IsValid(wep) and wep:GetClass() == "weapon_portalgun" then
+				if not IsValid(wep) then
+					return;
+				end;
+				if wep:GetClass() == "weapon_portalgun" then
 					return false;
 				end;
 			end;
