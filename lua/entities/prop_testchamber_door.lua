@@ -1,3 +1,41 @@
+function ENT:SpawnDoorTriggers()
+	if not IsValid(self) then
+		return;
+	end;
+	local pos = self:GetPos();
+	local ang = self:GetAngles();
+	local forward = ang:Forward();
+	local triggers = ents.FindByClass("prop_door_trigger");
+	local foundOpen, foundClose = false, false;
+	for _, trig in ipairs(triggers) do
+		if trig.DoorTriggerType == "open" then
+			foundOpen = true;
+		end;
+		if trig.DoorTriggerType == "close" then
+			foundClose = true;
+		end;
+	end;
+	if not foundOpen then
+		local entFront = ents.Create("prop_door_trigger");
+		if IsValid(entFront) then
+			entFront:SetPos(pos + forward * 100);
+			entFront:SetAngles(ang);
+			entFront.DoorTriggerType = "open";
+			entFront:Spawn();
+			print("[DOOR] Trigger OPEN créé à : " .. tostring(entFront:GetPos()));
+		end;
+	end;
+	if not foundClose then
+		local entBack = ents.Create("prop_door_trigger");
+		if IsValid(entBack) then
+			entBack:SetPos(pos - forward * 100);
+			entBack:SetAngles(ang);
+			entBack.DoorTriggerType = "close";
+			entBack:Spawn();
+			print("[DOOR] Trigger CLOSE créé à : " .. tostring(entBack:GetPos()));
+		end;
+	end;
+end;
 AddCSLuaFile();
 ENT.Type = "anim";
 ENT.AutomaticFrameAdvance = true;
@@ -52,6 +90,7 @@ ENT.__input2func = {
 		end;
 	end,
 	close = function(self, activator, caller, data)
+		self:SpawnDoorTriggers();
 		if self:GetIsLocked() then
 			return;
 		end;
@@ -64,6 +103,7 @@ ENT.__input2func = {
 		self:TriggerOutput("OnClose");
 		self:EmitSound("prop_portal_door.close");
 		self.IsAnimating = true;
+		self:SpawnDoorTriggers();
 	end,
 	lock = function(self, activator, caller, data)
 		if NO_CLOSE_DOORS[self:EntIndex()] then
