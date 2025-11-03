@@ -37,7 +37,7 @@ GP2.VScriptMgr = {
 		fl = fl:gsub("%.[^%.]+$", "");
 		local actualPath = "vscripts/" .. fl .. ".lua";
 		if not file.Exists(actualPath, "LUA") then
-			GP2.VScriptMgr.Error("Script not found (lua/%s)", actualPath);
+			GP2.Error("Script not found (lua/%s)", actualPath);
 			return;
 		end;
 		GP2.Print("Running script '%s' on entity '%s'", fl, ent:GetName() ~= "" and ent:GetName() or ent:GetClass());
@@ -53,13 +53,13 @@ GP2.VScriptMgr = {
 		end;
 		local chunk, err = CompileFile(actualPath);
 		if not chunk then
-			GP2.VScriptMgr.Error(err);
+			GP2.Error(err);
 			return;
 		end;
 		setfenv(chunk, scope);
 		local success, runtimeErr = pcall(chunk);
 		if not success then
-			GP2.VScriptMgr.Error(runtimeErr);
+			GP2.Error(runtimeErr);
 		end;
 	end,
 	RunScriptFileHandless = function(fl)
