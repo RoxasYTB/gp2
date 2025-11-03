@@ -520,7 +520,7 @@ local function setPortalPlacementOld(owner, portal)
 	local semicircle1Valid, semicircle1InvalidIndex = testSemicircle1(adjustedHitPos, ang)
 
 	if not semicircle1Valid then
-		local maxAdjustments = 4
+		local maxAdjustments = 16
 		local adjustmentStep = 10
 		local foundValidPosition = false
 
@@ -553,8 +553,10 @@ local function setPortalPlacementOld(owner, portal)
 		end
 
 		if not foundValidPosition then
-			print("[GP2 Portal] Demi-cercle 1 : Impossible de trouver une position valide après " .. maxAdjustments .. " tentatives")
-			return PORTAL_PLACEMENT_BAD_SURFACE, tr
+			print("[GP2 Portal] Demi-cercle 1 : Impossible de trouver une position valide après " .. maxAdjustments .. " tentatives - test demi-cercle 2")
+			semicircle1Valid = false
+		else
+			semicircle1Valid = true
 		end
 	end
 
@@ -562,7 +564,7 @@ local function setPortalPlacementOld(owner, portal)
 	local semicircle2Valid, semicircle2InvalidIndex = testSemicircle2(adjustedHitPos, ang)
 
 	if not semicircle2Valid then
-		local maxAdjustments = 8
+		local maxAdjustments = 16
 		local adjustmentStep = 10
 		local foundValidPosition = false
 
@@ -596,14 +598,19 @@ local function setPortalPlacementOld(owner, portal)
 
 		if not foundValidPosition then
 			print("[GP2 Portal] Demi-cercle 2 : Impossible de trouver une position valide après " .. maxAdjustments .. " tentatives")
-			return PORTAL_PLACEMENT_BAD_SURFACE, tr
+			semicircle2Valid = false
+		else
+			semicircle2Valid = true
 		end
 	end
 
-	portalValid = semicircle1Valid and semicircle2Valid
+	portalValid = semicircle1Valid or semicircle2Valid
 
 	if not portalValid then
-		return PORTAL_PLACEMENT_BAD_SURFACE, tr
+		print("[GP2 Portal] Les deux demi-cercles ont échoué - placement par défaut")
+		pos:Set(tr.HitNormal)
+		pos:Mul(mul)
+		pos:Add(tr.HitPos + tr.HitNormal * 0.5)
 	end
 
 	local overlap, closest = portalsOverlap(pos, ang, siz, portal)
