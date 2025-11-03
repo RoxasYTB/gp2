@@ -214,8 +214,6 @@ if SERVER then
 		end
 
 		if removed then
-			ply:ConCommand("gp2_portalgun_upgraded 0")
-			ply:ConCommand("gp2_portalgun_potato 0")
 			ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Portal Gun retiré de votre inventaire.")
 		end
 	end, nil, "Retire le Portal Gun de votre inventaire")
