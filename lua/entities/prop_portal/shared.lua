@@ -29,6 +29,7 @@ function ENT:SetupDataTables()
 			self:SetSize(Vector(PORTAL_HEIGHT / 2, PORTAL_WIDTH / 2, 7));
 		end;
 		self:SetColorVectorInternal(Vector(255, 255, 255));
+		print("Portal " .. tostring(self) .. " initialized with size " .. tostring(self:GetSize()));
 		self:SetPlacedByMap(true);
 	end;
 	self:NetworkVarNotify("Activated", self.OnActivated);

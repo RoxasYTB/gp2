@@ -276,7 +276,7 @@ else
 
 		local particle = CreateParticleSystemNoEntity("portal_success", hitPos, hitAngle)
 		if IsValid(particle) then
-			particle:SetControlPoint(0, hitPos)
+			particle:SetControlPoint(0, hitPos - hitAngle:Up() * 15)
 			particle:SetControlPointOrientation(0, right, forward, up)
 			particle:SetControlPoint(2, color)
 		end
@@ -340,7 +340,7 @@ local function setPortalPlacementOld(owner, portal)
 	local siz = portal:GetSize()
 	local pos = owner:GetShootPos()
 	local aim = owner:GetAimVector()
-	local mul = siz[3] * 1.1
+	local mul = siz[3] * 2.5
 
 	local tr = PortalManager.TraceLine({
 		start  = pos,
@@ -350,6 +350,8 @@ local function setPortalPlacementOld(owner, portal)
 	})
 
 	local alongRay = ents.FindAlongRay(tr.StartPos, tr.HitPos, -rayHull, rayHull)
+	print("[PORTAL] Adjusting portal position for surface fit.")
+
 
 	for i = 1, #alongRay do
 		local ent = alongRay[i]
@@ -371,6 +373,7 @@ local function setPortalPlacementOld(owner, portal)
 
 			if hitPos then
 				tr.HitPos = hitPos
+
 			end
 
 			return PORTAL_PLACEMENT_FIZZLER_HIT, tr
@@ -649,7 +652,7 @@ function SWEP:PlacePortal(type, owner)
 
     local portal = ents.Create("prop_portal")
     if not IsValid(portal) then return end
-
+    print("[PORTAL] Creating portal entity.")
     portal:SetPlacedByMap(false)
     portal:SetPortalColor(r, g, b)
     portal:SetType(type or 0)
@@ -694,9 +697,16 @@ function SWEP:PlacePortal(type, owner)
 	end
 
     portal:Spawn()
-    portal:SetPos(pos)
+    if CLIENT then
+        local mulRatio = 1.1 / 2.5
+        local adjustedPos = pos - (pos - traceResult.HitPos) * (1 - mulRatio)
+        portal:SetPos(adjustedPos)
+    else
+        portal:SetPos(pos)
+    end
     portal:SetAngles(ang)
     portal:SetPlacedByMap(false)
+    print("[PORTAL] Portal placed at position: " .. tostring(portal:GetPos()))
     if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
         portal:BuildPortalEnvironment()
     end

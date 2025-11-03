@@ -56,6 +56,13 @@ function PortalManager.SetPortal(linkageGroup, entity)
 	local oppositePortal = PortalManager.GetLinkageGroup(linkageGroup)[oppositePortalType]
 
 	GP2.Print("Setting portal for linkageGroup == " .. linkageGroup .. " to " .. tostring(entity) .. " (type " .. portalType .. ")")
+	local owner = entity:GetOwner()
+	print("Owner of the portal is: " .. tostring(owner))
+
+	if not IsValid(owner) then
+		print("Warning: Portal owner is not valid!")
+		entity:SetPos(entity:GetPos() + entity:GetUp() * 4)
+	end
 
 	-- If some portal already occupied place in group
 	-- fizzle it

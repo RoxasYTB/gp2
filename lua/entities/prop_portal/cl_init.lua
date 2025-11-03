@@ -204,7 +204,8 @@ function ENT:Draw()
 	if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
 		if self.RENDER_MATRIX:GetTranslation() ~= self:GetPos() or (self.RENDER_MATRIX:GetScale().x ~= size.x and self.RENDER_MATRIX:GetScale().y ~= size.y) then
 			self.RENDER_MATRIX:Identity()
-			self.RENDER_MATRIX:SetTranslation(self:GetPos() + self:GetAngles():Up() * 8)
+			local visualOffset = self:GetAngles():Forward() * (size[3] * (1.1 - 2.5))
+			self.RENDER_MATRIX:SetTranslation(self:GetPos() + self:GetAngles():Up() * 8 + visualOffset)
 			self.RENDER_MATRIX:SetAngles(self:GetAngles())
 			self.RENDER_MATRIX:SetScale(size * 0.999)
 			size.z = -0.5
@@ -214,7 +215,8 @@ function ENT:Draw()
 	else
 		if self.RENDER_MATRIX:GetTranslation() ~= self:GetPos() or self.RENDER_MATRIX:GetScale() != size then
 			self.RENDER_MATRIX:Identity()
-			self.RENDER_MATRIX:SetTranslation(self:GetPos())
+			local visualOffset = self:GetAngles():Up() * (size[3] * (1.1 - 2.5))
+			self.RENDER_MATRIX:SetTranslation(self:GetPos() + visualOffset)
 			self.RENDER_MATRIX:SetAngles(self:GetAngles())
 			self.RENDER_MATRIX:SetScale(size * 0.999)
 			self:SetRenderBounds(-size, size)
@@ -462,7 +464,7 @@ function ENT:Think()
 			self.RingParticle:SetControlPoint(0, self:GetPos() - self:GetAngles():Up() * 7)
 		end
 		local ringAngles = Angle(RING_PITCH, RING_YAW, RING_ROLL)
-		self.RingParticle:SetControlPoint(0, self:GetPos() - self:GetAngles():Up() * 7)
+		self.RingParticle:SetControlPoint(0, self:GetPos() - self:GetAngles():Up() * 15)
 		self.RingParticle:SetControlPointOrientation(0, ringAngles:Forward(), ringAngles:Right(), ringAngles:Up())
 		-- Application correcte de la rotation personnalisée du ring
 		local pitch = 0

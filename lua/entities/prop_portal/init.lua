@@ -98,6 +98,9 @@ function ENT:Initialize()
 			self:SetPos(self:GetPos() + (self:GetAngles()):Up() * 7.1);
 		end;
 		PortalManager.PortalIndex = PortalManager.PortalIndex + 1;
+        if self:GetPlacedByMap() then
+            print("[GP2] Portail placé via la map (Hammer), linkageGroup:", self:GetLinkageGroup(), "type:", self:GetType())
+        end
 		timer.Simple(0.3, function()
 			if IsValid(self) then
 				self.StablePos = self:GetPos();
