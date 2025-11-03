@@ -752,7 +752,9 @@ function sp_a1_wakeup_transport()
 end
 
 function sp_a1_wakeup_DroppedInIncinerator()
-	game.ConsoleCommand("changelevel sp_a2_intro\n")
+	timer.Simple(2, function()
+		game.ConsoleCommand("changelevel sp_a2_intro\n")
+	end)
 end
 
 
