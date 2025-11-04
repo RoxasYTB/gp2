@@ -278,6 +278,7 @@ if CLIENT then
 			["sp_a1_intro4"] = true,
 			["sp_a1_intro5"] = true,
 			["sp_a1_intro6"] = true,
+			["sp_a1_intro7"] = true,
 			["sp_a1_wakeup"] = true
 		}
 		local map = game.GetMap()

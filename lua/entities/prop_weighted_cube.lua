@@ -165,9 +165,9 @@ function ENT:Think()
 		if shakeActive then
 			local phys = self:GetPhysicsObject();
 			if IsValid(phys) then
-				local shake = Vector(math.Rand(-28, 28), math.Rand(-28, 28), math.Rand(24, 38));
+				local shake = Vector(0, 0, math.Rand(24, 50));
 				phys:AddVelocity(shake);
-				phys:AddAngleVelocity(VectorRand((-1.5), 1.5) * math.Rand(6, 16));
+				// phys:AddAngleVelocity(VectorRand((-1.5), 1.5) * math.Rand(6, 16));
 			end;
 		end;
 		local phys = self:GetPhysicsObject();
