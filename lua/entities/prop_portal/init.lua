@@ -1,4 +1,3 @@
-
 AddCSLuaFile("cl_init.lua");
 AddCSLuaFile("shared.lua");
 include("shared.lua");
@@ -917,7 +916,10 @@ function ENT:SyncCloneVisuals(ent, clone)
 	end;
 end;
 function ENT:PromoteCloneToReal(ent, clone)
-	print("Promoting clone to real entity...");
+	print("Promoting clone to real entity...")
+	if clone:GetModel() == "models/props_junk/popcan01a.mdl" then
+		return;
+	end;
 	if not IsValid(clone) or (not IsValid(ent)) then
 		return;
 	end;
@@ -936,6 +938,7 @@ function ENT:PromoteCloneToReal(ent, clone)
 		pos = spawnPos,
 		angles = spawnAng,
 		model = clone:GetModel(),
+		originalModel = ent:GetModel(),
 		skin = clone:GetSkin(),
 		material = clone:GetMaterial(),
 		color = clone:GetColor(),
@@ -969,8 +972,10 @@ function ENT:PromoteCloneToReal(ent, clone)
 	end;
 	local className = ent:GetClass();
 	local newEnt;
+	local savedModel = ent:GetModel();
+	print("Saved model: " .. tostring(savedModel));
 	if className == "prop_weighted_cube" then
-		newEnt = ents.Create("prop_weighted_cube");
+		newEnt = ents.Create("prop_weighted_cube_reflective");
 	else
 		newEnt = ents.Create("prop_physics");
 	end;
@@ -1024,6 +1029,7 @@ function ENT:PromoteCloneToReal(ent, clone)
 	elseif IsValid(newEnt) then
 		newEnt:SetOwner(NULL);
 	end;
+	newEnt:SetModel(savedModel);
 	ent:Remove();
 	if IsValid(clone) then
 		clone:Remove();
@@ -1047,8 +1053,6 @@ function ENT:Think()
 					else
 						dist = math.huge;
 					end;
-					print("Distance to linked portal: " .. tostring(dist));
-					print("Distance to self portal: " .. tostring((daddyEnt:GetPos()):Distance(self:GetPos())));
 					dist2 = (daddyEnt:GetPos()):Distance(self:GetPos());
 					if dist > 40 and dist2 > 40 then
 						local holdeur = nil;
@@ -1373,4 +1377,3 @@ concommand.Add("getorangeinfo", function(ply)
 		end;
 	end;
 end);
-

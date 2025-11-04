@@ -50,7 +50,11 @@ if SERVER then
 				if triggered then
 					for _, ent in ipairs(ents.FindByClass("npc_personality_core")) do
 						if IsValid(ent) then
+							ent:SetSolid(SOLID_BBOX)
+							ent:SetCollisionGroup(COLLISION_GROUP_WORLD)
 							ply:PickupObject(ent);
+							print("GP2: Forced pickup of entity " .. tostring(ent) .. " by player " .. tostring(ply));
+							print("Collision group: " .. tostring(ent:GetCollisionGroup()));
 							ent.GP2ForcePickup = true;
 						end;
 					end;
