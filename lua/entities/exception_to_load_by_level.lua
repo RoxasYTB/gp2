@@ -1,3 +1,5 @@
+ENT.Type = "anim";
+ENT.Base = "base_entity";
 if SERVER then
 	hook.Add("InitPostEntity", "GP2_DisableFuncBrushCollision_sp_a1_intro6", function()
 		if game.GetMap() ~= "sp_a1_intro6" then
@@ -10,7 +12,65 @@ if SERVER then
 		end;
 	end);
 end;
-
+if SERVER then
+	concommand.Add("gp2_portalgun_entityinuse", function(ply)
+		local holding = false;
+		if IsValid(ply) and ply:IsHolding() then
+			holding = true;
+		end;
+		if holding then
+			ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Le joueur tient un objet avec la fonction isHoldingSomething.");
+		else
+			ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Aucun objet tenu avec la fonction isHoldingSomething.");
+		end;
+	end);
+end;
+if SERVER then
+	CreateConVar("shouldHold", "0", FCVAR_ARCHIVE, "Force pickup on sp_a1_wakeup");
+	if game.GetMap() == "sp_a1_wakeup" then
+		(GetConVar("shouldHold")):SetBool(true);
+		timer.Create("GP2_WaitForPlayerAndForcePickup", 0.1, 0, function()
+			if (GetConVar("shouldHold")):GetBool() then
+				local ply = (player.GetAll())[1];
+				if not IsValid(ply) then
+					return;
+				end;
+				local function IsHoldingSomething(ply)
+					if not IsValid(ply) then
+						return false;
+					end;
+					local wep = ply:GetActiveWeapon();
+					if not IsValid(wep) or wep:GetClass() ~= "weapon_portalgun" then
+						return false;
+					end;
+					local ent = wep.GetEntityInUse and wep:GetEntityInUse() or nil;
+					return IsValid(ent);
+				end;
+				local triggered = not IsHoldingSomething(ply);
+				if triggered then
+					for _, ent in ipairs(ents.FindByClass("npc_personality_core")) do
+						if IsValid(ent) then
+							ply:PickupObject(ent);
+							ent.GP2ForcePickup = true;
+						end;
+					end;
+				end;
+			end;
+		end);
+	else
+		(GetConVar("shouldHold")):SetBool(false);
+	end;
+	hook.Add("AllowPlayerPickup", "GP2_BlockDropCore_sp_a1_wakeup", function(ply, ent)
+		if game.GetMap() == "sp_a1_wakeup" and ent.GP2ForcePickup then
+			return true;
+		end;
+	end);
+	hook.Add("PlayerDropObject", "GP2_BlockDropCore_sp_a1_wakeup", function(ply, ent)
+		if game.GetMap() == "sp_a1_wakeup" and ent.GP2ForcePickup then
+			return false;
+		end;
+	end);
+end;
 if SERVER then
 	local function FixPortalPosition()
 		if game.GetMap() ~= "sp_a1_intro7" then

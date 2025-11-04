@@ -229,6 +229,28 @@ end)
 	end)
 end
 
+concommand.Add("gp2_portalgun_entityinuse", function(ply, cmd, args)
+	if not IsValid(ply) then return end
+	local wep = ply:GetActiveWeapon()
+	if not IsValid(wep) or wep:GetClass() ~= "weapon_portalgun" then
+		ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Vous n'avez pas de Portal Gun équipé.")
+		return
+	end
+	local ent = wep:GetEntityInUse()
+	local isHoldingSomething = IsValid(ent)
+	if isHoldingSomething then
+		local info = "[GP2] EntityInUse : " .. tostring(ent) .. " (Class: " .. ent:GetClass() .. ")"
+		if ent:GetClass() == "player_pickup" and ent.GetParent and IsValid(ent:GetParent()) then
+			local parent = ent:GetParent()
+			info = info .. " | Pickup cible : " .. tostring(parent) .. " (Class: " .. parent:GetClass() .. ")"
+		end
+		ply:PrintMessage(HUD_PRINTCONSOLE, info)
+	else
+		ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Aucun EntityInUse détecté sur votre Portal Gun.")
+	end
+	ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] isHoldingSomething : " .. tostring(isHoldingSomething))
+end, nil, "Affiche l'entité actuellement portée par le Portal Gun et si quelque chose est tenu.")
+
 local gp2_portal_placement_never_fail = GetConVar("gp2_portal_placement_never_fail")
 
 if CLIENT then
@@ -1156,13 +1178,13 @@ function SWEP:ViewModelDrawn(vm)
 	local vm0 = owner:GetViewModel(0)
 	local vm1 = owner:GetViewModel(1)
 
-	if not self.TopLightFirstPersonAttachment then
-		self.TopLightFirstPersonAttachment = vm0:LookupAttachment("Body_light")
-	end
+    if not self.TopLightFirstPersonAttachment and IsValid(vm0) then
+        self.TopLightFirstPersonAttachment = vm0:LookupAttachment("Body_light")
+    end
 
-	if not self.TopLightFirstPerson2Attachment then
-		self.TopLightFirstPerson2Attachment = vm1:LookupAttachment("Body_light")
-	end
+    if not self.TopLightFirstPerson2Attachment and IsValid(vm1) then
+        self.TopLightFirstPerson2Attachment = vm1:LookupAttachment("Body_light")
+    end
 	local lastPlacedPortal = self:GetLastPlacedPortal()
 	local lightColor
 
@@ -1226,6 +1248,7 @@ function SWEP:ViewModelDrawn(vm)
 		self.TopLightFirstPerson2:Render()
 	end
 
+	if not IsValid(vm0) or not IsValid(vm1) then return end
 	if vm0:GetModel() != vm1:GetModel() then return end // Fix stupid holding particle bug
 
 	-- Holding particle for second vm

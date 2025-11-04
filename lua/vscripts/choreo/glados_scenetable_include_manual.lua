@@ -726,10 +726,12 @@ end
 function sp_a1_wakeup_Do_Not_Touch()
 	sp_a1_wakeup_In_Breaker_Room = true
 	GladosPlayVcd(493)
+	game.ConsoleCommand("shouldHold false\n")
 end
 
 function sp_a1_wakeup_Lights_On()
 	GladosPlayVcd(494)
+
 end
 
 function sp_a1_wakeup_Oops()
