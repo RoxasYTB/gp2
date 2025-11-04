@@ -81,6 +81,9 @@ local function incrementPortal(ent)
 	PortalManager.PortalIndex = PortalManager.PortalIndex + 1;
 end;
 function ENT:Initialize()
+	self.PlatformWidth = 500;
+	self.PlatformLength = 48;
+	self.PlatformThickness = self.PlatformThickness or 1;
 	if SERVER then
 		self:SetModel("models/hunter/plates/plate2x2.mdl");
 		self.OriginalAngles = self:GetAngles();
@@ -95,9 +98,6 @@ function ENT:Initialize()
 		self:SetMoveType(MOVETYPE_NONE);
 		self:DrawShadow(false);
 		PortalManager.PortalIndex = PortalManager.PortalIndex + 1;
-        if self:GetPlacedByMap() then
-            print("[GP2] Portail placé via la map (Hammer), linkageGroup:", self:GetLinkageGroup(), "type:", self:GetType())
-        end
 		timer.Simple(0.3, function()
 			if IsValid(self) then
 				self.StablePos = self:GetPos();
@@ -135,7 +135,6 @@ function ENT:Initialize()
 			self:BuildPortalEnvironment();
 		end;
 	end;
-	-- Créer le sol invisible pour empêcher les cubes de traverser
 	if SERVER and self:GetPlacedByMap() then
 		self:BuildPortalFloor();
 	end;
@@ -144,8 +143,88 @@ function ENT:Initialize()
 	self.PropTeleportEnabled = true;
 	self.ClonedEntities = {};
 	self.SpawnedCubes = {};
+	if SERVER then
+		timer.Simple(0.3, function()
+			if not IsValid(self) then
+				return;
+			end;
+			local ply = nil;
+			for _, p in ipairs(player.GetAll()) do
+				if (p:GetPos()):Distance(self:GetPos()) < 200 then
+					ply = p;
+					break;
+				end;
+			end;
+			local pitch = (self:GetAngles()).p;
+			local shouldCreate = false;
+			if pitch <= (-89) and pitch >= (-91) then
+				shouldCreate = true;
+			end;
+			if not ply then
+				ply = (player.GetAll())[1];
+			end;
+			if IsValid(ply) and shouldCreate then
+				local offsets = {
+					Vector(0, 0, 0),
+					Vector(40, 0, 0),
+					Vector(-40, 0, 0),
+					Vector(0, 40, 0),
+					Vector(0, -40, 0),
+					Vector(40, 40, 0),
+					Vector(-40, -40, 0),
+					Vector(40, -40, 0),
+					Vector(-40, 40, 0)
+				};
+				self.GP2_PortalPlatforms = {};
+				for i, vec in ipairs(offsets) do
+					local plat = self:CreatePortalPlatform(ply, vec.x, vec.y, vec.z);
+					self.GP2_PortalPlatforms[i] = plat;
+				end;
+			end;
+		end);
+	end;
 end;
-
+function ENT:CreatePortalPlatform(ply, dx, dy, dz)
+	dx = dx or 0;
+	dy = dy or 0;
+	dz = dz or 0;
+	local portalPos = self:GetPos();
+	local portalAng = self:GetAngles();
+	local forward = portalAng:Forward();
+	local offset = forward * 40 + Vector(dx, dy, dz);
+	local platformPos = portalPos + offset;
+	platformPos.z = (ply:GetPos()).z - 2;
+	local platform = ents.Create("prop_physics");
+	platform:SetModel("models/hunter/plates/plate1x1.mdl");
+	platform:SetModelScale(1, 0);
+	local w = self.PlatformWidth;
+	local l = self.PlatformLength;
+	local t = self.PlatformThickness;
+	local mins = Vector((-w) / 2, (-l) / 2, (-t) / 2);
+	local maxs = Vector(w / 2, l / 2, t / 2);
+	platform:PhysicsInitBox(mins, maxs);
+	platform:SetSolid(SOLID_VPHYSICS);
+	platform:SetMoveType(MOVETYPE_NONE);
+	local phys = platform:GetPhysicsObject();
+	if IsValid(phys) then
+		phys:EnableMotion(false);
+		phys:Wake();
+	end;
+	platform:SetPos(platformPos);
+	platform:SetAngles(Angle(0, portalAng.y, 0));
+	platform:Spawn();
+	platform:SetColor(Color(255, 255, 0, 255));
+	platform:SetRenderMode(RENDERMODE_NORMAL);
+	platform:SetCollisionGroup(COLLISION_GROUP_NONE);
+	platform:SetOwner(ply);
+	local phys = platform:GetPhysicsObject();
+	if IsValid(phys) then
+		phys:EnableMotion(false);
+		phys:Wake();
+	end;
+	platform.GP2_IsPortalPlatform = true;
+	return platform;
+end;
 if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
 	function ENT:BuildPortalEnvironment()
 		self.__portalenvironmentphymesh = ents.Create("__portalenvironmentphymesh");
@@ -155,27 +234,21 @@ if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
 	end;
 end;
 function ENT:BuildPortalFloor()
-	-- Créer une plaque invisible sous le portail pour empêcher les cubes de traverser
 	if self:GetPlacedByMap() then
 		local floorEnt = ents.Create("prop_physics");
 		if IsValid(floorEnt) then
 			local size = self:GetSize();
-			-- Placer la plaque légèrement sous le portail
 			local floorPos = self:GetPos() - self:GetUp() * (size.z + 5);
 			floorEnt:SetPos(floorPos);
 			floorEnt:SetAngles(self:GetAngles());
-			-- Utiliser un modèle de plaque mince
 			floorEnt:SetModel("models/hunter/plates/plate1x1.mdl");
 			floorEnt:PhysicsInit(SOLID_VPHYSICS);
 			floorEnt:SetMoveType(MOVETYPE_NONE);
 			floorEnt:SetCollisionGroup(COLLISION_GROUP_WORLD);
-			-- Rendre invisible
 			floorEnt:SetNoDraw(true);
 			floorEnt:DrawShadow(false);
-			-- Échelle pour correspondre au portail
-			floorEnt:SetModelScale((size.x * 2) / 16);
+			floorEnt:SetModelScale(size.x * 2 / 16);
 			floorEnt:Spawn();
-			-- Marquer comme entité de portail
 			floorEnt.IsPortalFloor = true;
 			floorEnt.ParentPortal = self;
 			self.PortalFloor = floorEnt;
@@ -186,10 +259,17 @@ function ENT:OnRemove()
 	PortalManager.PortalIndex = math.max(PortalManager.PortalIndex - 1, 0);
 	self:CleanupAllClones();
 	self:BootAllPlayers();
-	-- Nettoyer le sol du portail
 	if self.PortalFloor and IsValid(self.PortalFloor) then
 		self.PortalFloor:Remove();
 		self.PortalFloor = nil;
+	end;
+	if self.GP2_PortalPlatforms then
+		for _, plat in ipairs(self.GP2_PortalPlatforms) do
+			if IsValid(plat) then
+				plat:Remove();
+			end;
+		end;
+		self.GP2_PortalPlatforms = nil;
 	end;
 	if self.SpawnedCubes then
 		local cubesToRemove = {};
@@ -446,7 +526,6 @@ function ENT:EndTouch(ent)
 	if not self:CanPort(ent) then
 		return;
 	end;
-	-- Marquer que l'entité ne touche plus ce portail
 	local wasTouching = ent.InPortal == self;
 	ent.InPortal = nil;
 	local clone = ent.clone;
@@ -475,11 +554,8 @@ function ENT:EndTouch(ent)
 		ent.clone = nil;
 	end;
 	if success then
-		print("Prop téléporté avec succès via le portail.");
 		self:CleanupEntity(ent);
 	else
-		-- Si la téléportation n'a pas réussi, on restaure la collision
-		print("Échec de la téléportation du prop via le portail.");
 		self:CleanupEntity(ent);
 	end;
 end;
@@ -497,8 +573,6 @@ function ENT:TeleportEntityOptimized(ent, clone, phys, placementIn, placementOut
 	ent:SetAngles(clone:GetAngles());
 	phys:SetVelocity(outVel);
 	ent.GP2_PortalImmunity = CurTime() + 0.5;
-	-- Préserver le holding si l'objet est un player holding quelque chose
-	-- (Les players peuvent continuer à tenir les objets après la traversée)
 	return true;
 end;
 function ENT:TransformVelocityOptimized(vel, placementIn, placementOut, portalOut)
@@ -606,7 +680,9 @@ function ENT:CleanupEntity(ent)
 					break;
 				end;
 			end;
-			if touchingAnyPortal then break; end;
+			if touchingAnyPortal then
+				break;
+			end;
 		end;
 	end;
 	if not touchingAnyPortal and ent.OriginalCollisionGroup then
@@ -648,6 +724,9 @@ function SafeRemoveEntity(ent)
 end;
 function ENT:CanPort(ent)
 	local c = ent:GetClass();
+	if ent.GP2_IsPortalPlatform then
+		return false;
+	end;
 	if ent:IsPlayer() or ent ~= nil and ent:IsValid() and (not ent.isClone) and ent:GetPhysicsObject() and c ~= "noportal_pillar" and c ~= "prop_dynamic" and c ~= "rpg_missile" and string.sub(c, 1, 5) ~= "func_" and string.sub(c, 1, 9) ~= "prop_door" then
 		return true;
 	else
@@ -678,34 +757,49 @@ function ENT:MakeClone(ent)
 						heldEnt = entityInUse:GetPhysicsAttacker();
 					end;
 					if entityInUse == ent or heldEnt == ent then
-						ent.GP2_HoldInfo = {holdingPlayer = ply, grabEnt = wep, wepClass = wepClass, portalgunOwner = ply};
-						print("[GP2] Holdeur détecté (portalgun): ", ply:Nick(), " tient ", ent:GetClass());
+						ent.GP2_HoldInfo = {
+							holdingPlayer = ply,
+							grabEnt = wep,
+							wepClass = wepClass,
+							portalgunOwner = ply
+						};
 						break;
 					end;
 				end;
 			elseif wepClass == "weapon_physgun" or wepClass == "gmod_tool" then
 				if wep.GrabEnt and wep.GrabEnt == ent then
-					ent.GP2_HoldInfo = {holdingPlayer = ply, grabEnt = wep, wepClass = wepClass, portalgunOwner = ply};
-					print("[GP2] Holdeur détecté (physgun/tool): ", ply:Nick(), " tient ", ent:GetClass());
+					ent.GP2_HoldInfo = {
+						holdingPlayer = ply,
+						grabEnt = wep,
+						wepClass = wepClass,
+						portalgunOwner = ply
+					};
 					break;
 				end;
 			end;
 		end;
 		if ply.holding and ply.holding == ent then
-			ent.GP2_HoldInfo = {holdingPlayer = ply, grabEnt = nil, wepClass = nil, portalgunOwner = ply};
-			print("[GP2] Holdeur détecté (holding): ", ply:Nick(), " tient ", ent:GetClass());
+			ent.GP2_HoldInfo = {
+				holdingPlayer = ply,
+				grabEnt = nil,
+				wepClass = nil,
+				portalgunOwner = ply
+			};
 			break;
 		end;
 	end;
 	if not ent.GP2_HoldInfo then
 		local owner = ent:GetOwner();
 		if IsValid(owner) and owner:IsPlayer() then
-			ent.GP2_HoldInfo = {holdingPlayer = owner, grabEnt = nil, wepClass = "owner", portalgunOwner = owner};
-			print("[GP2] Holdeur détecté via owner: ", owner:Nick(), ent:GetClass());
+			ent.GP2_HoldInfo = {
+				holdingPlayer = owner,
+				grabEnt = nil,
+				wepClass = "owner",
+				portalgunOwner = owner
+			};
 		end;
 	end;
 	if not ent.GP2_HoldInfo then
-		print("[GP2] Aucun holdeur détecté pour ", ent:GetClass());
 	end;
 	local clone = ents.Create("prop_physics");
 	clone:SetSolid(SOLID_NONE);
@@ -763,8 +857,6 @@ function ENT:SyncClone(ent)
 	local relYaw = math.AngleDifference(entAngles.y, inAngles.y);
 	local relPitch = math.AngleDifference(entAngles.p, inAngles.p);
 	local relRoll = math.AngleDifference(entAngles.r, inAngles.r);
-	// print("OutAngles (Yaw, Pitch, Roll): ", outAngles.y, outAngles.p, outAngles.r);
-	// print("EntAngles (Yaw, Pitch, Roll): ", entAngles.y, entAngles.p, entAngles.r);
 	local transformKey = self:GetPlacementType() .. "_" .. portal:GetPlacementType();
 	local newYaw;
 	if transformKey == "WALL_WALL" then
@@ -819,50 +911,20 @@ function ENT:SyncCloneVisuals(ent, clone)
 	end;
 end;
 function ENT:PromoteCloneToReal(ent, clone)
-	if not IsValid(clone) or not IsValid(ent) then
+	if not IsValid(clone) or (not IsValid(ent)) then
 		return;
 	end;
-	local function printAllProperties(prefix, obj)
-		print(prefix .. " properties:")
-		print("Pos:", obj:GetPos())
-		print("Angles:", obj:GetAngles())
-		print("Model:", obj:GetModel())
-		print("Skin:", obj:GetSkin())
-		print("Material:", obj:GetMaterial())
-		print("Color:", obj:GetColor())
-		print("MoveType:", obj:GetMoveType())
-		print("CollisionGroup:", obj:GetCollisionGroup())
-		print("Solid:", obj:GetSolid())
-		print("RenderMode:", obj:GetRenderMode())
-		print("NoDraw:", obj:GetNoDraw())
-		print("Parent:", obj:GetParent())
-		print("Owner:", obj:GetOwner())
-		local phys = obj:GetPhysicsObject()
-		if IsValid(phys) then
-			print("PhysicsObject IsValid: true")
-			print("Physics Velocity:", phys:GetVelocity())
-			print("Physics Mass:", phys:GetMass())
-			print("Physics MotionEnabled:", phys:IsMotionEnabled())
-			print("Physics GravityEnabled:", phys:IsGravityEnabled())
-			print("Physics CollisionsEnabled:", phys:IsCollisionEnabled())
-		else
-			print("PhysicsObject IsValid: false")
-		end
-	end
-	printAllProperties("ORIGINAL", ent)
-	printAllProperties("CLONE", clone)
-	-- Placer le cube 30 unités devant le joueur qui tient le Portal Gun
-	local spawnPos = nil
-	local spawnAng = clone:GetAngles()
-	local owner = owner_portalgun
+	local spawnPos = nil;
+	local spawnAng = clone:GetAngles();
+	local owner = owner_portalgun;
 	if not IsValid(owner) and ent.GP2_HoldInfo and IsValid(ent.GP2_HoldInfo.portalgunOwner) then
-		owner = ent.GP2_HoldInfo.portalgunOwner
-	end
+		owner = ent.GP2_HoldInfo.portalgunOwner;
+	end;
 	if IsValid(owner) then
-		spawnPos = owner:GetPos() + owner:GetForward() * 30
+		spawnPos = owner:GetPos() + owner:GetForward() * 30;
 	else
-		spawnPos = clone:GetPos()
-	end
+		spawnPos = clone:GetPos();
+	end;
 	local savedProps = {
 		pos = spawnPos,
 		angles = spawnAng,
@@ -910,13 +972,11 @@ function ENT:PromoteCloneToReal(ent, clone)
 	newEnt:SetSkin(savedProps.skin);
 	newEnt:SetMaterial(savedProps.material);
 	newEnt:SetColor(savedProps.color);
-	newEnt:SetCollisionGroup(COLLISION_GROUP_NONE)
-	-- Utiliser le owner du Portal Gun si fourni
+	newEnt:SetCollisionGroup(COLLISION_GROUP_NONE);
 	if IsValid(owner_portalgun) then
 		newEnt:SetOwner(owner_portalgun);
 	elseif ent.GP2_HoldInfo and IsValid(ent.GP2_HoldInfo.portalgunOwner) then
 		newEnt:SetOwner(ent.GP2_HoldInfo.portalgunOwner);
-		print("[GP2] Owner transféré depuis GP2_HoldInfo: ", ent.GP2_HoldInfo.portalgunOwner:Nick());
 	else
 		local owner = ent:GetOwner();
 		if IsValid(owner) then
@@ -934,31 +994,22 @@ function ENT:PromoteCloneToReal(ent, clone)
 		newPhys:SetVelocity(savedProps.velocity);
 	end;
 	if ent.GP2_HoldInfo and IsValid(ent.GP2_HoldInfo.holdingPlayer) then
-		print("[GP2] Tentative de remise en hold après promotion pour ", ent.GP2_HoldInfo.holdingPlayer:Nick());
 		timer.Simple(0.001, function()
 			if IsValid(ent.GP2_HoldInfo.holdingPlayer) and IsValid(newEnt) then
 				if ent.GP2_HoldInfo.wepClass == "weapon_portalgun" then
-					print("[GP2] Remise en hold via PickupObject (portalgun)");
 					ent.GP2_HoldInfo.holdingPlayer:PickupObject(newEnt);
 				elseif ent.GP2_HoldInfo.wepClass == "weapon_physgun" then
-					print("[GP2] Remise en hold via GrabEnt (physgun)");
 					if ent.GP2_HoldInfo.grabEnt and ent.GP2_HoldInfo.grabEnt.GrabEnt then
 						ent.GP2_HoldInfo.grabEnt:GrabEnt(newEnt);
 					end;
 				else
-					print("[GP2] Remise en hold via PickupObject (fallback)");
 					ent.GP2_HoldInfo.holdingPlayer:PickupObject(newEnt);
 				end;
-				-- Retirer l'owner après la remise en hold pour réactiver les collisions
 				newEnt:SetOwner(NULL);
 			end;
 		end);
-	else
-		print("[GP2] Pas de holdeur à restaurer après promotion");
-		-- Retirer l'owner si pas de holdeur
-		if IsValid(newEnt) then
-			newEnt:SetOwner(NULL);
-		end;
+	elseif IsValid(newEnt) then
+		newEnt:SetOwner(NULL);
 	end;
 	ent:Remove();
 	if IsValid(clone) then
@@ -968,87 +1019,78 @@ end;
 local GP2_CloneCheckCache = {};
 local GP2_LastCloneCheck = 0;
 local GP2_CloneCheckInterval = 0.1;
-
 function ENT:Think()
 	if SERVER then
 		local linked = self:GetLinkedPartner();
 		OrangeOrBlue = linked.GetType and linked:GetType() or nil;
-			for _, ent in ipairs(ents.GetAll()) do
-				if ent.isClone and ent.daddyEnt and IsValid(ent.daddyEnt) then
-					local daddyEnt = ent.daddyEnt;
-					local dist = daddyEnt:GetPos():Distance(linked:GetPos());
-					local dist2 = daddyEnt:GetPos():Distance(self:GetPos());
-					if dist > 100 and dist2 > 100 then
-						local holdeur = nil;
-						for _, ply in ipairs(player.GetAll()) do
-							local wep = ply:GetActiveWeapon();
-							if IsValid(wep) then
-								local wepClass = wep:GetClass();
-								if wepClass == "weapon_portalgun" then
-									local entityInUse = wep.GetEntityInUse and wep:GetEntityInUse();
-									if IsValid(entityInUse) and entityInUse == daddyEnt then
-										holdeur = ply;
-										break;
-									end;
-								elseif wepClass == "weapon_physgun" or wepClass == "gmod_tool" then
-									if wep.GrabEnt and wep.GrabEnt == daddyEnt then
-										holdeur = ply;
-										break;
-									end;
+		for _, ent in ipairs(ents.GetAll()) do
+			if ent.isClone and ent.daddyEnt and IsValid(ent.daddyEnt) then
+				local daddyEnt = ent.daddyEnt;
+				local dist = (daddyEnt:GetPos()):Distance(linked:GetPos());
+				local dist2 = (daddyEnt:GetPos()):Distance(self:GetPos());
+				if dist > 40 and dist2 > 40 then
+					local holdeur = nil;
+					for _, ply in ipairs(player.GetAll()) do
+						local wep = ply:GetActiveWeapon();
+						if IsValid(wep) then
+							local wepClass = wep:GetClass();
+							if wepClass == "weapon_portalgun" then
+								local entityInUse = wep.GetEntityInUse and wep:GetEntityInUse();
+								if IsValid(entityInUse) and entityInUse == daddyEnt then
+									holdeur = ply;
+									break;
+								end;
+							elseif wepClass == "weapon_physgun" or wepClass == "gmod_tool" then
+								if wep.GrabEnt and wep.GrabEnt == daddyEnt then
+									holdeur = ply;
+									break;
 								end;
 							end;
-							if ply.holding and ply.holding == daddyEnt then
-								holdeur = ply;
-								break;
-							end;
 						end;
-						if holdeur then
-							print("[GP2][THINK] Holdeur détecté juste avant promotion:", holdeur:Nick(), daddyEnt:GetClass());
-						else
-							print("[GP2][THINK] Aucun holdeur détecté juste avant promotion pour:", daddyEnt:GetClass());
+						if ply.holding and ply.holding == daddyEnt then
+							holdeur = ply;
+							break;
 						end;
-						print("Promoting clone to real entity due to distance.");
-						-- Transfert du owner du Portal Gun
-						local owner_portalgun = nil
-						for _, ply in ipairs(player.GetAll()) do
-							local wep = ply:GetActiveWeapon()
-							if IsValid(wep) and wep:GetClass() == "weapon_portalgun" then
-								owner_portalgun = ply
-								break
-							end
-						end
-						self:PromoteCloneToReal(daddyEnt, ent, owner_portalgun);
-					elseif dist < 40 or dist2 < 40 then
-						daddyEnt:SetCollisionGroup(COLLISION_GROUP_PASSABLE_DOOR);
 					end;
-				end;
-				if ent.LastPortalIntangibleTime and not ent.InPortal then
-					local timeSinceLast = CurTime() - ent.LastPortalIntangibleTime;
-					if timeSinceLast > 5 and ent:GetCollisionGroup() ~= COLLISION_GROUP_PASSABLE_DOOR then
-						ent.OriginalCollisionGroup = nil;
-						ent.LastPortalIntangibleTime = nil;
+					local owner_portalgun = nil;
+					for _, ply in ipairs(player.GetAll()) do
+						local wep = ply:GetActiveWeapon();
+						if IsValid(wep) and wep:GetClass() == "weapon_portalgun" then
+							owner_portalgun = ply;
+							break;
+						end;
 					end;
+					self:PromoteCloneToReal(daddyEnt, ent, owner_portalgun);
+				elseif dist < 40 or dist2 < 40 then
+					daddyEnt:SetCollisionGroup(COLLISION_GROUP_PASSABLE_DOOR);
 				end;
 			end;
-			if IsValid(linked) then
-				local portalMins, portalMaxs = linked:OBBMins(), linked:OBBMaxs();
-				local props = ents.FindInBox(linked:LocalToWorld(portalMins), linked:LocalToWorld(portalMaxs));
-				for _, ent in ipairs(props) do
-					if IsValid(ent) and ent:GetClass() == "prop_physics" then
-						local phys = ent:GetPhysicsObject();
-						if IsValid(phys) and (phys:GetVelocity()):Length() < 5 then
-							if linked:CanPort(ent) and linked:IsLinked() and linked:GetActivated() then
-								if not ent.InPortal then
-									linked:StartTouch(ent);
-								end;
-								phys:EnableMotion(true);
-								phys:SetVelocity(linked:GetUp() * (-400));
+			if ent.LastPortalIntangibleTime and (not ent.InPortal) then
+				local timeSinceLast = CurTime() - ent.LastPortalIntangibleTime;
+				if timeSinceLast > 5 and ent:GetCollisionGroup() ~= COLLISION_GROUP_PASSABLE_DOOR then
+					ent.OriginalCollisionGroup = nil;
+					ent.LastPortalIntangibleTime = nil;
+				end;
+			end;
+		end;
+		if IsValid(linked) then
+			local portalMins, portalMaxs = linked:OBBMins(), linked:OBBMaxs();
+			local props = ents.FindInBox(linked:LocalToWorld(portalMins), linked:LocalToWorld(portalMaxs));
+			for _, ent in ipairs(props) do
+				if IsValid(ent) and ent:GetClass() == "prop_physics" then
+					local phys = ent:GetPhysicsObject();
+					if IsValid(phys) and (phys:GetVelocity()):Length() < 5 then
+						if linked:CanPort(ent) and linked:IsLinked() and linked:GetActivated() then
+							if not ent.InPortal then
+								linked:StartTouch(ent);
 							end;
+							phys:EnableMotion(true);
+							phys:SetVelocity(linked:GetUp() * (-40));
 						end;
 					end;
 				end;
 			end;
-
+		end;
 		local currentTime = CurTime();
 		if currentTime - GP2_LastCloneCheck >= GP2_CloneCheckInterval then
 			GP2_LastCloneCheck = currentTime;
@@ -1100,12 +1142,9 @@ function ENT:DoPort(ent)
 	if not IsValid(portal) then
 		return;
 	end;
-	-- Déterminer si l'objet peut être tenu (hold) après la traversée
-	-- Critères: masse < 5kg, n'est pas un objet spécial (noportal_pillar, prop_dynamic, etc.)
 	local phys = ent:GetPhysicsObject();
 	if IsValid(phys) then
 		local mass = phys:GetMass();
-		-- Objects légers peuvent être tenus après la traversée
 		if mass and mass < 50 then
 			ent.CanBeHeld = true;
 		else

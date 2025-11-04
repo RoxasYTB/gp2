@@ -1,11 +1,6 @@
 local gp2_portal_debug_points = true
 concommand.Add("gp2_portal_debug_points", function(ply, cmd, args)
-	gp2_portal_debug_points = not gp2_portal_debug_points
-	if gp2_portal_debug_points then
-		print("[GP2] Debug points visuels activés.")
-	else
-		print("[GP2] Debug points visuels désactivés.")
-	end
+	 gp2_portal_debug_points = not gp2_portal_debug_points
 end, nil, "Active/désactive le debug visuel des points de validation du portail.")
 
 local function debugDrawPoint(pos, valid)
@@ -407,7 +402,6 @@ local function setPortalPlacementOld(owner, portal)
 	})
 
 	local alongRay = ents.FindAlongRay(tr.StartPos, tr.HitPos, -rayHull, rayHull)
-	print("[PORTAL] Adjusting portal position for surface fit.")
 
 
 	for i = 1, #alongRay do
@@ -448,12 +442,10 @@ local function setPortalPlacementOld(owner, portal)
 			or bit.band(tr.SurfaceFlags, SURF_TRANS) ~= 0
 		)
 	then
-		print("[PORTAL] PLACEMENT FAIL: tr.Hit=" .. tostring(tr.Hit) .. " IsValid(tr.Entity)=" .. tostring(IsValid(tr.Entity)) .. " HitTexture=" .. tostring(tr.HitTexture) .. " NOPORTAL=" .. tostring(bit.band(tr.SurfaceFlags, SURF_NOPORTAL)) .. " TRANS=" .. tostring(bit.band(tr.SurfaceFlags, SURF_TRANS)))
 		return PORTAL_PLACEMENT_BAD_SURFACE, tr
 	end
 
 	if tr.HitSky then
-		print("[PORTAL] PLACEMENT FAIL: tr.HitSky = true")
 		return PORTAL_PLACEMENT_UNKNOWN_SURFACE, tr
 	end
 
@@ -502,7 +494,7 @@ local function setPortalPlacementOld(owner, portal)
 	})
 
 	if trBehind.Hit and trBehind.HitNormal and tr.HitNormal:Dot(trBehind.HitNormal) > -0.5 then
-		print("[PORTAL] PLACEMENT FAIL: Surface opposée détectée avec angle invalide. Dot=" .. tostring(tr.HitNormal:Dot(trBehind.HitNormal)))
+
 		return PORTAL_PLACEMENT_BAD_SURFACE, tr
 	end
 
@@ -602,13 +594,13 @@ local function setPortalPlacementOld(owner, portal)
 
 				semicircle1Valid = true
 				foundValidPosition = true
-				print("[GP2 Portal] Demi-cercle 1 : Position ajustée de " .. offset .. " unités sur Left/Right (tentative " .. attempt .. ")")
+
 				break
 			end
 		end
 
 		if not foundValidPosition then
-			print("[GP2 Portal] Demi-cercle 1 : Impossible de trouver une position valide après " .. maxAdjustments .. " tentatives - test demi-cercle 2")
+
 			semicircle1Valid = false
 		else
 			semicircle1Valid = true
@@ -646,13 +638,13 @@ local function setPortalPlacementOld(owner, portal)
 
 				semicircle2Valid = true
 				foundValidPosition = true
-				print("[GP2 Portal] Demi-cercle 2 : Position ajustée de " .. offset .. " unités sur Forward/Backward (tentative " .. attempt .. ")")
+
 				break
 			end
 		end
 
 		if not foundValidPosition then
-			print("[GP2 Portal] Demi-cercle 2 : Impossible de trouver une position valide après " .. maxAdjustments .. " tentatives")
+
 			semicircle2Valid = false
 		else
 			semicircle2Valid = true
@@ -662,7 +654,7 @@ local function setPortalPlacementOld(owner, portal)
 	portalValid = semicircle1Valid or semicircle2Valid
 
 	if not portalValid then
-		print("[GP2 Portal] Les deux demi-cercles ont échoué - placement par défaut")
+
 		pos:Set(tr.HitNormal)
 		pos:Mul(mul)
 		pos:Add(tr.HitPos + tr.HitNormal * 0.5)
@@ -796,14 +788,14 @@ function SWEP:Holster(arguments)
 			if !IsValid(self) then return end // Stop erroring on death!
 
 			if IsValid(vm1) and IsValid(owner:GetEntityInUse()) then
-				print("[GP2 Portal Gun] Holstering while using an entity, playing use animation.")
+
 				vm1:SendViewModelMatchingSequence(self:SelectWeightedSequence(ACT_VM_PICKUP))
 				self.GotEntityInUse = true
 				self:EmitSound("PortalPlayer.ObjectUse", 0)
 				self:SetEntityInUse(owner:GetEntityInUse())
-				print("[GP2 Portal Gun] Set EntityInUse to " .. tostring(owner:GetEntityInUse()))
-				print("Owner is valid: " .. tostring(IsValid(owner)))
-				print("Owner nickname: " .. tostring(owner:Nick()))
+
+
+
 			else
 				vm1:SetWeaponModel(self:GetWeaponViewModel(), NULL)
 				if self:GetIsPotatoGun() then
@@ -897,7 +889,6 @@ function SWEP:PlacePortal(type, owner)
 
     local portal = ents.Create("prop_portal")
     if not IsValid(portal) then return end
-    print("[PORTAL] Creating portal entity.")
     portal:SetPlacedByMap(false)
     portal:SetPortalColor(r, g, b)
     portal:SetType(type or 0)
@@ -951,7 +942,6 @@ function SWEP:PlacePortal(type, owner)
     end
     portal:SetAngles(ang)
     portal:SetPlacedByMap(false)
-    print("[PORTAL] Portal placed at position: " .. tostring(portal:GetPos()))
     if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
         portal:BuildPortalEnvironment()
     end
