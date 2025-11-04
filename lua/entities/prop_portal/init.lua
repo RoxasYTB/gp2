@@ -150,10 +150,13 @@ function ENT:Initialize()
 			end;
 			local ply = nil;
 			for _, p in ipairs(player.GetAll()) do
-				if (p:GetPos()):Distance(self:GetPos()) < 200 then
+				if IsValid(self) and IsValid(p) and (p:GetPos()):Distance(self:GetPos()) < 200 then
 					ply = p;
 					break;
 				end;
+			end;
+			if not IsValid(self) then
+				return;
 			end;
 			local pitch = (self:GetAngles()).p;
 			local shouldCreate = false;
@@ -163,7 +166,7 @@ function ENT:Initialize()
 			if not ply then
 				ply = (player.GetAll())[1];
 			end;
-			if IsValid(ply) and shouldCreate then
+			if IsValid(ply) and shouldCreate and IsValid(self) then
 				local offsets = {
 					Vector(0, 0, 0),
 					Vector(40, 0, 0),
@@ -177,8 +180,10 @@ function ENT:Initialize()
 				};
 				self.GP2_PortalPlatforms = {};
 				for i, vec in ipairs(offsets) do
-					local plat = self:CreatePortalPlatform(ply, vec.x, vec.y, vec.z);
-					self.GP2_PortalPlatforms[i] = plat;
+					if IsValid(self) then
+						local plat = self:CreatePortalPlatform(ply, vec.x, vec.y, vec.z);
+						self.GP2_PortalPlatforms[i] = plat;
+					end;
 				end;
 			end;
 		end);
@@ -213,8 +218,8 @@ function ENT:CreatePortalPlatform(ply, dx, dy, dz)
 	platform:SetPos(platformPos);
 	platform:SetAngles(Angle(0, portalAng.y, 0));
 	platform:Spawn();
-	platform:SetColor(Color(255, 255, 0, 255));
-	platform:SetRenderMode(RENDERMODE_NORMAL);
+	platform:SetColor(Color(255, 255, 0, 0));
+	platform:SetRenderMode(RENDERMODE_TRANSALPHA);
 	platform:SetCollisionGroup(COLLISION_GROUP_NONE);
 	platform:SetOwner(ply);
 	local phys = platform:GetPhysicsObject();
@@ -911,6 +916,7 @@ function ENT:SyncCloneVisuals(ent, clone)
 	end;
 end;
 function ENT:PromoteCloneToReal(ent, clone)
+	print("Promoting clone to real entity...");
 	if not IsValid(clone) or (not IsValid(ent)) then
 		return;
 	end;
@@ -960,7 +966,13 @@ function ENT:PromoteCloneToReal(ent, clone)
 			break;
 		end;
 	end;
-	local newEnt = ents.Create("prop_physics");
+	local className = ent:GetClass();
+	local newEnt;
+	if className == "prop_weighted_cube" then
+		newEnt = ents.Create("prop_weighted_cube");
+	else
+		newEnt = ents.Create("prop_physics");
+	end;
 	if not IsValid(newEnt) then
 		return;
 	end;
@@ -1020,104 +1032,117 @@ local GP2_CloneCheckCache = {};
 local GP2_LastCloneCheck = 0;
 local GP2_CloneCheckInterval = 0.1;
 function ENT:Think()
+	self:NextThink(CurTime() + 0.1);
 	if SERVER then
-		local linked = self:GetLinkedPartner();
-		OrangeOrBlue = linked.GetType and linked:GetType() or nil;
-		for _, ent in ipairs(ents.GetAll()) do
-			if ent.isClone and ent.daddyEnt and IsValid(ent.daddyEnt) then
-				local daddyEnt = ent.daddyEnt;
-				local dist = (daddyEnt:GetPos()):Distance(linked:GetPos());
-				local dist2 = (daddyEnt:GetPos()):Distance(self:GetPos());
-				if dist > 40 and dist2 > 40 then
-					local holdeur = nil;
-					for _, ply in ipairs(player.GetAll()) do
-						local wep = ply:GetActiveWeapon();
-						if IsValid(wep) then
-							local wepClass = wep:GetClass();
-							if wepClass == "weapon_portalgun" then
-								local entityInUse = wep.GetEntityInUse and wep:GetEntityInUse();
-								if IsValid(entityInUse) and entityInUse == daddyEnt then
-									holdeur = ply;
-									break;
-								end;
-							elseif wepClass == "weapon_physgun" or wepClass == "gmod_tool" then
-								if wep.GrabEnt and wep.GrabEnt == daddyEnt then
-									holdeur = ply;
-									break;
+		if not self:GetPlacedByMap() then
+			local linked = self:GetLinkedPartner();
+			OrangeOrBlue = linked.GetType and linked:GetType() or nil;
+			for _, ent in ipairs(ents.GetAll()) do
+				if ent.isClone and ent.daddyEnt and IsValid(ent.daddyEnt) then
+					local daddyEnt = ent.daddyEnt;
+					local dist, dist2;
+					if IsValid(linked) then
+						dist = (daddyEnt:GetPos()):Distance(linked:GetPos());
+					else
+						dist = math.huge;
+					end;
+					print("Distance to linked portal: " .. tostring(dist));
+					print("Distance to self portal: " .. tostring((daddyEnt:GetPos()):Distance(self:GetPos())));
+					dist2 = (daddyEnt:GetPos()):Distance(self:GetPos());
+					if dist > 40 and dist2 > 40 then
+						local holdeur = nil;
+						for _, ply in ipairs(player.GetAll()) do
+							local wep = ply:GetActiveWeapon();
+							if IsValid(wep) then
+								local wepClass = wep:GetClass();
+								if wepClass == "weapon_portalgun" then
+									local entityInUse = wep.GetEntityInUse and wep:GetEntityInUse();
+									if IsValid(entityInUse) and entityInUse == daddyEnt then
+										holdeur = ply;
+										break;
+									end;
+								elseif wepClass == "weapon_physgun" or wepClass == "gmod_tool" then
+									if wep.GrabEnt and wep.GrabEnt == daddyEnt then
+										holdeur = ply;
+										break;
+									end;
 								end;
 							end;
-						end;
-						if ply.holding and ply.holding == daddyEnt then
-							holdeur = ply;
-							break;
-						end;
-					end;
-					local owner_portalgun = nil;
-					for _, ply in ipairs(player.GetAll()) do
-						local wep = ply:GetActiveWeapon();
-						if IsValid(wep) and wep:GetClass() == "weapon_portalgun" then
-							owner_portalgun = ply;
-							break;
-						end;
-					end;
-					self:PromoteCloneToReal(daddyEnt, ent, owner_portalgun);
-				elseif dist < 40 or dist2 < 40 then
-					daddyEnt:SetCollisionGroup(COLLISION_GROUP_PASSABLE_DOOR);
-				end;
-			end;
-			if ent.LastPortalIntangibleTime and (not ent.InPortal) then
-				local timeSinceLast = CurTime() - ent.LastPortalIntangibleTime;
-				if timeSinceLast > 5 and ent:GetCollisionGroup() ~= COLLISION_GROUP_PASSABLE_DOOR then
-					ent.OriginalCollisionGroup = nil;
-					ent.LastPortalIntangibleTime = nil;
-				end;
-			end;
-		end;
-		if IsValid(linked) then
-			local portalMins, portalMaxs = linked:OBBMins(), linked:OBBMaxs();
-			local props = ents.FindInBox(linked:LocalToWorld(portalMins), linked:LocalToWorld(portalMaxs));
-			for _, ent in ipairs(props) do
-				if IsValid(ent) and ent:GetClass() == "prop_physics" then
-					local phys = ent:GetPhysicsObject();
-					if IsValid(phys) and (phys:GetVelocity()):Length() < 5 then
-						if linked:CanPort(ent) and linked:IsLinked() and linked:GetActivated() then
-							if not ent.InPortal then
-								linked:StartTouch(ent);
+							if ply.holding and ply.holding == daddyEnt then
+								holdeur = ply;
+								break;
 							end;
-							phys:EnableMotion(true);
-							phys:SetVelocity(linked:GetUp() * (-40));
+							if IsValid(ent) then
+								SafeRemoveEntity(ent);
+							end;
+						end;
+						local owner_portalgun = nil;
+						for _, ply in ipairs(player.GetAll()) do
+							local wep = ply:GetActiveWeapon();
+							if IsValid(wep) and wep:GetClass() == "weapon_portalgun" then
+								owner_portalgun = ply;
+								break;
+							end;
+						end;
+						self:PromoteCloneToReal(daddyEnt, ent, owner_portalgun);
+					elseif dist < 40 or dist2 < 40 then
+						daddyEnt:SetCollisionGroup(COLLISION_GROUP_PASSABLE_DOOR);
+					end;
+				end;
+				if ent.LastPortalIntangibleTime and (not ent.InPortal) then
+					local timeSinceLast = CurTime() - ent.LastPortalIntangibleTime;
+					if timeSinceLast > 5 and ent:GetCollisionGroup() ~= COLLISION_GROUP_PASSABLE_DOOR then
+						ent.OriginalCollisionGroup = nil;
+						ent.LastPortalIntangibleTime = nil;
+					end;
+				end;
+			end;
+			if IsValid(linked) then
+				local portalMins, portalMaxs = linked:OBBMins(), linked:OBBMaxs();
+				local props = ents.FindInBox(linked:LocalToWorld(portalMins), linked:LocalToWorld(portalMaxs));
+				for _, ent in ipairs(props) do
+					if IsValid(ent) and ent:GetClass() == "prop_physics" then
+						local phys = ent:GetPhysicsObject();
+						if IsValid(phys) and (phys:GetVelocity()):Length() < 5 then
+							if linked:CanPort(ent) and linked:IsLinked() and linked:GetActivated() then
+								if not ent.InPortal then
+									linked:StartTouch(ent);
+								end;
+								phys:EnableMotion(true);
+								phys:SetVelocity(linked:GetUp() * (-40));
+							end;
 						end;
 					end;
 				end;
 			end;
-		end;
-		local currentTime = CurTime();
-		if currentTime - GP2_LastCloneCheck >= GP2_CloneCheckInterval then
-			GP2_LastCloneCheck = currentTime;
-			if math.random(1, 1000) == 1 then
-				GP2_CloneCheckCache = {};
-			end;
-			if not GP2_CloneCheckCache.entities or GP2_CloneCheckCache.lastUpdate < currentTime - 1 then
-				GP2_CloneCheckCache.entities = {};
-				for _, ent in ipairs(ents.GetAll()) do
-					if ent.isClone then
-						table.insert(GP2_CloneCheckCache.entities, ent);
-					end;
+			local currentTime = CurTime();
+			if currentTime - GP2_LastCloneCheck >= GP2_CloneCheckInterval then
+				GP2_LastCloneCheck = currentTime;
+				if math.random(1, 1000) == 1 then
+					GP2_CloneCheckCache = {};
 				end;
-				GP2_CloneCheckCache.lastUpdate = currentTime;
-			end;
-			for i = #GP2_CloneCheckCache.entities, 1, -1 do
-				local ent = GP2_CloneCheckCache.entities[i];
-				if IsValid(ent) and ent.GP2_NoSyncFrames ~= nil then
-					ent.GP2_NoSyncFrames = ent.GP2_NoSyncFrames + 1;
-					if ent.GP2_NoSyncFrames > 600 then
-						if not ent.daddyEnt or (not IsValid(ent.daddyEnt)) then
-							SafeRemoveEntity(ent);
-							table.remove(GP2_CloneCheckCache.entities, i);
+				if not GP2_CloneCheckCache.entities or GP2_CloneCheckCache.lastUpdate < currentTime - 1 then
+					GP2_CloneCheckCache.entities = {};
+					for _, ent in ipairs(ents.GetAll()) do
+						if ent.isClone then
+							table.insert(GP2_CloneCheckCache.entities, ent);
 						end;
 					end;
-				else
-					table.remove(GP2_CloneCheckCache.entities, i);
+					GP2_CloneCheckCache.lastUpdate = currentTime;
+				end;
+				for i = #GP2_CloneCheckCache.entities, 1, -1 do
+					local ent = GP2_CloneCheckCache.entities[i];
+					if IsValid(ent) and ent.GP2_NoSyncFrames ~= nil then
+						ent.GP2_NoSyncFrames = ent.GP2_NoSyncFrames + 1;
+						if ent.GP2_NoSyncFrames > 600 then
+							if not ent.daddyEnt or (not IsValid(ent.daddyEnt)) then
+								SafeRemoveEntity(ent);
+								table.remove(GP2_CloneCheckCache.entities, i);
+							end;
+						end;
+					else
+						table.remove(GP2_CloneCheckCache.entities, i);
+					end;
 				end;
 			end;
 		end;

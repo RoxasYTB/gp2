@@ -852,8 +852,7 @@ function SWEP:SecondaryAttack()
 	self:SetNextSecondaryFire(CurTime() + 0.5)
 end
 
-function SWEP:Reload()
-end
+
 
 function SWEP:ClearSpawn()
 end

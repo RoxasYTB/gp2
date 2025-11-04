@@ -60,8 +60,9 @@ function PortalManager.SetPortal(linkageGroup, entity)
 
 
 	if not IsValid(owner) then
-
+		print("Portal has no valid owner!")
 		entity:SetPos(entity:GetPos() + entity:GetUp() * 4)
+		print(entity:GetPos())
 	end
 
 	-- If some portal already occupied place in group
