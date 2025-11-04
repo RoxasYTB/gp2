@@ -93,3 +93,19 @@ if SERVER then
 	end;
 	timer.Create("GP2_FixPortalPosition", 0.2, 0, FixPortalPosition);
 end;
+if SERVER then
+	if game.GetMap() == "sp_a2_intro" then
+		timer.Create("GP2_UpgradePortalgunForAllPlayers", 0.5, 0, function()
+			for _, ply in ipairs(player.GetAll()) do
+				ply:ConCommand("gp2_portalgun_upgraded 1");
+			end;
+		end);
+	end;
+	if game.GetMap() == "sp_a1_intro3" then
+		timer.Create("GP2_UpgradePortalgunForAllPlayers", 0.5, 0, function()
+			for _, ply in ipairs(player.GetAll()) do
+				ply:ConCommand("gp2_portalgun_upgraded 0");
+			end;
+		end);
+	end;
+end;

@@ -304,7 +304,7 @@ if CLIENT then
 			["sp_a1_wakeup"] = true
 		}
 		local map = game.GetMap()
-		if not string.StartWith(map, "sp_") then return end
+		if not string.StartWith(map, "sp_") or map == "sp_a2_intro" then return end
 		if no_portal_gun[map] then
 			RunConsoleCommand("remove_portalgun")
 		elseif single_portal_gun[map] then
