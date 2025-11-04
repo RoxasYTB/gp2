@@ -195,7 +195,7 @@ function ENT:StartParticles()
 			self.Particle = CreateParticleSystem(self, particleName, PATTACH_ABSORIGIN_FOLLOW);
 		end;
 	else
-		local particleName = self:GetParticleNameOrFallback("laser_start_glow", "explosion_turret_break");
+		local particleName = null;
 		if particleName then
 			self.Particle = CreateParticleSystem(self, particleName, PATTACH_POINT_FOLLOW, self:LookupAttachment("laser_attachment"));
 		end;

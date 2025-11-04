@@ -104,7 +104,7 @@ function ENT:RecursionLaserThroughPortals(data, recursionDepth, visitedPortals, 
 	recursionDepth = recursionDepth or 0;
 	visitedPortals = visitedPortals or {};
 	laserSegments = laserSegments or {};
-	if recursionDepth >= 10 then
+	if recursionDepth >= 3 then
 		return {
 			HitPos = data.endpos,
 			Entity = NULL,
@@ -423,8 +423,10 @@ function ENT:TransformPortal(entryPortal, exitPortal, hitPos, hitAng)
 	local entryDir = GetPortalCardinalDirection(entryPortal);
 	local exitDir = GetPortalCardinalDirection(exitPortal);
 	local transitionOffsets = GetPortalTransitionOffsets(entryDir, exitDir);
-	print("entryPortal direction: ", entryDir, "exitPortal direction: ", exitDir);
-	print("Transition offsetss - pos:", transitionOffsets.pos, "ang:", transitionOffsets.ang);
+	if portal_laser_perf_debug:GetBool() then
+		print("entryPortal direction: ", entryDir, "exitPortal direction: ", exitDir);
+		print("Transition offsetss - pos:", transitionOffsets.pos, "ang:", transitionOffsets.ang);
+	end;
 	local hitOffset = hitPos - entryPortal:GetPos();
 	local localOffset = Vector(hitOffset:Dot(entryPortal:GetRight()), hitOffset:Dot(entryPortal:GetUp()), hitOffset:Dot(entryPortal:GetForward()));
 	localOffset.x = -localOffset.x;
@@ -504,7 +506,9 @@ function ENT:FireLaser()
 		end;
 		net.Broadcast();
 	end;
-	if IsValid(self:GetParentLaser()) or IsValid(self:GetParent()) then
+	local parentLaser = self:GetParentLaser();
+	local parent = self:GetParent();
+	if IsValid(parentLaser) or IsValid(parent) then
 		timer.Simple(0.05, SendSegments);
 	else
 		SendSegments();
@@ -517,13 +521,12 @@ function ENT:FireLaser()
 	self:SetHitPos(tr.HitPos);
 	self:SetHitNormal(tr.HitNormal);
 	if IsValid(hitEntity) then
-		if PROP_WEIGHTED_CUBE_CLASS[hitEntity:GetClass()] and PROP_WEIGHTED_CUBE_TYPE[hitEntity:GetCubeType()] then
+		local hitClass = hitEntity:GetClass();
+		if PROP_WEIGHTED_CUBE_CLASS[hitClass] and PROP_WEIGHTED_CUBE_TYPE[hitEntity:GetCubeType()] then
 			self:ReflectLaserForEntity(hitEntity);
 			local childLaser = hitEntity:GetChildLaser();
-			if IsValid(childLaser) and childLaser.CanReflect then
-				childLaser:FireLaser();
-			end;
-		elseif TURRET_CLASS[hitEntity:GetClass()] and (not hitEntity:IsOnFire()) then
+		end;
+		if TURRET_CLASS[hitClass] and (not hitEntity:IsOnFire()) then
 			hitEntity:Ignite(5);
 		end;
 		self:SetShouldSpark(false);
@@ -594,30 +597,33 @@ local function PushPlayerAwayFromLine(player, player, endPos, baseForce)
 end;
 function ENT:DamageEntsAlongTheRay(startPos, endPos)
 	local rayInfo = ents_FindAlongRay(startPos, endPos, RAY_EXTENTS_NEG, RAY_EXTENTS);
+	local sv_collide = sv_player_collide_with_laser:GetBool();
 	for i = 1, #rayInfo do
 		local target = rayInfo[i];
-		if target:IsPlayer() and (not sv_player_collide_with_laser:GetBool()) then
-			continue;
-		end;
 		if not IsValid(target) then
 			continue;
 		end;
-		if not (target:IsPlayer() or target:IsNPC() or target:IsNextBot() or DAMAGABLE_ENTS[target:GetClass()]) then
+		local isPlayer = target:IsPlayer();
+		if isPlayer and (not sv_collide) then
 			continue;
 		end;
-		if DAMAGABLE_ENTS[target:GetClass()] then
+		local targetClass = target:GetClass();
+		if not (isPlayer or target:IsNPC() or target:IsNextBot() or DAMAGABLE_ENTS[targetClass]) then
+			continue;
+		end;
+		if DAMAGABLE_ENTS[targetClass] then
 			self:SetShouldSpark(false);
 		end;
-		if NOT_DAMAGABLE_ENTS[target:GetClass()] then
+		if NOT_DAMAGABLE_ENTS[targetClass] then
 			continue;
 		end;
-		if target:IsPlayer() and (not target:Alive()) then
+		if isPlayer and (not target:Alive()) then
 			continue;
 		end;
-		if target:IsPlayer() and target:GetMoveType() == MOVETYPE_NOCLIP then
+		if isPlayer and target:GetMoveType() == MOVETYPE_NOCLIP then
 			continue;
 		end;
-		if target:IsPlayer() and (not target:IsOnGround()) then
+		if isPlayer and (not target:IsOnGround()) then
 			continue;
 		end;
 		if target.PORTAL_TELEPORTING then
@@ -625,7 +631,7 @@ function ENT:DamageEntsAlongTheRay(startPos, endPos)
 		end;
 		local damageInfo = DamageInfo();
 		damageInfo:SetAttacker(self);
-		if LASER_TARGET_CLASS[target:GetClass()] then
+		if LASER_TARGET_CLASS[targetClass] then
 			damageInfo:SetDamage(1);
 		else
 			damageInfo:SetDamage(8);
@@ -662,7 +668,7 @@ end;
 function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recursionDepth, visitedPortals)
 	recursionDepth = recursionDepth or 0;
 	visitedPortals = visitedPortals or {};
-	if recursionDepth >= 10 then
+	if recursionDepth >= 3 then
 		return {}, nil;
 	end;
 	local exitSegments = {};
@@ -716,19 +722,24 @@ function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recu
 			local transitionOffsets = GetPortalTransitionOffsets(entryDir, exitDir);
 			local exitPortalPitch = (exitPortal:GetAngles()).p;
 			newPos = newPos + transitionOffsets.pos.x * exitPortal:GetRight() + transitionOffsets.pos.y * exitPortal:GetUp() + transitionOffsets.pos.z * exitPortal:GetForward();
+			newPos = newPos + exitPortal:GetUp() * (-25);
 			newAng = newAng + transitionOffsets.ang;
 			newPos = newPos + exitPortal:GetRight() * (-offsetXLocal);
-			entryDir = GetPortalCardinalDirection(entryPortal);
-			exitDir = GetPortalCardinalDirection(exitPortal);
-			print("Entry Direction: " .. entryDir .. ", Exit Direction: " .. exitDir);
+			if portal_laser_perf_debug:GetBool() then
+				print("Entry Direction: " .. entryDir .. ", Exit Direction: " .. exitDir);
+			end;
 			if exitDir == "ceiling" or exitDir == "floor" then
 				newPos = newPos + exitPortal:GetForward() * (-offsetZ);
 			end;
 			if math.abs(exitPortalPitch - 90) < 10 then
-				print("Applying ceiling portal offset Z");
+				if portal_laser_perf_debug:GetBool() then
+					print("Applying ceiling portal offset Z");
+				end;
 				newPos = newPos - exitPortal:GetForward() * offsetZ;
 			elseif math.abs(exitPortalPitch - 270) < 10 or math.abs(exitPortalPitch - 270) < 10 then
-				print("Applying floor portal offset Z");
+				if portal_laser_perf_debug:GetBool() then
+					print("Applying floor portal offset Z");
+				end;
 				newPos = newPos - exitPortal:GetUp() * offsetZ;
 			else
 				newPos.z = newPos.z - offsetZ;
@@ -786,3 +797,6 @@ function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recu
 	end;
 	return exitSegments, entryHitPosWithOffset;
 end;
+local lasers = ents.FindByClass("env_portal_laser");
+local count = #lasers;
+print("Nombre de lasers sur la map :", count);

@@ -1377,3 +1377,7 @@ concommand.Add("getorangeinfo", function(ply)
 		end;
 	end;
 end);
+concommand.Add("getmapname", function(ply)
+	local mapName = game.GetMap();
+	ply:ChatPrint("Map Name: " .. tostring(mapName));
+end);
