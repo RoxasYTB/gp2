@@ -13,7 +13,7 @@ if SERVER then
 	timer.Simple(0, function()
 		gp2_debug_buttons = GetConVar("gp2_debug_buttons");
 	end);
-	gp2_floor_button_retrigger = CreateConVar("gp2_floor_button_retrigger", "1", FCVAR_ARCHIVE, "Enable forced retrigger for floor buttons when no entity is present");
+	gp2_floor_button_retrigger = CreateConVar("gp2_floor_button_retrigger", "0", FCVAR_ARCHIVE, "Enable forced retrigger for floor buttons when no entity is present");
 	gp2_floor_button_retrigger_delay = CreateConVar("gp2_floor_button_retrigger_delay", "0.1", FCVAR_ARCHIVE, "Delay before forced retrigger (seconds)");
 end;
 local function DebugPrint(msg)
