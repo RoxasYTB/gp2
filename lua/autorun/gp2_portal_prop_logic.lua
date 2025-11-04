@@ -2,7 +2,7 @@ function GP2_ApplyPortalBelowImpulse(ent, phys)
 	if not IsValid(phys) or (not phys:IsMotionEnabled()) then
 		return;
 	end;
-	local portals = ents.FindInSphere(ent:GetPos(), 80);
+	local portals = ents.FindInSphere(ent:GetPos(), 150);
 	local portalBelow = false;
 	for _, portal in ipairs(portals) do
 		if portal ~= ent and portal:GetClass() == "prop_portal" then
