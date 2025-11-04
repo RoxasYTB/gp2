@@ -125,3 +125,17 @@ hook.Add("AcceptInput", "OpenFirstDoorOnTriggerMultiple", function(ent, input)
 		OpenFirstDoor();
 	end;
 end);
+
+
+concommand.Add("toggle_func_brush_collision", function(ply)
+	if not ply:IsAdmin() then return end
+	local brush = ents.GetByIndex(502)
+	if not IsValid(brush) then return end
+	local current = brush:GetSolid()
+	print("Current solid type: " .. tostring(current))
+	if current == SOLID_NONE then
+		brush:SetSolid(SOLID_BSP)
+	else
+		brush:SetSolid(SOLID_NONE)
+	end
+end)

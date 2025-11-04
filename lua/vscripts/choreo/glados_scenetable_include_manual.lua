@@ -621,6 +621,7 @@ function sp_a1_intro7_BamSecretPanel()
 	sp_a1_intro7_turnedaway = true
 	WheatleyStopNag()
 	GladosPlayVcd(479)
+	game.ConsoleCommand("toggle_func_brush_collision\n")
 end
 
 function sp_a1_intro7_GloriousFreedom()
