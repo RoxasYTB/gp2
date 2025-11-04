@@ -135,6 +135,10 @@ function ENT:Initialize()
 			self:BuildPortalEnvironment();
 		end;
 	end;
+	-- Créer le sol invisible pour empêcher les cubes de traverser
+	if SERVER and self:GetPlacedByMap() then
+		self:BuildPortalFloor();
+	end;
 	PortalManager.SetPortal(self:GetLinkageGroup(), self);
 	PortalManager.Portals[self] = true;
 	self.PropTeleportEnabled = true;
@@ -143,18 +147,41 @@ function ENT:Initialize()
 end;
 function ENT:Think()
 	if SERVER then
-		local portalMins, portalMaxs = self:OBBMins(), self:OBBMaxs();
-		local props = ents.FindInBox(self:LocalToWorld(portalMins), self:LocalToWorld(portalMaxs));
-		for _, ent in ipairs(props) do
-			if IsValid(ent) and ent:GetClass() == "prop_physics" then
-				local phys = ent:GetPhysicsObject();
-				if IsValid(phys) and (phys:GetVelocity()):Length() < 5 then
-					if self:CanPort(ent) and self:IsLinked() and self:GetActivated() then
-						if not ent.InPortal then
-							self:StartTouch(ent);
+		local linked = self:GetLinkedPartner();
+		OrangeOrBlue = linked.GetType and linked:GetType() or nil;
+		if IsValid(linked) then
+			for _, ent in ipairs(ents.GetAll()) do
+				if ent.isClone and ent.daddyEnt and IsValid(ent.daddyEnt) then
+					local daddyEnt = ent.daddyEnt;
+					local dist = daddyEnt:GetPos():Distance(linked:GetPos());
+					local dist2 = daddyEnt:GetPos():Distance(self:GetPos());
+					print("Distance entre le clone et le portail lié:", dist);
+					print("Distance entre le clone et le portail local:", dist2);
+					if dist > 150 and dist2 > 150 then
+						linked:CleanupEntity(daddyEnt);
+						if daddyEnt.OriginalCollisionGroup then
+							daddyEnt:SetCollisionGroup(daddyEnt.OriginalCollisionGroup);
+							daddyEnt.OriginalCollisionGroup = nil;
 						end;
-						phys:EnableMotion(true);
-						phys:SetVelocity(self:GetUp() * (-400));
+						daddyEnt.clone = nil;
+					elseif dist < 150 or dist2 < 150 then
+						print("Le clone est proche, pas de nettoyage.");
+					end;
+				end;
+			end;
+			local portalMins, portalMaxs = linked:OBBMins(), linked:OBBMaxs();
+			local props = ents.FindInBox(linked:LocalToWorld(portalMins), linked:LocalToWorld(portalMaxs));
+			for _, ent in ipairs(props) do
+				if IsValid(ent) and ent:GetClass() == "prop_physics" then
+					local phys = ent:GetPhysicsObject();
+					if IsValid(phys) and (phys:GetVelocity()):Length() < 5 then
+						if linked:CanPort(ent) and linked:IsLinked() and linked:GetActivated() then
+							if not ent.InPortal then
+								linked:StartTouch(ent);
+							end;
+							phys:EnableMotion(true);
+							phys:SetVelocity(linked:GetUp() * (-400));
+						end;
 					end;
 				end;
 			end;
@@ -171,10 +198,43 @@ if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
 		self.__portalenvironmentphymesh:Spawn();
 	end;
 end;
+function ENT:BuildPortalFloor()
+	-- Créer une plaque invisible sous le portail pour empêcher les cubes de traverser
+	if self:GetPlacedByMap() then
+		local floorEnt = ents.Create("prop_physics");
+		if IsValid(floorEnt) then
+			local size = self:GetSize();
+			-- Placer la plaque légèrement sous le portail
+			local floorPos = self:GetPos() - self:GetUp() * (size.z + 5);
+			floorEnt:SetPos(floorPos);
+			floorEnt:SetAngles(self:GetAngles());
+			-- Utiliser un modèle de plaque mince
+			floorEnt:SetModel("models/hunter/plates/plate1x1.mdl");
+			floorEnt:PhysicsInit(SOLID_VPHYSICS);
+			floorEnt:SetMoveType(MOVETYPE_NONE);
+			floorEnt:SetCollisionGroup(COLLISION_GROUP_WORLD);
+			-- Rendre invisible
+			floorEnt:SetNoDraw(true);
+			floorEnt:DrawShadow(false);
+			-- Échelle pour correspondre au portail
+			floorEnt:SetModelScale((size.x * 2) / 16);
+			floorEnt:Spawn();
+			-- Marquer comme entité de portail
+			floorEnt.IsPortalFloor = true;
+			floorEnt.ParentPortal = self;
+			self.PortalFloor = floorEnt;
+		end;
+	end;
+end;
 function ENT:OnRemove()
 	PortalManager.PortalIndex = math.max(PortalManager.PortalIndex - 1, 0);
 	self:CleanupAllClones();
 	self:BootAllPlayers();
+	-- Nettoyer le sol du portail
+	if self.PortalFloor and IsValid(self.PortalFloor) then
+		self.PortalFloor:Remove();
+		self.PortalFloor = nil;
+	end;
 	if self.SpawnedCubes then
 		local cubesToRemove = {};
 		for _, cube in ipairs(self.SpawnedCubes) do
@@ -306,10 +366,13 @@ function ENT:StartTouch(ent)
 		local phys = ent:GetPhysicsObject();
 		if IsValid(phys) then
 			constraint.AdvBallsocket(ent, game.GetWorld(), 0, 0, Vector(0, 0, 0), Vector(0, 0, 0), 0, 0, -180, -180, -180, 180, 180, 180, 0, 0, 1, 1, 1);
-			if ent:GetCollisionGroup() ~= COLLISION_GROUP_PASSABLE_DOOR then
+			-- Sauvegarder le groupe de collision d'origine si pas déjà fait
+			if not ent.OriginalCollisionGroup then
 				ent.OriginalCollisionGroup = ent:GetCollisionGroup();
-				ent:SetCollisionGroup(COLLISION_GROUP_PASSABLE_DOOR);
 			end;
+			-- Mettre en PASSABLE_DOOR et marquer que l'entité touche ce portail
+			ent:SetCollisionGroup(COLLISION_GROUP_PASSABLE_DOOR);
+			ent.InPortal = self;
 			self:MakeClone(ent);
 			if ent.clone and IsValid(ent.clone) then
 				ent.clone.TouchingPortalsCount = (ent.clone.TouchingPortalsCount or 0) + 1;
@@ -348,7 +411,6 @@ function ENT:Touch(ent)
 				return normal:Dot(Vec1) < 0;
 			end;
 			if not IsBehind(eyepos, self:GetPos(), self:GetForward()) then
-				self:DoPort(ent);
 				ent.AlreadyPorted = true;
 			end;
 		end;
@@ -429,6 +491,9 @@ function ENT:EndTouch(ent)
 	if not self:CanPort(ent) then
 		return;
 	end;
+	-- Marquer que l'entité ne touche plus ce portail
+	local wasTouching = ent.InPortal == self;
+	ent.InPortal = nil;
 	local clone = ent.clone;
 	if not clone or (not IsValid(clone)) then
 		self:CleanupEntity(ent);
@@ -446,12 +511,20 @@ function ENT:EndTouch(ent)
 	end;
 	local placementIn = self.PlacementType or self:GetPlacementType();
 	local placementOut = portalOut.PlacementType or portalOut:GetPlacementType();
-	local success = self:TeleportEntityOptimized(ent, clone, phys, placementIn, placementOut, portalOut);
+	local success = false;
+	if wasTouching then
+		success = self:TeleportEntityOptimized(ent, clone, phys, placementIn, placementOut, portalOut);
+	end;
 	if ent.clone and IsValid(ent.clone) then
 		SafeRemoveEntity(ent.clone);
 		ent.clone = nil;
 	end;
 	if success then
+		print("Prop téléporté avec succès via le portail.");
+		self:CleanupEntity(ent);
+	else
+		-- Si la téléportation n'a pas réussi, on restaure la collision
+		print("Échec de la téléportation du prop via le portail.");
 		self:CleanupEntity(ent);
 	end;
 end;
@@ -469,6 +542,8 @@ function ENT:TeleportEntityOptimized(ent, clone, phys, placementIn, placementOut
 	ent:SetAngles(clone:GetAngles());
 	phys:SetVelocity(outVel);
 	ent.GP2_PortalImmunity = CurTime() + 0.5;
+	-- Préserver le holding si l'objet est un player holding quelque chose
+	-- (Les players peuvent continuer à tenir les objets après la traversée)
 	return true;
 end;
 function ENT:TransformVelocityOptimized(vel, placementIn, placementOut, portalOut)
@@ -562,11 +637,31 @@ function ENT:CleanupEntity(ent)
 			SafeRemoveEntity(ent.clone);
 		end;
 	end;
-	ent.InPortal = nil;
-	ent.clone = nil;
-	if ent.OriginalCollisionGroup then
+	-- Restaurer la collision si l'entité n'est plus en contact avec ce portail
+	if ent.InPortal == self then
+		ent.InPortal = nil;
+	end;
+	-- Vérifier si l'entité touche encore d'autres portaux
+	local touchingAnyPortal = false;
+	for otherPortal, _ in pairs(PortalManager.Portals or {}) do
+		if IsValid(otherPortal) then
+			-- Vérifier si l'entité est toujours dans la boîte du portail
+			local portalMins, portalMaxs = otherPortal:OBBMins(), otherPortal:OBBMaxs();
+			local props = ents.FindInBox(otherPortal:LocalToWorld(portalMins), otherPortal:LocalToWorld(portalMaxs));
+			for _, checkEnt in ipairs(props) do
+				if checkEnt == ent then
+					touchingAnyPortal = true;
+					break;
+				end;
+			end;
+			if touchingAnyPortal then break; end;
+		end;
+	end;
+	-- Ne restaurer la collision que si l'entité n'est en contact avec aucun portail
+	if not touchingAnyPortal and ent.OriginalCollisionGroup then
 		ent:SetCollisionGroup(ent.OriginalCollisionGroup);
 		ent.OriginalCollisionGroup = nil;
+		ent.clone = nil;
 	end;
 	if SERVER then
 		timer.Simple(0, function()
@@ -777,6 +872,18 @@ function ENT:DoPort(ent)
 	local portal = self:GetLinkedPartner();
 	if not IsValid(portal) then
 		return;
+	end;
+	-- Déterminer si l'objet peut être tenu (hold) après la traversée
+	-- Critères: masse < 5kg, n'est pas un objet spécial (noportal_pillar, prop_dynamic, etc.)
+	local phys = ent:GetPhysicsObject();
+	if IsValid(phys) then
+		local mass = phys:GetMass();
+		-- Objects légers peuvent être tenus après la traversée
+		if mass and mass < 50 then
+			ent.CanBeHeld = true;
+		else
+			ent.CanBeHeld = false;
+		end;
 	end;
 end;
 function ENT:IsHorizontal(angles)
