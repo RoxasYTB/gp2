@@ -70,6 +70,7 @@ function ENT:IsPortalInside(ent)
 	return entPos.x >= mins.x and entPos.x <= maxs.x and entPos.y >= mins.y and entPos.y <= maxs.y and entPos.z >= mins.z and entPos.z <= maxs.z;
 end;
 function ENT:TriggerOutput(outputName, activator)
+	print("Triggering output: " .. outputName);
 	local outputs = self.m_Outputs;
 	if not outputs then
 		return;
