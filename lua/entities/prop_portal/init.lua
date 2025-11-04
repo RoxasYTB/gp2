@@ -1,3 +1,4 @@
+
 AddCSLuaFile("cl_init.lua");
 AddCSLuaFile("shared.lua");
 include("shared.lua");
@@ -1352,3 +1353,24 @@ function ENT:IsLinked()
 	local partner = self.GetLinkedPartner and self:GetLinkedPartner() or nil;
 	return IsValid(partner) and partner.GetActivated and partner:GetActivated();
 end;
+concommand.Add("getblueinfo", function(ply)
+	for _, ent in ipairs(ents.FindByClass("prop_portal")) do
+		local portalType = ent.GetType and ent:GetType() or ent.PortalType or nil;
+		if portalType == 0 then
+			local pos = ent:GetPos();
+			local ang = ent:GetAngles();
+			ply:ChatPrint("Blue Portal - Pos: " .. tostring(pos) .. " Ang: " .. tostring(ang));
+		end;
+	end;
+end);
+concommand.Add("getorangeinfo", function(ply)
+	for _, ent in ipairs(ents.FindByClass("prop_portal")) do
+		local portalType = ent.GetType and ent:GetType() or ent.PortalType or nil;
+		if portalType == 1 then
+			local pos = ent:GetPos();
+			local ang = ent:GetAngles();
+			ply:ChatPrint("Orange Portal - Pos: " .. tostring(pos) .. " Ang: " .. tostring(ang));
+		end;
+	end;
+end);
+
