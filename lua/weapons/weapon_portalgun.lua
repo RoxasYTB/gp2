@@ -782,6 +782,13 @@ function SWEP:Holster(arguments)
 			return
 		end
 
+		-- Nettoyer le système de proxy si on range l'arme
+		if IsValid(self.HoldProxy) then
+			self.HoldProxy:Remove()
+		end
+		self.HoldProxy = nil
+		self.HeldRealObject = nil
+
 		if IsValid(vm1) then
 			vm1:SetWeaponModel(self:GetWeaponViewModel(), self)
 		end
@@ -789,10 +796,14 @@ function SWEP:Holster(arguments)
 			if !IsValid(self) then return end // Stop erroring on death!
 
 			if IsValid(vm1) and IsValid(owner:GetEntityInUse()) then
+				print("[GP2 Portal Gun] Holstering while using an entity, playing use animation.")
 				vm1:SendViewModelMatchingSequence(self:SelectWeightedSequence(ACT_VM_PICKUP))
 				self.GotEntityInUse = true
 				self:EmitSound("PortalPlayer.ObjectUse", 0)
 				self:SetEntityInUse(owner:GetEntityInUse())
+				print("[GP2 Portal Gun] Set EntityInUse to " .. tostring(owner:GetEntityInUse()))
+				print("Owner is valid: " .. tostring(IsValid(owner)))
+				print("Owner nickname: " .. tostring(owner:Nick()))
 			else
 				vm1:SetWeaponModel(self:GetWeaponViewModel(), NULL)
 				if self:GetIsPotatoGun() then
@@ -971,16 +982,95 @@ function SWEP:Think()
 		local owner = self:GetOwner()
 		if not IsValid(owner) then return true end
 
-		if owner:KeyPressed(IN_USE) then
-			self:SendWeaponAnim(ACT_VM_FIZZLE)
-			self:EmitSound("PortalPlayer.UseDeny")
-			self.NextIdleTime = CurTime() + 0.5
+		-- Gestion du système de proxy pour le pickup à distance
+		local heldEntity = owner:GetEntityInUse()
+
+		-- Si on tient un objet réel et pas encore de proxy, créer le système
+		if IsValid(heldEntity) and not self.HoldProxy then
+			-- Créer le proxy invisible
+			local proxy = ents.Create("prop_physics")
+			if IsValid(proxy) then
+				proxy:SetModel("models/hunter/plates/plate025x025.mdl") -- Petit modèle
+				proxy:SetPos(heldEntity:GetPos())
+				proxy:SetAngles(heldEntity:GetAngles())
+				proxy:Spawn()
+				proxy:SetNoDraw(true)
+				proxy:SetCollisionGroup(COLLISION_GROUP_IN_VEHICLE)
+				proxy:DrawShadow(false)
+
+				local phys = proxy:GetPhysicsObject()
+				if IsValid(phys) then
+					phys:SetMass(1)
+					phys:EnableMotion(false) -- Proxy statique
+				end
+
+				self.HoldProxy = proxy
+				self.HeldRealObject = heldEntity
+
+				-- Faire lâcher l'objet réel et prendre le proxy à la place
+				owner:DropObject()
+				timer.Simple(0.05, function()
+					if IsValid(proxy) and IsValid(owner) then
+						owner:PickupObject(proxy)
+					end
+				end)
+			end
 		end
 
+		-- Si on a un système proxy actif
+		if IsValid(self.HoldProxy) and IsValid(self.HeldRealObject) then
+			local proxy = self.HoldProxy
+			local realObj = self.HeldRealObject
+
+			-- Vérifier que le proxy est toujours tenu
+			if owner:GetEntityInUse() ~= proxy then
+				-- Le proxy a été lâché, nettoyer
+				if IsValid(proxy) then proxy:Remove() end
+				self.HoldProxy = nil
+				self.HeldRealObject = nil
+			else
+				-- Attirer l'objet réel vers le proxy
+				local phys = realObj:GetPhysicsObject()
+				if IsValid(phys) then
+					local proxyPos = proxy:GetPos()
+					local objPos = realObj:GetPos()
+					local dir = proxyPos - objPos
+					local dist = dir:Length()
+
+					-- Force d'attraction proportionnelle à la distance
+					local strength = math.min(dist * 100, 5000) -- Force maximale de 5000
+					phys:ApplyForceCenter(dir:GetNormalized() * strength)
+
+					-- Damping pour éviter les oscillations
+					local vel = phys:GetVelocity()
+					phys:AddVelocity(vel * -0.3)
+
+					-- Synchroniser l'angle du proxy à l'objet réel pour un meilleur visuel
+					if dist < 50 then
+						realObj:SetAngles(proxy:GetAngles())
+					end
+				else
+					-- L'objet réel n'a plus de physique, nettoyer
+					if IsValid(proxy) then proxy:Remove() end
+					self.HoldProxy = nil
+					self.HeldRealObject = nil
+				end
+			end
+		end
+
+		-- Nettoyer si les entités sont invalides
+		if not IsValid(self.HoldProxy) or not IsValid(self.HeldRealObject) then
+			if IsValid(self.HoldProxy) then self.HoldProxy:Remove() end
+			self.HoldProxy = nil
+			self.HeldRealObject = nil
+		end
+
+		-- Animation idle
 		if CurTime() > self.NextIdleTime and self:GetActivity() ~= ACT_VM_IDLE then
 			self:SendWeaponAnim(ACT_VM_IDLE)
 		end
 
+		-- Synchronisation EntityInUse
 		if self:GetEntityInUse() ~= owner:GetEntityInUse() then
 			self:SetEntityInUse(owner:GetEntityInUse())
 		end
@@ -991,17 +1081,15 @@ function SWEP:Think()
 			if not self.NextStateCheck or CurTime() > self.NextStateCheck then
 				self.NextStateCheck = CurTime() + 0.5
 				local isUpgraded, isPotato = self:GetSyncedPortalGunState()
-								if isUpgraded then
-									end
 				if isPotato and not self:GetIsPotatoGun() then
 					self:UpdatePotatoGun(true)
-									elseif not isPotato and self:GetIsPotatoGun() then
+				elseif not isPotato and self:GetIsPotatoGun() then
 					self:UpdatePotatoGun(false)
-									elseif isUpgraded and not self:GetCanFirePortal2() and not self:GetIsPotatoGun() then
-										self:UpdatePortalGun()
+				elseif isUpgraded and not self:GetCanFirePortal2() and not self:GetIsPotatoGun() then
+					self:UpdatePortalGun()
 				elseif not isUpgraded and not isPotato and self:GetCanFirePortal2() then
 					self:SetCanFirePortal2(false)
-									end
+				end
 			end
 		end
 	else
@@ -1046,6 +1134,13 @@ if SERVER then
 end
 
 function SWEP:OnRemove()
+	-- Nettoyer le proxy quand l'arme est supprimée
+	if SERVER and IsValid(self.HoldProxy) then
+		self.HoldProxy:Remove()
+	end
+	self.HoldProxy = nil
+	self.HeldRealObject = nil
+
 	self:ClearPortals()
 end
 

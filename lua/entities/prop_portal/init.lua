@@ -145,51 +145,7 @@ function ENT:Initialize()
 	self.ClonedEntities = {};
 	self.SpawnedCubes = {};
 end;
-function ENT:Think()
-	if SERVER then
-		local linked = self:GetLinkedPartner();
-		OrangeOrBlue = linked.GetType and linked:GetType() or nil;
-		if IsValid(linked) then
-			for _, ent in ipairs(ents.GetAll()) do
-				if ent.isClone and ent.daddyEnt and IsValid(ent.daddyEnt) then
-					local daddyEnt = ent.daddyEnt;
-					local dist = daddyEnt:GetPos():Distance(linked:GetPos());
-					local dist2 = daddyEnt:GetPos():Distance(self:GetPos());
-					print("Distance entre le clone et le portail lié:", dist);
-					print("Distance entre le clone et le portail local:", dist2);
-					if dist > 150 and dist2 > 150 then
-						linked:CleanupEntity(daddyEnt);
-						if daddyEnt.OriginalCollisionGroup then
-							daddyEnt:SetCollisionGroup(daddyEnt.OriginalCollisionGroup);
-							daddyEnt.OriginalCollisionGroup = nil;
-						end;
-						daddyEnt.clone = nil;
-					elseif dist < 150 or dist2 < 150 then
-						print("Le clone est proche, pas de nettoyage.");
-					end;
-				end;
-			end;
-			local portalMins, portalMaxs = linked:OBBMins(), linked:OBBMaxs();
-			local props = ents.FindInBox(linked:LocalToWorld(portalMins), linked:LocalToWorld(portalMaxs));
-			for _, ent in ipairs(props) do
-				if IsValid(ent) and ent:GetClass() == "prop_physics" then
-					local phys = ent:GetPhysicsObject();
-					if IsValid(phys) and (phys:GetVelocity()):Length() < 5 then
-						if linked:CanPort(ent) and linked:IsLinked() and linked:GetActivated() then
-							if not ent.InPortal then
-								linked:StartTouch(ent);
-							end;
-							phys:EnableMotion(true);
-							phys:SetVelocity(linked:GetUp() * (-400));
-						end;
-					end;
-				end;
-			end;
-		end;
-	end;
-	self:NextThink(CurTime() + 0.1);
-	return true;
-end;
+
 if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
 	function ENT:BuildPortalEnvironment()
 		self.__portalenvironmentphymesh = ents.Create("__portalenvironmentphymesh");
@@ -366,13 +322,12 @@ function ENT:StartTouch(ent)
 		local phys = ent:GetPhysicsObject();
 		if IsValid(phys) then
 			constraint.AdvBallsocket(ent, game.GetWorld(), 0, 0, Vector(0, 0, 0), Vector(0, 0, 0), 0, 0, -180, -180, -180, 180, 180, 180, 0, 0, 1, 1, 1);
-			-- Sauvegarder le groupe de collision d'origine si pas déjà fait
 			if not ent.OriginalCollisionGroup then
 				ent.OriginalCollisionGroup = ent:GetCollisionGroup();
 			end;
-			-- Mettre en PASSABLE_DOOR et marquer que l'entité touche ce portail
 			ent:SetCollisionGroup(COLLISION_GROUP_PASSABLE_DOOR);
 			ent.InPortal = self;
+			ent.LastPortalIntangibleTime = CurTime();
 			self:MakeClone(ent);
 			if ent.clone and IsValid(ent.clone) then
 				ent.clone.TouchingPortalsCount = (ent.clone.TouchingPortalsCount or 0) + 1;
@@ -637,15 +592,12 @@ function ENT:CleanupEntity(ent)
 			SafeRemoveEntity(ent.clone);
 		end;
 	end;
-	-- Restaurer la collision si l'entité n'est plus en contact avec ce portail
 	if ent.InPortal == self then
 		ent.InPortal = nil;
 	end;
-	-- Vérifier si l'entité touche encore d'autres portaux
 	local touchingAnyPortal = false;
 	for otherPortal, _ in pairs(PortalManager.Portals or {}) do
 		if IsValid(otherPortal) then
-			-- Vérifier si l'entité est toujours dans la boîte du portail
 			local portalMins, portalMaxs = otherPortal:OBBMins(), otherPortal:OBBMaxs();
 			local props = ents.FindInBox(otherPortal:LocalToWorld(portalMins), otherPortal:LocalToWorld(portalMaxs));
 			for _, checkEnt in ipairs(props) do
@@ -657,10 +609,14 @@ function ENT:CleanupEntity(ent)
 			if touchingAnyPortal then break; end;
 		end;
 	end;
-	-- Ne restaurer la collision que si l'entité n'est en contact avec aucun portail
 	if not touchingAnyPortal and ent.OriginalCollisionGroup then
-		ent:SetCollisionGroup(ent.OriginalCollisionGroup);
-		ent.OriginalCollisionGroup = nil;
+		local originalGroup = ent.OriginalCollisionGroup;
+		timer.Simple(0.1, function()
+			if IsValid(ent) and originalGroup then
+				ent:SetCollisionGroup(originalGroup);
+				ent.OriginalCollisionGroup = nil;
+			end;
+		end);
 		ent.clone = nil;
 	end;
 	if SERVER then
@@ -708,6 +664,48 @@ function ENT:MakeClone(ent)
 	end;
 	if ent.clone ~= nil then
 		return;
+	end;
+	ent.GP2_HoldInfo = nil;
+	for _, ply in ipairs(player.GetAll()) do
+		local wep = ply:GetActiveWeapon();
+		if IsValid(wep) then
+			local wepClass = wep:GetClass();
+			if wepClass == "weapon_portalgun" then
+				local entityInUse = wep.GetEntityInUse and wep:GetEntityInUse();
+				if IsValid(entityInUse) then
+					local heldEnt = ent;
+					if entityInUse:GetClass() == "player_pickup" and IsValid(entityInUse:GetPhysicsAttacker()) then
+						heldEnt = entityInUse:GetPhysicsAttacker();
+					end;
+					if entityInUse == ent or heldEnt == ent then
+						ent.GP2_HoldInfo = {holdingPlayer = ply, grabEnt = wep, wepClass = wepClass, portalgunOwner = ply};
+						print("[GP2] Holdeur détecté (portalgun): ", ply:Nick(), " tient ", ent:GetClass());
+						break;
+					end;
+				end;
+			elseif wepClass == "weapon_physgun" or wepClass == "gmod_tool" then
+				if wep.GrabEnt and wep.GrabEnt == ent then
+					ent.GP2_HoldInfo = {holdingPlayer = ply, grabEnt = wep, wepClass = wepClass, portalgunOwner = ply};
+					print("[GP2] Holdeur détecté (physgun/tool): ", ply:Nick(), " tient ", ent:GetClass());
+					break;
+				end;
+			end;
+		end;
+		if ply.holding and ply.holding == ent then
+			ent.GP2_HoldInfo = {holdingPlayer = ply, grabEnt = nil, wepClass = nil, portalgunOwner = ply};
+			print("[GP2] Holdeur détecté (holding): ", ply:Nick(), " tient ", ent:GetClass());
+			break;
+		end;
+	end;
+	if not ent.GP2_HoldInfo then
+		local owner = ent:GetOwner();
+		if IsValid(owner) and owner:IsPlayer() then
+			ent.GP2_HoldInfo = {holdingPlayer = owner, grabEnt = nil, wepClass = "owner", portalgunOwner = owner};
+			print("[GP2] Holdeur détecté via owner: ", owner:Nick(), ent:GetClass());
+		end;
+	end;
+	if not ent.GP2_HoldInfo then
+		print("[GP2] Aucun holdeur détecté pour ", ent:GetClass());
 	end;
 	local clone = ents.Create("prop_physics");
 	clone:SetSolid(SOLID_NONE);
@@ -820,42 +818,271 @@ function ENT:SyncCloneVisuals(ent, clone)
 		clone:SetColor(entColor);
 	end;
 end;
+function ENT:PromoteCloneToReal(ent, clone)
+	if not IsValid(clone) or not IsValid(ent) then
+		return;
+	end;
+	local function printAllProperties(prefix, obj)
+		print(prefix .. " properties:")
+		print("Pos:", obj:GetPos())
+		print("Angles:", obj:GetAngles())
+		print("Model:", obj:GetModel())
+		print("Skin:", obj:GetSkin())
+		print("Material:", obj:GetMaterial())
+		print("Color:", obj:GetColor())
+		print("MoveType:", obj:GetMoveType())
+		print("CollisionGroup:", obj:GetCollisionGroup())
+		print("Solid:", obj:GetSolid())
+		print("RenderMode:", obj:GetRenderMode())
+		print("NoDraw:", obj:GetNoDraw())
+		print("Parent:", obj:GetParent())
+		print("Owner:", obj:GetOwner())
+		local phys = obj:GetPhysicsObject()
+		if IsValid(phys) then
+			print("PhysicsObject IsValid: true")
+			print("Physics Velocity:", phys:GetVelocity())
+			print("Physics Mass:", phys:GetMass())
+			print("Physics MotionEnabled:", phys:IsMotionEnabled())
+			print("Physics GravityEnabled:", phys:IsGravityEnabled())
+			print("Physics CollisionsEnabled:", phys:IsCollisionEnabled())
+		else
+			print("PhysicsObject IsValid: false")
+		end
+	end
+	printAllProperties("ORIGINAL", ent)
+	printAllProperties("CLONE", clone)
+	-- Placer le cube 30 unités devant le joueur qui tient le Portal Gun
+	local spawnPos = nil
+	local spawnAng = clone:GetAngles()
+	local owner = owner_portalgun
+	if not IsValid(owner) and ent.GP2_HoldInfo and IsValid(ent.GP2_HoldInfo.portalgunOwner) then
+		owner = ent.GP2_HoldInfo.portalgunOwner
+	end
+	if IsValid(owner) then
+		spawnPos = owner:GetPos() + owner:GetForward() * 30
+	else
+		spawnPos = clone:GetPos()
+	end
+	local savedProps = {
+		pos = spawnPos,
+		angles = spawnAng,
+		model = clone:GetModel(),
+		skin = clone:GetSkin(),
+		material = clone:GetMaterial(),
+		color = clone:GetColor(),
+		velocity = Vector(0, 0, 0),
+		isHeld = false,
+		holdingPlayer = nil,
+		grabEnt = nil
+	};
+	local phys = ent:GetPhysicsObject();
+	if IsValid(phys) then
+		savedProps.velocity = phys:GetVelocity();
+	end;
+	for _, ply in ipairs(player.GetAll()) do
+		local wep = ply:GetActiveWeapon();
+		if IsValid(wep) then
+			local wepClass = wep:GetClass();
+			if wepClass == "weapon_physgun" or wepClass == "gmod_tool" or wepClass == "weapon_portalgun" then
+				if wep.GrabEnt and wep.GrabEnt == ent then
+					savedProps.isHeld = true;
+					savedProps.holdingPlayer = ply;
+					savedProps.grabEnt = wep;
+					break;
+				end;
+			end;
+		end;
+		if ply.holding and ply.holding == ent then
+			savedProps.isHeld = true;
+			savedProps.holdingPlayer = ply;
+			break;
+		end;
+	end;
+	local newEnt = ents.Create("prop_physics");
+	if not IsValid(newEnt) then
+		return;
+	end;
+	newEnt:SetPos(savedProps.pos);
+	newEnt:SetAngles(savedProps.angles);
+	newEnt:SetModel(savedProps.model);
+	newEnt:PhysicsInit(SOLID_VPHYSICS);
+	newEnt:Spawn();
+	newEnt:SetSkin(savedProps.skin);
+	newEnt:SetMaterial(savedProps.material);
+	newEnt:SetColor(savedProps.color);
+	newEnt:SetCollisionGroup(COLLISION_GROUP_NONE)
+	-- Utiliser le owner du Portal Gun si fourni
+	if IsValid(owner_portalgun) then
+		newEnt:SetOwner(owner_portalgun);
+	elseif ent.GP2_HoldInfo and IsValid(ent.GP2_HoldInfo.portalgunOwner) then
+		newEnt:SetOwner(ent.GP2_HoldInfo.portalgunOwner);
+		print("[GP2] Owner transféré depuis GP2_HoldInfo: ", ent.GP2_HoldInfo.portalgunOwner:Nick());
+	else
+		local owner = ent:GetOwner();
+		if IsValid(owner) then
+			newEnt:SetOwner(owner);
+		end;
+	end;
+	local newPhys = newEnt:GetPhysicsObject();
+	local origPhys = ent:GetPhysicsObject();
+	if IsValid(newPhys) and IsValid(origPhys) then
+		newPhys:SetMass(origPhys:GetMass());
+		newPhys:Wake();
+		newPhys:EnableMotion(true);
+		newPhys:EnableGravity(true);
+		newPhys:EnableCollisions(true);
+		newPhys:SetVelocity(savedProps.velocity);
+	end;
+	if ent.GP2_HoldInfo and IsValid(ent.GP2_HoldInfo.holdingPlayer) then
+		print("[GP2] Tentative de remise en hold après promotion pour ", ent.GP2_HoldInfo.holdingPlayer:Nick());
+		timer.Simple(0.001, function()
+			if IsValid(ent.GP2_HoldInfo.holdingPlayer) and IsValid(newEnt) then
+				if ent.GP2_HoldInfo.wepClass == "weapon_portalgun" then
+					print("[GP2] Remise en hold via PickupObject (portalgun)");
+					ent.GP2_HoldInfo.holdingPlayer:PickupObject(newEnt);
+				elseif ent.GP2_HoldInfo.wepClass == "weapon_physgun" then
+					print("[GP2] Remise en hold via GrabEnt (physgun)");
+					if ent.GP2_HoldInfo.grabEnt and ent.GP2_HoldInfo.grabEnt.GrabEnt then
+						ent.GP2_HoldInfo.grabEnt:GrabEnt(newEnt);
+					end;
+				else
+					print("[GP2] Remise en hold via PickupObject (fallback)");
+					ent.GP2_HoldInfo.holdingPlayer:PickupObject(newEnt);
+				end;
+				-- Retirer l'owner après la remise en hold pour réactiver les collisions
+				newEnt:SetOwner(NULL);
+			end;
+		end);
+	else
+		print("[GP2] Pas de holdeur à restaurer après promotion");
+		-- Retirer l'owner si pas de holdeur
+		if IsValid(newEnt) then
+			newEnt:SetOwner(NULL);
+		end;
+	end;
+	ent:Remove();
+	if IsValid(clone) then
+		clone:Remove();
+	end;
+end;
 local GP2_CloneCheckCache = {};
 local GP2_LastCloneCheck = 0;
 local GP2_CloneCheckInterval = 0.1;
-hook.Add("Think", "GP2_CloneSyncCheck", function()
-	local currentTime = CurTime();
-	if currentTime - GP2_LastCloneCheck < GP2_CloneCheckInterval then
-		return;
-	end;
-	GP2_LastCloneCheck = currentTime;
-	if math.random(1, 1000) == 1 then
-		GP2_CloneCheckCache = {};
-	end;
-	if not GP2_CloneCheckCache.entities or GP2_CloneCheckCache.lastUpdate < currentTime - 1 then
-		GP2_CloneCheckCache.entities = {};
-		for _, ent in ipairs(ents.GetAll()) do
-			if ent.isClone then
-				table.insert(GP2_CloneCheckCache.entities, ent);
+
+function ENT:Think()
+	if SERVER then
+		local linked = self:GetLinkedPartner();
+		OrangeOrBlue = linked.GetType and linked:GetType() or nil;
+			for _, ent in ipairs(ents.GetAll()) do
+				if ent.isClone and ent.daddyEnt and IsValid(ent.daddyEnt) then
+					local daddyEnt = ent.daddyEnt;
+					local dist = daddyEnt:GetPos():Distance(linked:GetPos());
+					local dist2 = daddyEnt:GetPos():Distance(self:GetPos());
+					if dist > 100 and dist2 > 100 then
+						local holdeur = nil;
+						for _, ply in ipairs(player.GetAll()) do
+							local wep = ply:GetActiveWeapon();
+							if IsValid(wep) then
+								local wepClass = wep:GetClass();
+								if wepClass == "weapon_portalgun" then
+									local entityInUse = wep.GetEntityInUse and wep:GetEntityInUse();
+									if IsValid(entityInUse) and entityInUse == daddyEnt then
+										holdeur = ply;
+										break;
+									end;
+								elseif wepClass == "weapon_physgun" or wepClass == "gmod_tool" then
+									if wep.GrabEnt and wep.GrabEnt == daddyEnt then
+										holdeur = ply;
+										break;
+									end;
+								end;
+							end;
+							if ply.holding and ply.holding == daddyEnt then
+								holdeur = ply;
+								break;
+							end;
+						end;
+						if holdeur then
+							print("[GP2][THINK] Holdeur détecté juste avant promotion:", holdeur:Nick(), daddyEnt:GetClass());
+						else
+							print("[GP2][THINK] Aucun holdeur détecté juste avant promotion pour:", daddyEnt:GetClass());
+						end;
+						print("Promoting clone to real entity due to distance.");
+						-- Transfert du owner du Portal Gun
+						local owner_portalgun = nil
+						for _, ply in ipairs(player.GetAll()) do
+							local wep = ply:GetActiveWeapon()
+							if IsValid(wep) and wep:GetClass() == "weapon_portalgun" then
+								owner_portalgun = ply
+								break
+							end
+						end
+						self:PromoteCloneToReal(daddyEnt, ent, owner_portalgun);
+					elseif dist < 40 or dist2 < 40 then
+						daddyEnt:SetCollisionGroup(COLLISION_GROUP_PASSABLE_DOOR);
+					end;
+				end;
+				if ent.LastPortalIntangibleTime and not ent.InPortal then
+					local timeSinceLast = CurTime() - ent.LastPortalIntangibleTime;
+					if timeSinceLast > 5 and ent:GetCollisionGroup() ~= COLLISION_GROUP_PASSABLE_DOOR then
+						ent.OriginalCollisionGroup = nil;
+						ent.LastPortalIntangibleTime = nil;
+					end;
+				end;
 			end;
-		end;
-		GP2_CloneCheckCache.lastUpdate = currentTime;
-	end;
-	for i = #GP2_CloneCheckCache.entities, 1, -1 do
-		local ent = GP2_CloneCheckCache.entities[i];
-		if IsValid(ent) and ent.GP2_NoSyncFrames ~= nil then
-			ent.GP2_NoSyncFrames = ent.GP2_NoSyncFrames + 1;
-			if ent.GP2_NoSyncFrames > 600 then
-				if not ent.daddyEnt or (not IsValid(ent.daddyEnt)) then
-					SafeRemoveEntity(ent);
+			if IsValid(linked) then
+				local portalMins, portalMaxs = linked:OBBMins(), linked:OBBMaxs();
+				local props = ents.FindInBox(linked:LocalToWorld(portalMins), linked:LocalToWorld(portalMaxs));
+				for _, ent in ipairs(props) do
+					if IsValid(ent) and ent:GetClass() == "prop_physics" then
+						local phys = ent:GetPhysicsObject();
+						if IsValid(phys) and (phys:GetVelocity()):Length() < 5 then
+							if linked:CanPort(ent) and linked:IsLinked() and linked:GetActivated() then
+								if not ent.InPortal then
+									linked:StartTouch(ent);
+								end;
+								phys:EnableMotion(true);
+								phys:SetVelocity(linked:GetUp() * (-400));
+							end;
+						end;
+					end;
+				end;
+			end;
+
+		local currentTime = CurTime();
+		if currentTime - GP2_LastCloneCheck >= GP2_CloneCheckInterval then
+			GP2_LastCloneCheck = currentTime;
+			if math.random(1, 1000) == 1 then
+				GP2_CloneCheckCache = {};
+			end;
+			if not GP2_CloneCheckCache.entities or GP2_CloneCheckCache.lastUpdate < currentTime - 1 then
+				GP2_CloneCheckCache.entities = {};
+				for _, ent in ipairs(ents.GetAll()) do
+					if ent.isClone then
+						table.insert(GP2_CloneCheckCache.entities, ent);
+					end;
+				end;
+				GP2_CloneCheckCache.lastUpdate = currentTime;
+			end;
+			for i = #GP2_CloneCheckCache.entities, 1, -1 do
+				local ent = GP2_CloneCheckCache.entities[i];
+				if IsValid(ent) and ent.GP2_NoSyncFrames ~= nil then
+					ent.GP2_NoSyncFrames = ent.GP2_NoSyncFrames + 1;
+					if ent.GP2_NoSyncFrames > 600 then
+						if not ent.daddyEnt or (not IsValid(ent.daddyEnt)) then
+							SafeRemoveEntity(ent);
+							table.remove(GP2_CloneCheckCache.entities, i);
+						end;
+					end;
+				else
 					table.remove(GP2_CloneCheckCache.entities, i);
 				end;
 			end;
-		else
-			table.remove(GP2_CloneCheckCache.entities, i);
 		end;
 	end;
-end);
+	self:NextThink(CurTime() + 0.1);
+	return true;
+end;
 function ENT:DoPort(ent)
 	if not self:CanPort(ent) then
 		return;
