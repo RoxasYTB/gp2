@@ -1,5 +1,5 @@
 hook.Add("RenderScreenspaceEffects", "GammaSim", function()
-	local gamma = 1.2;
+	local gamma = 1;
 	local tab = {
 		["$pp_colour_addr"] = 0,
 		["$pp_colour_addg"] = 0,

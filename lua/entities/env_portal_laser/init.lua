@@ -252,191 +252,18 @@ function ENT:RecursionLaserThroughPortals(data, recursionDepth, visitedPortals, 
 	end;
 	return self:RecursionLaserThroughPortals(newData, recursionDepth + 1, visitedPortals, laserSegments);
 end;
-local function GetPortalCardinalDirection(portal)
-	if not IsValid(portal) then
-		return "unknown";
-	end;
-	local yaw = (portal:GetAngles()).y;
-	local roll = (portal:GetAngles()).r;
-	while yaw < 0 do
-		yaw = yaw + 360;
-	end;
-	while yaw >= 360 do
-		yaw = yaw - 360;
-	end;
-	if roll == 180 then
-		return "floor";
-	elseif yaw >= 350 or yaw <= 10 then
-		return "north";
-	elseif yaw >= 80 and yaw <= 100 then
-		return "east";
-	elseif yaw >= 170 and yaw <= 190 then
-		return "south";
-	elseif yaw >= 260 and yaw <= 280 then
-		return "west";
-	else
-		return "ceiling";
-	end;
-end;
-local PORTAL_TRANSITION_OFFSETS = {
-	north_to_floor = {
-		pos = Vector(0, -40, 0),
-		ang = Angle(90, 0, 0)
-	},
-	north_to_ceiling = {
-		pos = Vector(0, 0, 0),
-		ang = Angle(90, 0, 0)
-	},
-	south_to_floor = {
-		pos = Vector(0, 40, 0),
-		ang = Angle(90, 0, 0)
-	},
-	south_to_ceiling = {
-		pos = Vector(0, 0, 0),
-		ang = Angle(90, 0, 0)
-	},
-	east_to_floor = {
-		pos = Vector(-40, 0, 0),
-		ang = Angle(90, 0, 0)
-	},
-	east_to_ceiling = {
-		pos = Vector(0, 0, 0),
-		ang = Angle(90, 0, 0)
-	},
-	west_to_floor = {
-		pos = Vector(40, 0, 0),
-		ang = Angle(90, 0, 0)
-	},
-	west_to_ceiling = {
-		pos = Vector(0, 0, 0),
-		ang = Angle(90, 0, 0)
-	},
-	ceiling_to_ceiling = {
-		pos = Vector(0, 0, 0),
-		ang = Angle(0, 0, 0)
-	},
-	ceiling_to_floor = {
-		pos = Vector(0, 0, 0),
-		ang = Angle(90, 0, 0)
-	},
-	ceiling_to_north = {
-		pos = Vector(0, 0, 0),
-		ang = Angle(90, 0, 0)
-	},
-	ceiling_to_south = {
-		pos = Vector(0, 0, 0),
-		ang = Angle(90, 0, 0)
-	},
-	ceiling_to_east = {
-		pos = Vector(0, 0, 0),
-		ang = Angle(90, 0, 0)
-	},
-	ceiling_to_west = {
-		pos = Vector(0, 0, 0),
-		ang = Angle(90, 0, 0)
-	},
-	floor_to_ceiling = {
-		pos = Vector(0, 0, 0),
-		ang = Angle(0, 0, 0)
-	},
-	floor_to_floor = {
-		pos = Vector(0, 0, 0),
-		ang = Angle(0, 0, 0)
-	},
-	north_to_south = {
-		pos = Vector(0, 0, 0),
-		ang = Angle(0, 180, 0)
-	},
-	north_to_east = {
-		pos = Vector(0, 0, 0),
-		ang = Angle(90, 0, 180)
-	},
-	north_to_west = {
-		pos = Vector(0, 0, 0),
-		ang = Angle(90, -90, 0)
-	},
-	north_to_north = {
-		pos = Vector(0, 0, 0),
-		ang = Angle(0, 0, 0)
-	},
-	east_to_west = {
-		pos = Vector(-3, 0, 0),
-		ang = Angle(90, 180, 0)
-	},
-	east_to_south = {
-		pos = Vector(-5, 0, 0),
-		ang = Angle(0, 90, 0)
-	},
-	east_to_north = {
-		pos = Vector(-3, 0, 0),
-		ang = Angle(0, -90, 0)
-	},
-	east_to_east = {
-		pos = Vector(-3, 0, 0),
-		ang = Angle(90, 0, 0)
-	},
-	south_to_north = {
-		pos = Vector(0, 0, 0),
-		ang = Angle(0, 180, 0)
-	},
-	south_to_west = {
-		pos = Vector(0, 0, 0),
-		ang = Angle(90, 90, 0)
-	},
-	south_to_east = {
-		pos = Vector(0, 0, 0),
-		ang = Angle(90, -90, 0)
-	},
-	south_to_south = {
-		pos = Vector(0, 0, 0),
-		ang = Angle(0, 0, 0)
-	},
-	west_to_east = {
-		pos = Vector(3, 0, 0),
-		ang = Angle(90, 180, 0)
-	},
-	west_to_north = {
-		pos = Vector(3, -5, 0),
-		ang = Angle(0, 90, 0)
-	},
-	west_to_south = {
-		pos = Vector(3, -5, 0),
-		ang = Angle(0, -90, 0)
-	},
-	west_to_west = {
-		pos = Vector(3, 0, 0),
-		ang = Angle(90, 0, 0)
-	},
-	default = {
-		pos = Vector(0, 0, 0),
-		ang = Angle(0, 0, 0)
-	}
-};
-local function GetPortalTransitionOffsets(entryDir, exitDir)
-	local transitionKey = entryDir .. "_to_" .. exitDir;
-	return PORTAL_TRANSITION_OFFSETS[transitionKey] or PORTAL_TRANSITION_OFFSETS.default;
-end;
 function ENT:TransformPortal(entryPortal, exitPortal, hitPos, hitAng)
 	if not IsValid(entryPortal) or (not IsValid(exitPortal)) then
 		return hitPos, hitAng;
-	end;
-	local entryDir = GetPortalCardinalDirection(entryPortal);
-	local exitDir = GetPortalCardinalDirection(exitPortal);
-	local transitionOffsets = GetPortalTransitionOffsets(entryDir, exitDir);
-	if portal_laser_perf_debug:GetBool() then
-		print("entryPortal direction: ", entryDir, "exitPortal direction: ", exitDir);
-		print("Transition offsetss - pos:", transitionOffsets.pos, "ang:", transitionOffsets.ang);
 	end;
 	local hitOffset = hitPos - entryPortal:GetPos();
 	local localOffset = Vector(hitOffset:Dot(entryPortal:GetRight()), hitOffset:Dot(entryPortal:GetUp()), hitOffset:Dot(entryPortal:GetForward()));
 	localOffset.x = -localOffset.x;
 	local newPos = exitPortal:GetPos() + localOffset.x * exitPortal:GetRight() + localOffset.y * exitPortal:GetUp() + localOffset.z * exitPortal:GetForward();
-	newPos = newPos + transitionOffsets.pos.x * exitPortal:GetRight() + transitionOffsets.pos.y * exitPortal:GetUp() + transitionOffsets.pos.z * exitPortal:GetForward();
 	local localAng = entryPortal:WorldToLocalAngles(hitAng);
 	localAng.y = -localAng.y;
 	localAng.r = -localAng.r;
 	local newAng = exitPortal:LocalToWorldAngles(localAng);
-	newAng = newAng + transitionOffsets.ang;
 	return newPos, newAng;
 end;
 function ENT:FireLaser()
@@ -475,7 +302,7 @@ function ENT:FireLaser()
 		mask = MASK_OPAQUE_AND_NPCS
 	});
 	self.LaserSegments = laserSegments or {};
-	local exitSegments, entryHitWithOffset = self:CalculatePortalExitSegments(tr.HitPos, attachForward);
+	local exitSegments, _ = self:CalculatePortalExitSegments(tr.HitPos, attachForward);
 	local allSegments = {};
 	if #self.LaserSegments > 0 then
 		local mainSegment = self.LaserSegments[1];
@@ -672,11 +499,17 @@ function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recu
 		return {}, nil;
 	end;
 	local exitSegments = {};
-	local entryHitPosWithOffset = nil;
 	startPos = startPos or self:GetPos();
 	local rayEnd = startPos + direction * MAX_RAY_LENGTH;
 	local extents = Vector(10, 10, 10);
 	local rayHits = ents.FindAlongRay(startPos, rayEnd, -extents, extents);
+	local laserOrigin = self:GetPos();
+	if not self:GetNoModel() and self.LaserAttachment ~= (-1) then
+		local attach = self:GetAttachment(self.LaserAttachment);
+		if attach then
+			laserOrigin = attach.Pos;
+		end;
+	end;
 	for _, ent in ipairs(rayHits) do
 		if IsValid(ent) and ent:GetClass() == "prop_portal" and IsValid(ent:GetLinkedPartner()) then
 			local portalId = ent:EntIndex();
@@ -694,78 +527,37 @@ function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recu
 			if not hitPos then
 				hitPos = entryPortal:GetPos();
 			end;
-			local portalZ = (entryPortal:GetPos()).z;
-			local offsetZ = portalZ - startPos.z;
-			local entryRight = entryPortal:GetRight();
-			local offsetVec = startPos - entryPortal:GetPos();
-			local offsetXLocal = offsetVec:Dot(entryRight);
 			if collisionPos and entryPortal:GetPos() then
 				local distToPortal = (collisionPos - entryPortal:GetPos()):Length();
 				if distToPortal > 50 then
 					break;
 				end;
 			end;
-			local modifiedHitPos = Vector(hitPos.x - 6, hitPos.y - 0.1, hitPos.z - 0.1);
-			local newPos, newAng = self:TransformPortal(entryPortal, exitPortal, modifiedHitPos, direction:Angle());
-			if portal_laser_perf_debug:GetBool() then
-				print(string.format("Laser Position Debug: newPos avant offsets = (%.2f, %.2f, %.2f)", newPos.x, newPos.y, newPos.z));
+			local entryPos = entryPortal:GetPos();
+			local exitPos = exitPortal:GetPos();
+			local portalNormal = exitPortal:GetForward();
+			local laserToEntry = laserOrigin - entryPortal:GetPos();
+			local mirroredOffset = laserToEntry - 2 * laserToEntry:Dot(portalNormal) * portalNormal;
+			local deltaPos = entryPos - laserOrigin;
+			local deltaAng = direction:Angle();
+			local deltaX, deltaY, deltaZ = deltaPos.x, deltaPos.y, deltaPos.z;
+			local deltaY2, deltaP, deltaR = deltaAng.y, deltaAng.p, deltaAng.r;
+			local newAng = Angle(deltaP, deltaY2 + 180, deltaR);
+			local forward = newAng:Forward() * 1;
+			local right = newAng:Right() * 0;
+			local up = newAng:Up() * 0;
+			local sphereRadius = 70;
+			local newPos = exitPos + Vector(deltaX, deltaY, (-deltaZ)) + forward + right + up;
+			local distanceToExitPortal = (newPos - exitPos):Length();
+			print("Distance entre l'origine du laser cloné et le portail de sortie (dans la sphère):", distanceToExitPortal);
+			if distanceToExitPortal >= sphereRadius then
+				print("Ajustement de la position du laser cloné pour qu'il soit dans la sphère de rayon", sphereRadius);
+				forward = newAng:Forward() * distanceToExitPortal - newAng:Forward() * 20;
 			end;
-			newAng = Angle(newAng.p + 180, -newAng.y, newAng.r);
-			local exitPortalPitch = (exitPortal:GetAngles()).p;
-			if math.abs(exitPortalPitch - 90) < 10 then
-				newAng = Angle(-newAng.p, newAng.y, newAng.r);
-			elseif math.abs(exitPortalPitch - 270) < 10 then
-				newAng = Angle(-newAng.p, newAng.y, newAng.r);
-			end;
-			local entryDir = GetPortalCardinalDirection(entryPortal);
-			local exitDir = GetPortalCardinalDirection(exitPortal);
-			local transitionOffsets = GetPortalTransitionOffsets(entryDir, exitDir);
-			local exitPortalPitch = (exitPortal:GetAngles()).p;
-			newPos = newPos + transitionOffsets.pos.x * exitPortal:GetRight() + transitionOffsets.pos.y * exitPortal:GetUp() + transitionOffsets.pos.z * exitPortal:GetForward();
-			newPos = newPos + exitPortal:GetUp() * (-25);
-			newAng = newAng + transitionOffsets.ang;
-			newPos = newPos + exitPortal:GetRight() * (-offsetXLocal);
-			if portal_laser_perf_debug:GetBool() then
-				print("Entry Direction: " .. entryDir .. ", Exit Direction: " .. exitDir);
-			end;
-			if exitDir == "ceiling" or exitDir == "floor" then
-				newPos = newPos + exitPortal:GetForward() * (-offsetZ);
-			end;
-			if math.abs(exitPortalPitch - 90) < 10 then
-				if portal_laser_perf_debug:GetBool() then
-					print("Applying ceiling portal offset Z");
-				end;
-				newPos = newPos - exitPortal:GetForward() * offsetZ;
-			elseif math.abs(exitPortalPitch - 270) < 10 or math.abs(exitPortalPitch - 270) < 10 then
-				if portal_laser_perf_debug:GetBool() then
-					print("Applying floor portal offset Z");
-				end;
-				newPos = newPos - exitPortal:GetUp() * offsetZ;
-			else
-				newPos.z = newPos.z - offsetZ;
-			end;
-			newAng = Angle(-newAng.p, newAng.y, newAng.r);
-			if newAng.r > 80 and newAng.r < 100 then
-				newPos = newPos - newAng:Forward() * 30;
-				newPos = newPos - newAng:Forward() * offsetZ;
-			end;
-			if newAng.r < (-80) and newAng.r > (-100) then
-				newPos = newPos - newAng:Forward() * 30;
-				newPos = newPos - newAng:Up() * offsetZ;
-			end;
-			local entryHitWithOffset = Vector(hitPos.x, hitPos.y, hitPos.z);
-			local entryPortalPitch = (entryPortal:GetAngles()).p;
-			local entryTransitionOffsets = GetPortalTransitionOffsets(exitDir, entryDir);
-			entryHitWithOffset = entryHitWithOffset + entryTransitionOffsets.pos.x * entryPortal:GetRight() + entryTransitionOffsets.pos.y * entryPortal:GetUp() + entryTransitionOffsets.pos.z * entryPortal:GetForward();
-			entryHitWithOffset = entryHitWithOffset + entryPortal:GetRight() * (-offsetXLocal);
-			if math.abs(entryPortalPitch - 90) < 10 then
-				entryHitWithOffset = entryHitWithOffset + entryPortal:GetForward() * offsetZ;
-			elseif math.abs(entryPortalPitch - 270) < 10 or math.abs(entryPortalPitch - 270) < 10 then
-				entryHitWithOffset = entryHitWithOffset - entryPortal:GetForward() * offsetZ;
-			else
-				entryHitWithOffset.z = entryHitWithOffset.z - offsetZ;
-			end;
-			entryHitPosWithOffset = entryHitWithOffset;
+			newPos = exitPos + Vector(deltaX, deltaY, (-deltaZ)) + forward + right + up;
+			local origAng = self:GetAngles();
+			local mirroredDir = direction - 2 * direction:Dot(portalNormal) * portalNormal;
+			mirroredDir = -mirroredDir;
 			local exitTr = util.TraceLine({
 				start = newPos,
 				endpos = newPos + newAng:Forward() * MAX_RAY_LENGTH,
@@ -795,7 +587,7 @@ function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recu
 			break;
 		end;
 	end;
-	return exitSegments, entryHitPosWithOffset;
+	return exitSegments;
 end;
 local lasers = ents.FindByClass("env_portal_laser");
 local count = #lasers;
