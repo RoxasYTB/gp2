@@ -15,11 +15,15 @@ PortalRendering.PortalRTs = PortalRendering.PortalRTs or {}
 PortalRendering.PortalMaterials = PortalRendering.PortalMaterials or {}
 PortalRendering.PortalMeshes = PortalRendering.PortalMeshes or {}
 
--- max amount of portals being rendered at a time
-PortalRendering.MaxRTs = 6
+PortalRendering.MaxRTs = 3
+
+local gp2_portal_rt_scale = CreateClientConVar("gp2_portal_rt_scale", "0.35", true, false, "Échelle de résolution des render targets des portails (0.5 = moitié de la résolution)", 0.25, 1)
 
 for i = 1, PortalRendering.MaxRTs do
-	PortalRendering.PortalRTs[i] = GetRenderTarget("_rt_portal" .. i, ScrW(), ScrH())
+	local rtScale = gp2_portal_rt_scale:GetFloat()
+	local rtWidth = math.max(256, math.floor(ScrW() * rtScale))
+	local rtHeight = math.max(256, math.floor(ScrH() * rtScale))
+	PortalRendering.PortalRTs[i] = GetRenderTarget("_rt_portal" .. i, rtWidth, rtHeight)
 	PortalRendering.PortalMaterials[i] = CreateMaterial("PortalMaterial" .. i, "GMODScreenspace", {
 		["$basetexture"] = PortalRendering.PortalRTs[i]:GetName(),
 		["$model"] = "1"
@@ -34,7 +38,7 @@ local portals = {}
 local oldHalo = 0
 local timesRendered = 0
 
-local skysize = 16384 --2^14, default zfar limit
+local skysize = 4096
 local angle_zero = Angle(0, 0, 0)
 
 local gp2_portal_drawdistance = CreateClientConVar("gp2_portal_drawdistance", "250", true, true,
@@ -43,6 +47,7 @@ local gp2_portal_refreshrate = CreateClientConVar("gp2_portal_refreshrate", "1",
 	"How many frames to skip before rendering the next portal", 1)
 local gp2_portal_draw_ghosting = CreateClientConVar("gp2_portal_draw_ghosting", "1", true, false,
 	"Toggles the outline visible on portals through walls")
+local gp2_portal_renderdist = CreateClientConVar("gp2_portal_renderdist", "1500", true, false, "Distance de rendu maximale dans les portails", 500)
 
 local renderViewTable = {
 	x = 0,
@@ -52,7 +57,8 @@ local renderViewTable = {
 	origin = Vector(),
 	angles = Angle(),
 	drawviewmodel = false,
-	znear = 0.1
+	znear = 10,
+	zfar = 1500
 }
 
 -- sort the portals by distance since draw functions do not obey the z buffer
@@ -85,22 +91,45 @@ local render_PushCustomClipPlane = render.PushCustomClipPlane
 local render_PopCustomClipPlane = render.PopCustomClipPlane
 local render_RenderView = render.RenderView
 local render_EnableClipping = render.EnableClipping
+local render_SuppressEngineLighting = render.SuppressEngineLighting
+local render_SetStencilEnable = render.SetStencilEnable
 
 
 local skip = 0
 hook.Add("RenderScene", "seamless_portal_draw", function(eyePos, eyeAngles, fov)
 	if PortalManager.PortalIndex < 1 then return end
 
-	skip = (skip + 1) % gp2_portal_refreshrate:GetInt()
+	skip = (skip + 5) % gp2_portal_refreshrate:GetInt()
 	if skip ~= 0 then return end
 
 	PortalRendering.Rendering = true
 	local oldHalo = halo.Add
 	halo.Add = nofunc
 
+	local oldBloom = GetConVar("mat_bloom_scalefactor_scalar"):GetFloat()
+	local oldHDR = GetConVar("mat_hdr_level"):GetInt()
+	local oldParticles = GetConVar("r_drawparticles"):GetInt()
+	local oldSpecular = GetConVar("mat_fastspecular"):GetInt()
+	local oldBump = GetConVar("mat_fastnobump"):GetInt()
+
+	RunConsoleCommand("mat_bloom_scalefactor_scalar", "0")
+	RunConsoleCommand("mat_hdr_level", "0")
+	RunConsoleCommand("r_drawparticles", "0")
+	RunConsoleCommand("mat_fastspecular", "1")
+	RunConsoleCommand("mat_fastnobump", "1")
+
+	local lasers = ents.FindByClass("env_portal_laser")
+	for _, laser in ipairs(lasers) do
+		if IsValid(laser) then
+			laser:AddEffects(EF_NODRAW)
+		end
+	end
+
 	local maxRenderCount = 0
 	local rtTimesRendered = 0
 	local render = render
+
+	renderViewTable.zfar = gp2_portal_renderdist:GetFloat()
 
 	for _, portal in ipairs(portals) do
 		if rtTimesRendered >= PortalRendering.MaxRTs - maxRenderCount then break end
@@ -115,7 +144,7 @@ hook.Add("RenderScene", "seamless_portal_draw", function(eyePos, eyeAngles, fov)
 
 			renderViewTable.origin = transformedPos
 			renderViewTable.angles = transformedAng
-			renderViewTable.fov = fov
+			renderViewTable.fov = fov * 0.85
 
 			rtTimesRendered = rtTimesRendered + 1
 			portal.PORTAL_RT_NUMBER = rtTimesRendered
@@ -132,10 +161,23 @@ hook.Add("RenderScene", "seamless_portal_draw", function(eyePos, eyeAngles, fov)
 		end
 	end
 
+	RunConsoleCommand("mat_bloom_scalefactor_scalar", tostring(oldBloom))
+	RunConsoleCommand("mat_hdr_level", tostring(oldHDR))
+	RunConsoleCommand("r_drawparticles", tostring(oldParticles))
+	RunConsoleCommand("mat_fastspecular", tostring(oldSpecular))
+	RunConsoleCommand("mat_fastnobump", tostring(oldBump))
+
+	local lasers = ents.FindByClass("env_portal_laser")
+	for _, laser in ipairs(lasers) do
+		if IsValid(laser) then
+			laser:RemoveEffects(EF_NODRAW)
+		end
+	end
+
 	halo.Add = oldHalo
 	PortalRendering.Rendering = false
 	rtTimesRendered = 0
-end)
+	end)
 
 -- draw the player in renderview
 hook.Add("ShouldDrawLocalPlayer", "seamless_portal_drawplayer", function()
