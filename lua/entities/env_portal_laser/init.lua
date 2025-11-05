@@ -537,10 +537,12 @@ function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recu
 			local exitPos = exitPortal:GetPos();
 			local exitAng = exitPortal:GetAngles();
 			local entryAng = entryPortal:GetAngles();
-			print("Angle d'entrée :", entryAng);
-			print("Angle de sortie :", exitAng);
-			diffAngle = exitAng.y - entryAng.y;
-			print("Différence d'angle :", diffAngle);
+			diffAngleP = exitAng.p - entryAng.p;
+			diffAngleY = exitAng.y - entryAng.y;
+			diffAngleR = exitAng.r - entryAng.r;
+			// print("Différence d'angle Y:", diffAngleY);
+			// print("Différence d'angle P:", diffAngleP);
+			// print("Différence d'angle R:", diffAngleR);
 			local portalNormal = exitPortal:GetForward();
 			local laserToEntry = laserOrigin - entryPortal:GetPos();
 			local mirroredOffset = laserToEntry - 2 * laserToEntry:Dot(portalNormal) * portalNormal;
@@ -548,25 +550,41 @@ function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recu
 			local deltaAng = direction:Angle();
 			local deltaX, deltaY, deltaZ = deltaPos.x, deltaPos.y, deltaPos.z;
 			local deltaY2, deltaP, deltaR = deltaAng.y, deltaAng.p, deltaAng.r;
+			print("Delta X:", deltaX);
+			print("Delta Y:", deltaY);
+			print("Delta Z:", deltaZ);
+			print("Delta Yaw:", deltaY2);
+			print("Delta Pitch:", deltaP);
+			print("Delta Roll:", deltaR);
 			local newAng = Angle(deltaP, deltaY2 + 180, deltaR);
-			newAng:RotateAroundAxis(Vector(0, 0, 1), diffAngle);
+			newAng:RotateAroundAxis(Vector(0, 0, 1), diffAngleY);
 			local forward = newAng:Forward() * 0;
 			local right = newAng:Right() * 0;
 			local up = newAng:Up() * 0;
 			local sphereRadius = 70;
-			print("Forward vector :", forward);
 			local newPos = exitPos + Vector(deltaX, deltaY, deltaZ) + forward + right + up;
 			local distanceToExitPortal = (newPos - exitPos):Length();
-			print("Distance entre l'origine du laser cloné et le portail de sortie (dans la sphère):", distanceToExitPortal);
-			if distanceToExitPortal >= sphereRadius and diffAngle < 2 and diffAngle > (-2) then
-				print("Ajustement de la position du laser cloné pour qu'il soit dans la sphère de rayon", sphereRadius);
-				forward = newAng:Forward() * distanceToExitPortal - newAng:Forward() * 20;
-				newPos = exitPos + Vector(deltaX, deltaY, (-deltaZ)) + forward + right + up;
+			if distanceToExitPortal >= sphereRadius and diffAngleP == 0 then
+				local absDiffY = math.abs(diffAngleY);
+				if absDiffY < 2 then
+					newPos = exitPos + Vector(deltaX, deltaY, (-deltaZ)) + newAng:Forward() * (distanceToExitPortal - 20);
+				elseif math.abs(diffAngleY - 180) < 2 then
+					newPos = exitPos + Vector((-deltaX), (-deltaY), (-deltaZ)) - newAng:Forward() * (distanceToExitPortal + 30);
+				elseif math.abs(diffAngleY - 90) < 2 then
+					newPos = exitPos + Vector((-deltaY), deltaX, (-deltaZ)) + newAng:Forward() * (distanceToExitPortal - 20);
+				elseif math.abs(diffAngleY + 90) < 2 then
+					newPos = exitPos + Vector(deltaY, (-deltaX), (-deltaZ)) + newAng:Forward() * (distanceToExitPortal - 20);
+				end;
 			end;
-			if distanceToExitPortal >= sphereRadius and diffAngle > 178 and diffAngle < 182 then
-				print("Ajustement de la position du laser cloné pour qu'il soit dans la sphère de rayon", sphereRadius);
-				forward = (-newAng:Forward()) * (-distanceToExitPortal) - newAng:Forward() * 30;
-				newPos = exitPos + Vector((-deltaX), (-deltaY), (-deltaZ)) + forward + right + up;
+			if diffAngleP ~= 0 then
+
+				local entryToOrigin = laserOrigin - entryPos
+				local localOffset = Vector(entryToOrigin:Dot(entryPortal:GetRight()), entryToOrigin:Dot(entryPortal:GetUp()), entryToOrigin:Dot(entryPortal:GetForward()))
+				local targetPos = exitPos + localOffset.x * exitPortal:GetRight() + localOffset.y * exitPortal:GetUp() + localOffset.z * exitPortal:GetForward()
+				local localAng = entryPortal:WorldToLocalAngles(direction:Angle())
+				local targetAng = exitPortal:LocalToWorldAngles(localAng)
+				newPos = targetPos
+				newAng = targetAng
 			end;
 			local origAng = self:GetAngles();
 			local mirroredDir = direction - 2 * direction:Dot(portalNormal) * portalNormal;
