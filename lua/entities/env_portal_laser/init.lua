@@ -535,6 +535,12 @@ function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recu
 			end;
 			local entryPos = entryPortal:GetPos();
 			local exitPos = exitPortal:GetPos();
+			local exitAng = exitPortal:GetAngles();
+			local entryAng = entryPortal:GetAngles();
+			print("Angle d'entrée :", entryAng);
+			print("Angle de sortie :", exitAng);
+			diffAngle = exitAng.y - entryAng.y;
+			print("Différence d'angle :", diffAngle);
 			local portalNormal = exitPortal:GetForward();
 			local laserToEntry = laserOrigin - entryPortal:GetPos();
 			local mirroredOffset = laserToEntry - 2 * laserToEntry:Dot(portalNormal) * portalNormal;
@@ -543,18 +549,25 @@ function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recu
 			local deltaX, deltaY, deltaZ = deltaPos.x, deltaPos.y, deltaPos.z;
 			local deltaY2, deltaP, deltaR = deltaAng.y, deltaAng.p, deltaAng.r;
 			local newAng = Angle(deltaP, deltaY2 + 180, deltaR);
-			local forward = newAng:Forward() * 1;
+			newAng:RotateAroundAxis(Vector(0, 0, 1), diffAngle);
+			local forward = newAng:Forward() * 0;
 			local right = newAng:Right() * 0;
 			local up = newAng:Up() * 0;
 			local sphereRadius = 70;
-			local newPos = exitPos + Vector(deltaX, deltaY, (-deltaZ)) + forward + right + up;
+			print("Forward vector :", forward);
+			local newPos = exitPos + Vector(deltaX, deltaY, deltaZ) + forward + right + up;
 			local distanceToExitPortal = (newPos - exitPos):Length();
 			print("Distance entre l'origine du laser cloné et le portail de sortie (dans la sphère):", distanceToExitPortal);
-			if distanceToExitPortal >= sphereRadius then
+			if distanceToExitPortal >= sphereRadius and diffAngle < 2 and diffAngle > (-2) then
 				print("Ajustement de la position du laser cloné pour qu'il soit dans la sphère de rayon", sphereRadius);
 				forward = newAng:Forward() * distanceToExitPortal - newAng:Forward() * 20;
+				newPos = exitPos + Vector(deltaX, deltaY, (-deltaZ)) + forward + right + up;
 			end;
-			newPos = exitPos + Vector(deltaX, deltaY, (-deltaZ)) + forward + right + up;
+			if distanceToExitPortal >= sphereRadius and diffAngle > 178 and diffAngle < 182 then
+				print("Ajustement de la position du laser cloné pour qu'il soit dans la sphère de rayon", sphereRadius);
+				forward = (-newAng:Forward()) * (-distanceToExitPortal) - newAng:Forward() * 30;
+				newPos = exitPos + Vector((-deltaX), (-deltaY), (-deltaZ)) + forward + right + up;
+			end;
 			local origAng = self:GetAngles();
 			local mirroredDir = direction - 2 * direction:Dot(portalNormal) * portalNormal;
 			mirroredDir = -mirroredDir;
