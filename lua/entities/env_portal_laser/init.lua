@@ -90,8 +90,6 @@ function ENT:Think()
 	self:NextThink(curTime + interval);
 	return true;
 end;
-
-
 function ENT:FireLaser()
 	if not self:GetState() then
 		return;
@@ -192,44 +190,6 @@ function ENT:FireLaser()
 		end;
 	end;
 end;
-function ENT:ReflectLaserForEntity(reflector)
-	if not IsValid(reflector:GetChildLaser()) then
-		   local laser = ents.Create(self:GetClass());
-		   if IsValid(laser) then
-			   laser:SetNoModel(true);
-			   laser:SetPos(reflector:GetPos());
-			   laser:SetAngles(reflector:GetAngles());
-			   laser:SetParent(reflector);
-			   laser:Spawn();
-			   laser:AddEffects(EF_NODRAW + EF_NOSHADOW);
-			   reflector:SetChildLaser(laser);
-			   laser:SetParentLaser(self);
-			   self:SetChildLaser(laser);
-			   laser:SetTransmitWithParent(true);
-			   laser:SetState(self:GetState());
-			   -- Raycast pour le laser cloné
-			   local startPos = reflector:GetPos();
-			   local dir = reflector:GetAngles():Forward();
-			   local tr = util.TraceLine({
-				   start = startPos,
-				   endpos = startPos + dir * 3,
-				   filter = {reflector, laser},
-				   mask = MASK_OPAQUE_AND_NPCS
-			   });
-			   laser:SetHitPos(tr.HitPos);
-			   laser:SetHitNormal(tr.HitNormal);
-		   end;
-	else
-		local childLaser = reflector:GetChildLaser();
-		if IsValid(childLaser) then
-			childLaser:SetState(self:GetState());
-		end;
-	end;
-	local childLaser = reflector:GetChildLaser();
-	if IsValid(childLaser) then
-		childLaser:FireLaser();
-	end;
-end;
 local function PushPlayerAwayFromLine(player, player, endPos, baseForce)
 	if not sv_player_collide_with_laser:GetBool() then
 		return;
@@ -328,138 +288,6 @@ function ENT:SpawnFunction(ply, tr, ClassName)
 	ent:Spawn();
 	ent:Activate();
 	return ent;
-end;
-function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recursionDepth, visitedPortals)
-	recursionDepth = recursionDepth or 0;
-	visitedPortals = visitedPortals or {};
-	if recursionDepth >= 3 then
-		return {}, nil;
-	end;
-	local exitSegments = {};
-	startPos = startPos or self:GetPos();
-	local rayEnd = startPos + direction * MAX_RAY_LENGTH;
-	local extents = Vector(10, 10, 10);
-	local rayHits = ents.FindAlongRay(startPos, rayEnd, -extents, extents);
-	local laserOrigin = self:GetPos();
-	if not self:GetNoModel() and self.LaserAttachment ~= (-1) then
-		local attach = self:GetAttachment(self.LaserAttachment);
-		if attach then
-			laserOrigin = attach.Pos;
-		end;
-	end;
-	for _, ent in ipairs(rayHits) do
-		if IsValid(ent) and ent:GetClass() == "prop_portal" and IsValid(ent:GetLinkedPartner()) then
-			local portalId = ent:EntIndex();
-			if visitedPortals[portalId] then
-				continue;
-			end;
-			visitedPortals[portalId] = true;
-			local entryPortal = ent;
-			local exitPortal = entryPortal:GetLinkedPartner();
-			local mins, maxs = entryPortal:GetCollisionBounds();
-			if not mins or (not maxs) then
-				mins, maxs = Vector(-34, -34, -1), Vector(34, 34, 1);
-			end;
-			local hitPos = util.IntersectRayWithOBB(startPos, direction, entryPortal:GetPos(), entryPortal:GetAngles(), mins, maxs);
-			if not hitPos then
-				hitPos = entryPortal:GetPos();
-			end;
-			if collisionPos and entryPortal:GetPos() then
-				local distToPortal = (collisionPos - entryPortal:GetPos()):Length();
-				if distToPortal > 50 then
-					break;
-				end;
-			end;
-			local entryPos = entryPortal:GetPos();
-			local exitPos = exitPortal:GetPos();
-			local exitAng = exitPortal:GetAngles();
-			local entryAng = entryPortal:GetAngles();
-			diffAngleP = exitAng.p - entryAng.p;
-			diffAngleY = exitAng.y - entryAng.y;
-			diffAngleR = exitAng.r - entryAng.r;
-			// print("Différence d'angle Y:", diffAngleY);
-			// print("Différence d'angle P:", diffAngleP);
-			// print("Différence d'angle R:", diffAngleR);
-			local portalNormal = exitPortal:GetForward();
-			local laserToEntry = laserOrigin - entryPortal:GetPos();
-			local mirroredOffset = laserToEntry - 2 * laserToEntry:Dot(portalNormal) * portalNormal;
-			local deltaPos = entryPos - laserOrigin;
-			local deltaAng = direction:Angle();
-			local deltaX, deltaY, deltaZ = deltaPos.x, deltaPos.y, deltaPos.z;
-			local deltaY2, deltaP, deltaR = deltaAng.y, deltaAng.p, deltaAng.r;
-			for i = 1, 100 do
-				print(" ");
-			end;
-			print("Delta X:", deltaX);
-			print("Delta Y:", deltaY);
-			print("Delta Z:", deltaZ);
-			print("Delta Yaw:", deltaY2);
-			print("Delta Pitch:", deltaP);
-			print("Delta Roll:", deltaR);
-			local newAng = Angle(deltaP, deltaY2 + 180, deltaR);
-			newAng:RotateAroundAxis(Vector(0, 0, 1), diffAngleY);
-			local forward = newAng:Forward() * 0;
-			local right = newAng:Right() * 0;
-			local up = newAng:Up() * 0;
-			local sphereRadius = 70;
-			local newPos = exitPos + Vector(deltaX, deltaY, deltaZ) + forward + right + up;
-			local distanceToExitPortal = (newPos - exitPos):Length();
-			if distanceToExitPortal >= sphereRadius and diffAngleP == 0 then
-				local absDiffY = math.abs(diffAngleY);
-				if absDiffY < 2 then
-					newPos = exitPos + Vector(deltaX, deltaY, (-deltaZ)) + newAng:Forward() * (distanceToExitPortal - 20);
-				elseif math.abs(diffAngleY - 180) < 2 then
-					newPos = exitPos + Vector((-deltaX), (-deltaY), (-deltaZ)) - newAng:Forward() * (distanceToExitPortal + 30);
-				elseif math.abs(diffAngleY - 90) < 2 then
-					newPos = exitPos + Vector((-deltaY), deltaX, (-deltaZ)) + newAng:Forward() * (distanceToExitPortal - 20);
-				elseif math.abs(diffAngleY + 90) < 2 then
-					newPos = exitPos + Vector(deltaY, (-deltaX), (-deltaZ)) + newAng:Forward() * (distanceToExitPortal - 20);
-				end;
-			end;
-			if diffAngleP ~= 0 then
-
-				local entryToOrigin = laserOrigin - entryPos
-				local localOffset = Vector(entryToOrigin:Dot(entryPortal:GetRight()), entryToOrigin:Dot(entryPortal:GetUp()), entryToOrigin:Dot(entryPortal:GetForward()))
-				local targetPos = exitPos - localOffset.x * exitPortal:GetRight() - localOffset.y * exitPortal:GetUp() + localOffset.z * exitPortal:GetForward()
-				local localAng = entryPortal:WorldToLocalAngles(direction:Angle())
-				local targetAng = exitPortal:LocalToWorldAngles(-localAng)
-				newPos = targetPos
-				newAng = targetAng
-				newPos = newPos + newAng:Forward() * (distanceToExitPortal - 20)
-			end;
-			local origAng = self:GetAngles();
-			local mirroredDir = direction - 2 * direction:Dot(portalNormal) * portalNormal;
-			mirroredDir = -mirroredDir;
-			local exitTr = util.TraceLine({
-				start = newPos,
-				endpos = newPos + newAng:Forward() * MAX_RAY_LENGTH,
-				filter = {
-					self,
-					exitPortal,
-					entryPortal,
-					"projected_wall_entity",
-					"player",
-					"point_laser_target",
-					"prop_laser_catcher",
-					"prop_laser_relay",
-					self:GetParent()
-				},
-				mask = MASK_OPAQUE_AND_NPCS
-			});
-			table.insert(exitSegments, {
-				start = newPos,
-				endpos = exitTr.HitPos,
-				hitsPortal = false,
-				canReachPortal = false
-			});
-			local nextSegments, _ = self:CalculatePortalExitSegments(exitTr.HitPos, newAng:Forward(), exitTr.HitPos, recursionDepth + 1, visitedPortals);
-			for _, segment in ipairs(nextSegments) do
-				table.insert(exitSegments, segment);
-			end;
-			break;
-		end;
-	end;
-	return exitSegments;
 end;
 local lasers = ents.FindByClass("env_portal_laser");
 local count = #lasers;
