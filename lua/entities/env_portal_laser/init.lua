@@ -373,7 +373,7 @@ function ENT:FireLaser()
 		end;
 		self:SetShouldSpark(true);
 	else
-		self:SetShouldSpark(true);
+		self:SetShouldSpark(false);
 	end;
 	if SERVER then
 		if self.PortalType then
@@ -413,7 +413,6 @@ function ENT:ReflectLaserForEntity(reflector)
 			laser:SetState(self:GetState());
 			local startPos = reflector:GetPos();
 			local dir = (reflector:GetAngles()):Forward();
-			print("Dir:", dir);
 			local tr = util.TraceLine({
 				start = startPos,
 				endpos = startPos + dir * 3,
@@ -630,27 +629,53 @@ function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recu
 			local origAng = self:GetAngles();
 			local mirroredDir = direction - 2 * direction:Dot(portalNormal) * portalNormal;
 			mirroredDir = -mirroredDir;
+			local traceStart = newPos - newAng:Forward() * 5;
 			local exitTr = util.TraceLine({
-				start = newPos,
-				endpos = newPos + newAng:Forward() * MAX_RAY_LENGTH,
+				start = traceStart,
+				endpos = traceStart + newAng:Forward() * MAX_RAY_LENGTH,
 				filter = {
 					self,
 					exitPortal,
-					entryPortal,
-					"projected_wall_entity",
-					"player",
-					"point_laser_target",
-					"prop_laser_catcher",
-					"prop_laser_relay",
-					self:GetParent()
+					entryPortal
 				},
 				mask = MASK_OPAQUE_AND_NPCS
 			});
+			print("exitTr.HitPos:", exitTr.HitPos);
+			print("exitTr.Entity:", exitTr.Entity, IsValid(exitTr.Entity) and exitTr.Entity:GetClass() or "nil");
+			local actualExitPos = exitTr.HitPos;
+			local hitProp = false;
+			if IsValid(exitTr.Entity) and exitTr.Entity:GetClass() == "prop_weighted_cube" then
+				print("Le cube a été touché !");
+			end;
+			if IsValid(exitTr.Entity) and exitTr.Entity:GetClass() ~= "prop_portal" then
+				print("Le laser a touché une entité autre qu'un portail à la sortie.");
+				actualExitPos = exitTr.HitPos;
+			end;
+			local rayProps = ents.FindAlongRay(newPos, actualExitPos, Vector(-10, -10, -10), Vector(10, 10, 10));
+			local foundCube = false;
+			for _, ent in ipairs(rayProps) do
+				if IsValid(ent) and ent:GetClass() == "prop_weighted_cube" then
+					print("Cube détecté via FindAlongRay !", ent);
+					local mins, maxs = ent:GetCollisionBounds();
+					if not mins or (not maxs) then
+						mins, maxs = Vector(-34, -34, -34), Vector(34, 34, 34);
+					end;
+					local hitPos = util.IntersectRayWithOBB(traceStart, newAng:Forward(), ent:GetPos(), ent:GetAngles(), mins, maxs);
+					if hitPos then
+						actualExitPos = hitPos;
+					else
+						actualExitPos = traceStart + newAng:Forward() * (ent:GetPos() - traceStart):Length();
+					end;
+					foundCube = true;
+				end;
+			end;
 			table.insert(exitSegments, {
 				start = newPos,
-				endpos = exitTr.HitPos,
+				endpos = actualExitPos,
 				hitsPortal = false,
-				canReachPortal = false
+				canReachPortal = false,
+				hitProp = hitProp or foundCube,
+				hitEntity = exitTr.Entity
 			});
 			local nextSegments, _ = self:CalculatePortalExitSegments(exitTr.HitPos, newAng:Forward(), exitTr.HitPos, recursionDepth + 1, visitedPortals);
 			for _, segment in ipairs(nextSegments) do
