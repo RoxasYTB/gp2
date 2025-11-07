@@ -358,21 +358,26 @@ function ENT:FireLaser()
 	end;
 	for _, segment in ipairs(allSegments) do
 		self:DamageEntsAlongTheRay(segment.start, segment.endpos);
+		if segment.hitEntity and IsValid(segment.hitEntity) then
+			local hitClass = segment.hitEntity:GetClass();
+			if PROP_WEIGHTED_CUBE_CLASS[hitClass] and PROP_WEIGHTED_CUBE_TYPE[segment.hitEntity:GetCubeType()] then
+				self:ReflectLaserForEntity(segment.hitEntity);
+			end;
+			if TURRET_CLASS[hitClass] and (not segment.hitEntity:IsOnFire()) then
+				segment.hitEntity:Ignite(5);
+			end;
+		end;
 	end;
-	local hitEntity = tr.Entity;
-	self:SetReflector(hitEntity);
-	print("Laser hit entity:", hitEntity, hitEntity and hitEntity:GetClass());
+	self:SetReflector(tr.Entity);
 	self:SetHitPos(tr.HitPos);
 	self:SetHitNormal(tr.HitNormal);
-	if IsValid(hitEntity) then
-		local hitClass = hitEntity:GetClass();
-		if PROP_WEIGHTED_CUBE_CLASS[hitClass] and PROP_WEIGHTED_CUBE_TYPE[hitEntity:GetCubeType()] then
-			print("Hit weighted cube:", hitEntity);
-			self:ReflectLaserForEntity(hitEntity);
-			local childLaser = hitEntity:GetChildLaser();
+	if IsValid(tr.Entity) then
+		local hitClass = tr.Entity:GetClass();
+		if PROP_WEIGHTED_CUBE_CLASS[hitClass] and PROP_WEIGHTED_CUBE_TYPE[tr.Entity:GetCubeType()] then
+			self:ReflectLaserForEntity(tr.Entity);
 		end;
-		if TURRET_CLASS[hitClass] and (not hitEntity:IsOnFire()) then
-			hitEntity:Ignite(5);
+		if TURRET_CLASS[hitClass] and (not tr.Entity:IsOnFire()) then
+			tr.Entity:Ignite(5);
 		end;
 		self:SetShouldSpark(false);
 	else
@@ -648,8 +653,6 @@ function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recu
 			local rayProps = ents.FindAlongRay(newPos, actualExitPos, Vector(-10, -10, -10), Vector(10, 10, 10));
 			foundCube = false;
 			for _, ent in ipairs(rayProps) do
-				print(ent, ent:GetClass());
-				print(ent:IsPlayer());
 				if IsValid(ent) and ent:GetClass() ~= "prop_portal" and (not ent:IsPlayer()) and ent:GetClass() ~= "gmod_hands" and ent:GetClass() ~= "predicted_viewmodel" then
 					local mins, maxs = ent:GetCollisionBounds();
 					if not mins or (not maxs) then
@@ -663,7 +666,6 @@ function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recu
 					end;
 					foundCube = true;
 					exitTr.Entity = ent;
-					print("Hit prop during exit trace:", ent, ent:GetClass());
 				end;
 			end;
 			table.insert(exitSegments, {
