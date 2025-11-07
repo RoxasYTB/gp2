@@ -550,6 +550,9 @@ function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recu
 			local deltaAng = direction:Angle();
 			local deltaX, deltaY, deltaZ = deltaPos.x, deltaPos.y, deltaPos.z;
 			local deltaY2, deltaP, deltaR = deltaAng.y, deltaAng.p, deltaAng.r;
+			for i = 1, 100 do
+				print(" ");
+			end;
 			print("Delta X:", deltaX);
 			print("Delta Y:", deltaY);
 			print("Delta Z:", deltaZ);
@@ -580,11 +583,12 @@ function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recu
 
 				local entryToOrigin = laserOrigin - entryPos
 				local localOffset = Vector(entryToOrigin:Dot(entryPortal:GetRight()), entryToOrigin:Dot(entryPortal:GetUp()), entryToOrigin:Dot(entryPortal:GetForward()))
-				local targetPos = exitPos + localOffset.x * exitPortal:GetRight() + localOffset.y * exitPortal:GetUp() + localOffset.z * exitPortal:GetForward()
+				local targetPos = exitPos - localOffset.x * exitPortal:GetRight() - localOffset.y * exitPortal:GetUp() + localOffset.z * exitPortal:GetForward()
 				local localAng = entryPortal:WorldToLocalAngles(direction:Angle())
-				local targetAng = exitPortal:LocalToWorldAngles(localAng)
+				local targetAng = exitPortal:LocalToWorldAngles(-localAng)
 				newPos = targetPos
 				newAng = targetAng
+				newPos = newPos + newAng:Forward() * 100
 			end;
 			local origAng = self:GetAngles();
 			local mirroredDir = direction - 2 * direction:Dot(portalNormal) * portalNormal;
