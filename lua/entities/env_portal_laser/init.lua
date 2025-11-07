@@ -361,12 +361,13 @@ function ENT:FireLaser()
 	end;
 	local hitEntity = tr.Entity;
 	self:SetReflector(hitEntity);
+	print("Laser hit entity:", hitEntity, hitEntity and hitEntity:GetClass());
 	self:SetHitPos(tr.HitPos);
 	self:SetHitNormal(tr.HitNormal);
-	print("Hit Entity:", hitEntity, IsValid(hitEntity) and hitEntity:GetClass() or "nil");
 	if IsValid(hitEntity) then
 		local hitClass = hitEntity:GetClass();
 		if PROP_WEIGHTED_CUBE_CLASS[hitClass] and PROP_WEIGHTED_CUBE_TYPE[hitEntity:GetCubeType()] then
+			print("Hit weighted cube:", hitEntity);
 			self:ReflectLaserForEntity(hitEntity);
 			local childLaser = hitEntity:GetChildLaser();
 		end;
@@ -642,27 +643,14 @@ function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recu
 				},
 				mask = MASK_OPAQUE_AND_NPCS
 			});
-			print("exitTr.HitPos:", exitTr.HitPos);
-			print("exitTr.Entity:", exitTr.Entity, IsValid(exitTr.Entity) and exitTr.Entity:GetClass() or "nil");
 			local actualExitPos = exitTr.HitPos;
 			local hitProp = false;
-			if IsValid(exitTr.Entity) then
-				print("Le cube a été touché !");
-				print("Found cube:", foundCube);
-				print("exitTr.Entity class:", IsValid(exitTr.Entity) and exitTr.Entity:GetClass() or "nil");
-				if foundCube and IsValid(exitTr.Entity) and PROP_WEIGHTED_CUBE_CLASS[exitTr.Entity:GetClass()] and PROP_WEIGHTED_CUBE_TYPE[exitTr.Entity:GetCubeType()] then
-					self:ReflectLaserForEntity(exitTr.Entity);
-					local childLaser = exitTr.Entity:GetChildLaser();
-				end;
-			end;
-			if IsValid(exitTr.Entity) and exitTr.Entity:GetClass() ~= "prop_portal" then
-				print("Le laser a touché une entité autre qu'un portail à la sortie.");
-				actualExitPos = exitTr.HitPos;
-			end;
 			local rayProps = ents.FindAlongRay(newPos, actualExitPos, Vector(-10, -10, -10), Vector(10, 10, 10));
 			foundCube = false;
 			for _, ent in ipairs(rayProps) do
-				if IsValid(ent) and ent:GetClass() == "prop_weighted_cube" then
+				print(ent, ent:GetClass());
+				print(ent:IsPlayer());
+				if IsValid(ent) and ent:GetClass() ~= "prop_portal" and (not ent:IsPlayer()) and ent:GetClass() ~= "gmod_hands" and ent:GetClass() ~= "predicted_viewmodel" then
 					local mins, maxs = ent:GetCollisionBounds();
 					if not mins or (not maxs) then
 						mins, maxs = Vector(-34, -34, -34), Vector(34, 34, 34);
@@ -674,6 +662,8 @@ function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recu
 						actualExitPos = traceStart + newAng:Forward() * (ent:GetPos() - traceStart):Length();
 					end;
 					foundCube = true;
+					exitTr.Entity = ent;
+					print("Hit prop during exit trace:", ent, ent:GetClass());
 				end;
 			end;
 			table.insert(exitSegments, {
@@ -695,4 +685,3 @@ function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recu
 end;
 local lasers = ents.FindByClass("env_portal_laser");
 local count = #lasers;
-print("Nombre de lasers sur la map :", count);
