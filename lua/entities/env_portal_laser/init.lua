@@ -393,8 +393,6 @@ function ENT:ReflectLaserForEntity(reflector)
 			for i = 1, 100 do
 				print(" ");
 			end;
-			print("EndPos:", endPos);
-			print("EntryPos:", entryPos);
 			local closeX = math.abs(endPos.x - entryPos.x) <= tol;
 			local closeY = math.abs(endPos.y - entryPos.y) <= tol;
 			local closeZ = math.abs(endPos.z - entryPos.z) <= tol;
