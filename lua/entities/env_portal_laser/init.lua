@@ -601,18 +601,13 @@ function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recu
 			local distanceToExitPortal = (newPos - exitPos):Length();
 			if distanceToExitPortal >= sphereRadius and diffAngleP == 0 then
 				local absDiffY = math.abs(diffAngleY);
-				print("Abs Diff Y:", absDiffY);
 				if math.abs(absDiffY - 0) < 2 then
-					print("Diff Y approx 0");
 					newPos = exitPos + Vector(deltaX, deltaY, (-deltaZ)) + newAng:Forward() * (distanceToExitPortal - 20);
 				elseif math.abs(absDiffY - 180) < 2 then
-					print("Diff Y approx 180");
 					newPos = exitPos + Vector((-deltaX), (-deltaY), (-deltaZ)) - newAng:Forward() * ((-distanceToExitPortal) + 30);
 				elseif math.abs(absDiffY - 270) < 2 then
-					print("Diff Y approx 270");
 					newPos = exitPos + Vector((-deltaY), deltaX, (-deltaZ)) + newAng:Forward() * (distanceToExitPortal - 20);
 				else
-					print("Diff Y approx 90");
 					newPos = exitPos + Vector(deltaY, (-deltaX), (-deltaZ)) + newAng:Forward() * (distanceToExitPortal - 20);
 				end;
 			end;
