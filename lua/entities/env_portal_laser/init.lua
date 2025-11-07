@@ -10,6 +10,34 @@ local util_TraceLine = util.TraceLine;
 local ents_FindAlongRay = ents.FindAlongRay;
 isTouchingEntryPortal = nil;
 foundCube = false;
+local function roundVec(v)
+	return Vector(math.Round(v.x, 3), math.Round(v.y, 3), math.Round(v.z, 3));
+end;
+local function vecEqual(a, b, eps)
+	eps = eps or 0.001;
+	return math.abs(a.x - b.x) <= eps and math.abs(a.y - b.y) <= eps and math.abs(a.z - b.z) <= eps;
+end;
+local function segmentsEqual(a, b, eps)
+	eps = eps or 0.001;
+	if not a and (not b) then
+		return true;
+	end;
+	if not a and b or a and (not b) then
+		return false;
+	end;
+	if #a ~= (#b) then
+		return false;
+	end;
+	for i = 1, #a do
+		if not vecEqual(a[i].start, b[i].start, eps) or (not vecEqual(a[i].endpos, b[i].endpos, eps)) then
+			return false;
+		end;
+		if (a[i].hitsPortal or false) ~= (b[i].hitsPortal or false) then
+			return false;
+		end;
+	end;
+	return true;
+end;
 local CalcClosestPointOnLineSegment = function(pos, start, endpos)
 	if GP2 and GP2.Utils and GP2.Utils.CalcClosestPointOnLineSegment then
 		return GP2.Utils.CalcClosestPointOnLineSegment(pos, start, endpos);
@@ -79,6 +107,7 @@ function ENT:Initialize()
 		self.LaserAttachment = self.LaserAttachment or self:LookupAttachment("laser_attachment");
 		self:PhysicsInitStatic(MOVETYPE_VPHYSICS);
 	end;
+	self.PortalExitEmitters = {};
 	self:NextThink(CurTime());
 end;
 ENT.LastLaserUpdate = 0;
@@ -218,15 +247,10 @@ function ENT:RecursionLaserThroughPortals(data, recursionDepth, visitedPortals, 
 	end;
 	local segmentData = {
 		start = data.start,
-		endpos = actualEndPos
+		endpos = actualEndPos,
+		hitsPortal = hitPortal and true or false,
+		canReachPortal = hitPortal and true or false
 	};
-	if hitPortal then
-		segmentData.hitsPortal = true;
-		segmentData.canReachPortal = true;
-	else
-		segmentData.hitsPortal = false;
-		segmentData.canReachPortal = false;
-	end;
 	table.insert(laserSegments, segmentData);
 	if not hitPortal then
 		return tr, laserSegments;
@@ -282,26 +306,69 @@ function ENT:TransformPortal(entryPortal, exitPortal, hitPos, hitAng)
 	local newAng = exitPortal:LocalToWorldAngles(localAng);
 	return newPos, newAng;
 end;
-function ENT:FireLaser()
+function ENT:InternalFireLaser()
+	if not IsValid(self) then
+		return;
+	end;
 	if not self:GetState() then
 		return;
 	end;
-	if not self:GetNoModel() and self.LaserAttachment == (-1) then
-		GP2.Error("EnvPortalLaser :: FireLaser - env_portal_laser[%i] with model %q don't have \"laser_attachment\"", self:EntIndex(), self:GetModel());
+	if self._lastLaserTick == CurTime() then
 		return;
 	end;
-	local attachPos;
-	local attachAng;
-	local attachForward;
+	self._lastLaserTick = CurTime();
+	if self.ForceSegments then
+		local forced = self.ForceSegments;
+		for i = 1, #forced do
+			forced[i].start = roundVec(forced[i].start);
+			forced[i].endpos = roundVec(forced[i].endpos);
+			forced[i].hitsPortal = forced[i].hitsPortal or false;
+			forced[i].canReachPortal = forced[i].canReachPortal or false;
+		end;
+		if not segmentsEqual(forced, self._lastSentSegments) then
+			self.LaserSegments = forced;
+			self._lastSentSegments = table.Copy(forced);
+			net.Start("LaserSegments");
+			net.WriteEntity(self);
+			net.WriteUInt(#forced, 8);
+			for _, seg in ipairs(forced) do
+				net.WriteVector(seg.start);
+				net.WriteVector(seg.endpos);
+				net.WriteBool(seg.hitsPortal or false);
+				net.WriteBool(seg.canReachPortal or false);
+			end;
+			net.Broadcast();
+		end;
+		for _, segment in ipairs(forced) do
+			self:DamageEntsAlongTheRay(segment.start, segment.endpos);
+			if segment.hitEntity and IsValid(segment.hitEntity) then
+				local hitClass = segment.hitEntity:GetClass();
+				if PROP_WEIGHTED_CUBE_CLASS[hitClass] and PROP_WEIGHTED_CUBE_TYPE[segment.hitEntity:GetCubeType()] then
+					self:ReflectLaserForEntity(segment.hitEntity, segment);
+				end;
+				if TURRET_CLASS[hitClass] and (not segment.hitEntity:IsOnFire()) then
+					segment.hitEntity:Ignite(5);
+				end;
+			end;
+		end;
+		self.ForceSegments = nil;
+		return;
+	end;
+	local attachPos, attachAng;
 	if self:GetNoModel() then
 		attachPos = self:GetPos();
 		attachAng = self:GetAngles();
 	else
 		local attach = self:GetAttachment(self.LaserAttachment);
-		attachPos = attach.Pos;
-		attachAng = attach.Ang;
+		if attach then
+			attachPos = attach.Pos;
+			attachAng = attach.Ang;
+		else
+			attachPos = self:GetPos();
+			attachAng = self:GetAngles();
+		end;
 	end;
-	attachForward = attachAng:Forward();
+	local attachForward = attachAng:Forward();
 	local tr, laserSegments = self:RecursionLaserThroughPortals({
 		start = attachPos,
 		endpos = attachPos + attachForward * MAX_RAY_LENGTH,
@@ -318,26 +385,29 @@ function ENT:FireLaser()
 		mask = MASK_OPAQUE_AND_NPCS
 	});
 	self.LaserSegments = laserSegments or {};
-	local exitSegments, _ = self:CalculatePortalExitSegments(tr.HitPos, attachForward);
+	self:CreateOrUpdatePortalExitEmitter(tr.HitPos, attachForward);
 	local allSegments = {};
 	if #self.LaserSegments > 0 then
-		local mainSegment = self.LaserSegments[1];
-		table.insert(allSegments, mainSegment);
+		local m = self.LaserSegments[1];
+		table.insert(allSegments, {
+			start = roundVec(m.start),
+			endpos = roundVec(m.endpos),
+			hitsPortal = m.hitsPortal or false,
+			canReachPortal = m.canReachPortal or false,
+			hitProp = m.hitProp,
+			hitEntity = m.hitEntity
+		});
 	else
 		table.insert(allSegments, {
-			start = attachPos,
-			endpos = tr.HitPos,
+			start = roundVec(attachPos),
+			endpos = roundVec(tr.HitPos),
 			hitsPortal = false,
 			canReachPortal = false
 		});
 	end;
-	for _, segment in ipairs(exitSegments) do
-		table.insert(allSegments, segment);
-	end;
-	local function SendSegments()
-		if not IsValid(self) then
-			return;
-		end;
+	if not segmentsEqual(allSegments, self._lastSentSegments) then
+		self._lastSentSegments = table.Copy(allSegments);
+		self.LaserSegments = allSegments;
 		net.Start("LaserSegments");
 		net.WriteEntity(self);
 		net.WriteUInt(#allSegments, 8);
@@ -348,20 +418,15 @@ function ENT:FireLaser()
 			net.WriteBool(segment.canReachPortal or false);
 		end;
 		net.Broadcast();
-	end;
-	local parentLaser = self:GetParentLaser();
-	local parent = self:GetParent();
-	if IsValid(parentLaser) or IsValid(parent) then
-		timer.Simple(0.05, SendSegments);
 	else
-		SendSegments();
+		self.LaserSegments = allSegments;
 	end;
 	for _, segment in ipairs(allSegments) do
 		self:DamageEntsAlongTheRay(segment.start, segment.endpos);
 		if segment.hitEntity and IsValid(segment.hitEntity) then
 			local hitClass = segment.hitEntity:GetClass();
 			if PROP_WEIGHTED_CUBE_CLASS[hitClass] and PROP_WEIGHTED_CUBE_TYPE[segment.hitEntity:GetCubeType()] then
-				self:ReflectLaserForEntity(segment.hitEntity);
+				self:ReflectLaserForEntity(segment.hitEntity, segment);
 			end;
 			if TURRET_CLASS[hitClass] and (not segment.hitEntity:IsOnFire()) then
 				segment.hitEntity:Ignite(5);
@@ -374,7 +439,11 @@ function ENT:FireLaser()
 	if IsValid(tr.Entity) then
 		local hitClass = tr.Entity:GetClass();
 		if PROP_WEIGHTED_CUBE_CLASS[hitClass] and PROP_WEIGHTED_CUBE_TYPE[tr.Entity:GetCubeType()] then
-			self:ReflectLaserForEntity(tr.Entity);
+			self:ReflectLaserForEntity(tr.Entity, {
+				start = roundVec(attachPos),
+				endpos = roundVec(tr.HitPos),
+				hitEntity = tr.Entity
+			});
 		end;
 		if TURRET_CLASS[hitClass] and (not tr.Entity:IsOnFire()) then
 			tr.Entity:Ignite(5);
@@ -389,16 +458,46 @@ function ENT:FireLaser()
 		end;
 	end;
 end;
-function ENT:ReflectLaserForEntity(reflector)
+function ENT:FireLaser()
+	if not IsValid(self) then
+		return;
+	end;
+	if not self:GetState() then
+		return;
+	end;
+	local chain = {
+		self
+	};
+	local queue = {
+		self
+	};
+	while #queue > 0 do
+		local nextq = {};
+		for _, e in ipairs(queue) do
+			local child = e:GetChildLaser();
+			if IsValid(child) then
+				table.insert(chain, child);
+				table.insert(nextq, child);
+			end;
+		end;
+		queue = nextq;
+	end;
+	for _, e in ipairs(chain) do
+		if e.InternalFireLaser then
+			e:InternalFireLaser();
+		end;
+	end;
+end;
+function ENT:ReflectLaserForEntity(reflector, segment)
+	if not IsValid(reflector) then
+		return;
+	end;
 	if not IsValid(reflector:GetChildLaser()) then
 		local entryPortal = self.LastEntryPortal;
 		local endPos = self.LastLaserEndPos;
 		if IsValid(entryPortal) and endPos then
 			local entryPos = entryPortal:GetPos();
 			local tol = 2;
-			for i = 1, 100 do
-				print(" ");
-			end;
 			local closeX = math.abs(endPos.x - entryPos.x) <= tol;
 			local closeY = math.abs(endPos.y - entryPos.y) <= tol;
 			local closeZ = math.abs(endPos.z - entryPos.z) <= tol;
@@ -419,32 +518,65 @@ function ENT:ReflectLaserForEntity(reflector)
 			self:SetChildLaser(laser);
 			laser:SetTransmitWithParent(true);
 			laser:SetState(self:GetState());
-			local startPos = reflector:GetPos();
-			local dir = (reflector:GetAngles()):Forward();
-			local tr = util.TraceLine({
-				start = startPos,
-				endpos = startPos + dir * 3,
-				filter = {
-					reflector,
-					laser
-				},
-				mask = MASK_OPAQUE_AND_NPCS
-			});
-			laser:SetHitPos(tr.HitPos);
-			laser:SetHitNormal(tr.HitNormal);
+			if segment and segment.start and segment.endpos then
+				local forced = {
+					start = roundVec(segment.start),
+					endpos = roundVec(segment.endpos),
+					hitsPortal = segment.hitsPortal or false,
+					canReachPortal = segment.canReachPortal or false,
+					hitEntity = segment.hitEntity,
+					hitProp = segment.hitProp
+				};
+				laser.ForceSegments = {
+					forced
+				};
+				laser._lastSentSegments = table.Copy(laser.ForceSegments);
+			else
+				local startPos = reflector:GetPos();
+				local dir = (reflector:GetAngles()):Forward();
+				local tr = util.TraceLine({
+					start = startPos,
+					endpos = startPos + dir * 3,
+					filter = {
+						reflector,
+						laser
+					},
+					mask = MASK_OPAQUE_AND_NPCS
+				});
+				laser:SetHitPos(tr.HitPos);
+				laser:SetHitNormal(tr.HitNormal);
+			end;
 		end;
 	else
 		local childLaser = reflector:GetChildLaser();
 		if IsValid(childLaser) then
 			childLaser:SetState(self:GetState());
+			if segment and segment.start and segment.endpos then
+				local forced = {
+					start = roundVec(segment.start),
+					endpos = roundVec(segment.endpos),
+					hitsPortal = segment.hitsPortal or false,
+					canReachPortal = segment.canReachPortal or false,
+					hitEntity = segment.hitEntity,
+					hitProp = segment.hitProp
+				};
+				childLaser.ForceSegments = {
+					forced
+				};
+				childLaser._lastSentSegments = table.Copy(childLaser.ForceSegments);
+			end;
 		end;
 	end;
 	local childLaser = reflector:GetChildLaser();
 	if IsValid(childLaser) then
-		childLaser:FireLaser();
+		if childLaser.InternalFireLaser then
+			childLaser:InternalFireLaser();
+		else
+			childLaser:FireLaser();
+		end;
 	end;
 end;
-local function PushPlayerAwayFromLine(player, player, endPos, baseForce)
+local function PushPlayerAwayFromLine(player, startPos, endPos, baseForce)
 	if not sv_player_collide_with_laser:GetBool() then
 		return;
 	end;
@@ -459,7 +591,11 @@ local function PushPlayerAwayFromLine(player, player, endPos, baseForce)
 	end;
 	local playerPos = player:GetPos();
 	local nearestPoint = CalcClosestPointOnLineSegment(playerPos, startPos, endPos);
-	local pushDirection = (playerPos - nearestPoint):GetNormalized();
+	local pushDirection = playerPos - nearestPoint;
+	if pushDirection == vector_origin then
+		return;
+	end;
+	pushDirection = pushDirection:GetNormalized();
 	pushDirection.z = 0;
 	local playerVelocity = (player:GetVelocity()):Length();
 	if not player:Crouching() then
@@ -525,6 +661,19 @@ function ENT:OnStateChange(name, old, new)
 	if IsValid(child) then
 		child:SetState(new);
 	end;
+	if self.PortalExitEmitters then
+		for _, emitter in pairs(self.PortalExitEmitters) do
+			if IsValid(emitter) then
+				emitter:SetState(new);
+			end;
+		end;
+	end;
+	if not new then
+		self:CleanupExitEmitters();
+	end;
+end;
+function ENT:OnRemove()
+	self:CleanupExitEmitters();
 end;
 function ENT:UpdateTransmitState()
 	return TRANSMIT_ALWAYS;
@@ -543,18 +692,18 @@ function ENT:SpawnFunction(ply, tr, ClassName)
 	ent:Activate();
 	return ent;
 end;
-function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recursionDepth, visitedPortals)
+function ENT:CreateOrUpdatePortalExitEmitter(startPos, direction, recursionDepth, visitedPortals)
 	recursionDepth = recursionDepth or 0;
 	visitedPortals = visitedPortals or {};
 	if recursionDepth >= 3 then
-		return {}, nil;
+		return;
 	end;
-	local exitSegments = {};
 	startPos = startPos or self:GetPos();
 	local rayEnd = startPos + direction * MAX_RAY_LENGTH;
 	local extents = Vector(10, 10, 10);
 	local rayHits = ents.FindAlongRay(startPos, rayEnd, -extents, extents);
 	local laserOrigin = self:GetPos();
+	self:SetModel("models/props/laser_emitter.mdl");
 	if not self:GetNoModel() and self.LaserAttachment ~= (-1) then
 		local attach = self:GetAttachment(self.LaserAttachment);
 		if attach then
@@ -578,22 +727,13 @@ function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recu
 			if not hitPos then
 				hitPos = entryPortal:GetPos();
 			end;
-			if collisionPos and entryPortal:GetPos() then
-				local distToPortal = (collisionPos - entryPortal:GetPos()):Length();
-				if distToPortal > 50 then
-					break;
-				end;
-			end;
 			local entryPos = entryPortal:GetPos();
 			local exitPos = exitPortal:GetPos();
 			local exitAng = exitPortal:GetAngles();
 			local entryAng = entryPortal:GetAngles();
-			diffAngleP = exitAng.p - entryAng.p;
-			diffAngleY = exitAng.y - entryAng.y;
-			diffAngleR = exitAng.r - entryAng.r;
-			local portalNormal = exitPortal:GetForward();
-			local laserToEntry = laserOrigin - entryPortal:GetPos();
-			local mirroredOffset = laserToEntry - 2 * laserToEntry:Dot(portalNormal) * portalNormal;
+			local diffAngleP = exitAng.p - entryAng.p;
+			local diffAngleY = exitAng.y - entryAng.y;
+			local diffAngleR = exitAng.r - entryAng.r;
 			local deltaPos = entryPos - laserOrigin;
 			local deltaAng = direction:Angle();
 			local deltaX, deltaY, deltaZ = deltaPos.x, deltaPos.y, deltaPos.z;
@@ -608,14 +748,16 @@ function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recu
 			local distanceToExitPortal = (newPos - exitPos):Length();
 			if distanceToExitPortal >= sphereRadius and diffAngleP == 0 then
 				local absDiffY = math.abs(diffAngleY);
+				print(absDiffY);
 				if math.abs(absDiffY - 0) < 2 then
-					newPos = exitPos + Vector(deltaX, deltaY, (-deltaZ)) + newAng:Forward() * (distanceToExitPortal - 20);
+					newPos = exitPos + Vector(deltaX, deltaY, (-deltaZ)) + newAng:Forward() * (distanceToExitPortal - 30);
 				elseif math.abs(absDiffY - 180) < 2 then
 					newPos = exitPos + Vector((-deltaX), (-deltaY), (-deltaZ)) - newAng:Forward() * ((-distanceToExitPortal) + 30);
 				elseif math.abs(absDiffY - 270) < 2 then
 					newPos = exitPos + Vector((-deltaY), deltaX, (-deltaZ)) + newAng:Forward() * (distanceToExitPortal - 20);
 				else
-					newPos = exitPos + Vector(deltaY, (-deltaX), (-deltaZ)) + newAng:Forward() * (distanceToExitPortal - 20);
+					print("diffY 90");
+					newPos = exitPos + Vector(deltaY, (-deltaX), (-deltaZ)) + newAng:Forward() * (distanceToExitPortal + 20);
 				end;
 			end;
 			if diffAngleP ~= 0 then
@@ -628,62 +770,63 @@ function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recu
 				newAng = targetAng;
 				newPos = newPos + newAng:Forward() * (distanceToExitPortal - 20);
 			end;
-			if not isTouchingEntryPortal then
-				print("Adjusting newPos away from portal due to non-contact.");
-				newPos = newPos + newAng:Forward() * MAX_RAY_LENGTH;
-				newPos = newPos + newAng:Up() * MAX_RAY_LENGTH;
-				newPos = newPos + newAng:Right() * MAX_RAY_LENGTH;
-			end;
-			local origAng = self:GetAngles();
-			local mirroredDir = direction - 2 * direction:Dot(portalNormal) * portalNormal;
-			mirroredDir = -mirroredDir;
-			local traceStart = newPos - newAng:Forward() * 5;
-			local exitTr = util.TraceLine({
-				start = traceStart,
-				endpos = traceStart + newAng:Forward() * MAX_RAY_LENGTH,
-				filter = {
-					self,
-					exitPortal,
-					entryPortal
-				},
-				mask = MASK_OPAQUE_AND_NPCS
-			});
-			local actualExitPos = exitTr.HitPos;
-			local hitProp = false;
-			local rayProps = ents.FindAlongRay(newPos, actualExitPos, Vector(-10, -10, -10), Vector(10, 10, 10));
-			foundCube = false;
-			for _, ent in ipairs(rayProps) do
-				if IsValid(ent) and ent:GetClass() ~= "prop_portal" and (not ent:IsPlayer()) and ent:GetClass() ~= "gmod_hands" and ent:GetClass() ~= "predicted_viewmodel" then
-					local mins, maxs = ent:GetCollisionBounds();
-					if not mins or (not maxs) then
-						mins, maxs = Vector(-34, -34, -34), Vector(34, 34, 34);
-					end;
-					local hitPos = util.IntersectRayWithOBB(traceStart, newAng:Forward(), ent:GetPos(), ent:GetAngles(), mins, maxs);
-					if hitPos then
-						actualExitPos = hitPos;
-					else
-						actualExitPos = traceStart + newAng:Forward() * (ent:GetPos() - traceStart):Length();
-					end;
-					foundCube = true;
-					exitTr.Entity = ent;
-				end;
-			end;
-			table.insert(exitSegments, {
-				start = newPos,
-				endpos = actualExitPos,
-				hitsPortal = false,
-				canReachPortal = false,
-				hitProp = hitProp or foundCube,
-				hitEntity = exitTr.Entity
-			});
-			local nextSegments, _ = self:CalculatePortalExitSegments(exitTr.HitPos, newAng:Forward(), exitTr.HitPos, recursionDepth + 1, visitedPortals);
-			for _, segment in ipairs(nextSegments) do
-				table.insert(exitSegments, segment);
-			end;
+			// Emit the laser at the new position and angle
+				newPos = newPos + newAng:Forward() * -20;
+				newPos = newPos + newAng:Up() * 14;
+
+			self:SpawnOrUpdateExitEmitter(exitPortal, newPos, newAng);
+			self:CreateOrUpdatePortalExitEmitter(newPos, newAng:Forward(), recursionDepth + 1, visitedPortals);
 			break;
 		end;
 	end;
-	return exitSegments;
+end;
+function ENT:SpawnOrUpdateExitEmitter(exitPortal, emitterPos, emitterAng)
+	if not IsValid(exitPortal) then
+		return;
+	end;
+	self.PortalExitEmitters = self.PortalExitEmitters or {};
+	local portalId = exitPortal:EntIndex();
+	local existingEmitter = self.PortalExitEmitters[portalId];
+	if IsValid(existingEmitter) then
+		existingEmitter:SetPos(emitterPos);
+		existingEmitter:SetAngles(emitterAng);
+	else
+		local emitter = ents.Create("env_portal_laser");
+		emitter:SetModel("models/props/metal_box.mdl");
+		if IsValid(emitter) then
+			emitter:SetPos(emitterPos);
+			emitter:SetAngles(emitterAng);
+			emitter:SetNoModel(false);
+			emitter:Spawn();
+			emitter:Activate();
+			emitter:SetState(self:GetState());
+			emitter:AddEffects(EF_NODRAW + EF_NOSHADOW);
+			emitter:SetParent(exitPortal);
+			emitter:SetTransmitWithParent(true);
+			emitter.IsPortalExitEmitter = true;
+			emitter.SourceLaser = self;
+			emitter.LinkedExitPortal = exitPortal;
+			self.PortalExitEmitters[portalId] = emitter;
+			exitPortal:CallOnRemove("CleanupExitEmitter_" .. emitter:EntIndex(), function()
+				if IsValid(emitter) then
+					emitter:Remove();
+				end;
+				if IsValid(self) and self.PortalExitEmitters then
+					self.PortalExitEmitters[portalId] = nil;
+				end;
+			end);
+		end;
+	end;
+end;
+function ENT:CleanupExitEmitters()
+	if self.PortalExitEmitters then
+		for portalId, emitter in pairs(self.PortalExitEmitters) do
+			if IsValid(emitter) then
+				emitter:Remove();
+			end;
+		end;
+		self.PortalExitEmitters = {};
+	end;
 end;
 local lasers = ents.FindByClass("env_portal_laser");
 local count = #lasers;
