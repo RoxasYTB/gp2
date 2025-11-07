@@ -588,7 +588,7 @@ function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recu
 				local targetAng = exitPortal:LocalToWorldAngles(-localAng)
 				newPos = targetPos
 				newAng = targetAng
-				newPos = newPos + newAng:Forward() * 100
+				newPos = newPos + newAng:Forward() * (distanceToExitPortal - 20)
 			end;
 			local origAng = self:GetAngles();
 			local mirroredDir = direction - 2 * direction:Dot(portalNormal) * portalNormal;
