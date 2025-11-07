@@ -172,10 +172,8 @@ function ENT:RecursionLaserThroughPortals(data, recursionDepth, visitedPortals, 
 	if foundPortalEntity then
 		if actualEndPos.x > (foundPortalEntity:GetPos()).x then
 			isTouchingEntryPortal = true;
-			print("Laser is touching entry portal.");
 		else
 			isTouchingEntryPortal = false;
-			print("Laser is not touching entry portal.");
 		end;
 	end;
 	local hitPortal = nil;
@@ -603,13 +601,18 @@ function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recu
 			local distanceToExitPortal = (newPos - exitPos):Length();
 			if distanceToExitPortal >= sphereRadius and diffAngleP == 0 then
 				local absDiffY = math.abs(diffAngleY);
-				if absDiffY < 2 then
+				print("Abs Diff Y:", absDiffY);
+				if math.abs(absDiffY - 0) < 2 then
+					print("Diff Y approx 0");
 					newPos = exitPos + Vector(deltaX, deltaY, (-deltaZ)) + newAng:Forward() * (distanceToExitPortal - 20);
-				elseif math.abs(diffAngleY - 180) < 2 then
-					newPos = exitPos + Vector((-deltaX), (-deltaY), (-deltaZ)) - newAng:Forward() * (distanceToExitPortal + 30);
-				elseif math.abs(diffAngleY - 90) < 2 then
+				elseif math.abs(absDiffY - 180) < 2 then
+					print("Diff Y approx 180");
+					newPos = exitPos + Vector((-deltaX), (-deltaY), (-deltaZ)) - newAng:Forward() * ((-distanceToExitPortal) + 30);
+				elseif math.abs(absDiffY - 270) < 2 then
+					print("Diff Y approx 270");
 					newPos = exitPos + Vector((-deltaY), deltaX, (-deltaZ)) + newAng:Forward() * (distanceToExitPortal - 20);
-				elseif math.abs(diffAngleY + 90) < 2 then
+				else
+					print("Diff Y approx 90");
 					newPos = exitPos + Vector(deltaY, (-deltaX), (-deltaZ)) + newAng:Forward() * (distanceToExitPortal - 20);
 				end;
 			end;
@@ -622,12 +625,6 @@ function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recu
 				newPos = targetPos;
 				newAng = targetAng;
 				newPos = newPos + newAng:Forward() * (distanceToExitPortal - 20);
-			end;
-			if not isTouchingEntryPortal then
-				print("Adjusting newPos away from portal due to non-contact.");
-				newPos = newPos + newAng:Forward() * MAX_RAY_LENGTH;
-				newPos = newPos + newAng:Up() * MAX_RAY_LENGTH;
-				newPos = newPos + newAng:Right() * MAX_RAY_LENGTH;
 			end;
 			local origAng = self:GetAngles();
 			local mirroredDir = direction - 2 * direction:Dot(portalNormal) * portalNormal;
