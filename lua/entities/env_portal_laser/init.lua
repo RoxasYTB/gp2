@@ -61,16 +61,6 @@ function ENT:KeyValue(k, v)
 		self:StoreOutput(k, v);
 	end;
 end;
-function ENT:AcceptInput(name, activator, caller, value)
-	name = name:lower();
-	if name == "turnon" then
-		self:SetState(true);
-	elseif name == "turnoff" then
-		self:SetState(false);
-	elseif name == "toggle" then
-		self:SetState(not self:GetState());
-	end;
-end;
 function ENT:Initialize()
 	if not self:GetNoModel() then
 		self:SetModel(self.ModelName or LASER_MODEL);
@@ -100,172 +90,8 @@ function ENT:Think()
 	self:NextThink(curTime + interval);
 	return true;
 end;
-function ENT:RecursionLaserThroughPortals(data, recursionDepth, visitedPortals, laserSegments)
-	recursionDepth = recursionDepth or 0;
-	visitedPortals = visitedPortals or {};
-	laserSegments = laserSegments or {};
-	if recursionDepth >= 3 then
-		return {
-			HitPos = data.endpos,
-			Entity = NULL,
-			Fraction = 1
-		}, laserSegments;
-	end;
-	local rayStart = data.start;
-	local rayEnd = data.endpos;
-	local foundPortalEntity = nil;
-	local portalHitPos = nil;
-	local rayHits = ents.FindAlongRay(rayStart, rayEnd, RAY_EXTENTS_NEG, RAY_EXTENTS);
-	if PortalManager and PortalManager.Portals then
-		for portal in pairs(PortalManager.Portals) do
-			if IsValid(portal) and portal:GetActivated() then
-				local portalPos = portal:GetPos();
-				local rayDir = (rayEnd - rayStart):GetNormalized();
-				local toPortal = portalPos - rayStart;
-				local projDist = toPortal:Dot(rayDir);
-				if projDist > 0 and projDist < (rayEnd - rayStart):Length() then
-					local projPoint = rayStart + rayDir * projDist;
-					local distToRay = (portalPos - projPoint):Length();
-					if distToRay < 32 then
-						foundPortalEntity = portal;
-						portalHitPos = projPoint;
-						break;
-					end;
-				end;
-			end;
-		end;
-	end;
-	for _, ent in ipairs(rayHits) do
-		if IsValid(ent) and ent:GetClass() == "prop_portal" and IsValid(ent:GetLinkedPartner()) then
-			local portalId = ent:EntIndex();
-			if not visitedPortals[portalId] then
-				foundPortalEntity = ent;
-				visitedPortals[portalId] = true;
-				local mins, maxs = ent:GetCollisionBounds();
-				if not mins or (not maxs) then
-					mins, maxs = Vector(-34, -34, -1), Vector(34, 34, 1);
-				end;
-				portalHitPos = util.IntersectRayWithOBB(rayStart, (rayEnd - rayStart):GetNormalized(), ent:GetPos(), ent:GetAngles(), mins, maxs);
-				if not portalHitPos then
-					local tr = util.TraceLine({
-						start = rayStart,
-						endpos = rayEnd,
-						filter = {
-							self,
-							ent
-						},
-						mask = MASK_OPAQUE_AND_NPCS
-					});
-					if tr.Hit and tr.Entity == ent then
-						portalHitPos = tr.HitPos;
-					else
-						break;
-					end;
-				end;
-				break;
-			end;
-		end;
-	end;
-	local tr = util_TraceLine(data);
-	local actualEndPos = tr.HitPos;
-	local hitPortal = nil;
-	if IsValid(tr.Entity) and tr.Entity:GetClass() ~= "prop_portal" then
-		local segmentData = {
-			start = data.start,
-			endpos = actualEndPos,
-			hitsPortal = false,
-			canReachPortal = false
-		};
-		table.insert(laserSegments, segmentData);
-		return tr, laserSegments;
-	end;
-	if foundPortalEntity and portalHitPos then
-		local distanceToPortal = (portalHitPos - rayStart):Length();
-		local distanceToHit = (tr.HitPos - rayStart):Length();
-		local canReachPortal = true;
-		local traceToPortal = util.TraceLine({
-			start = rayStart,
-			endpos = portalHitPos,
-			filter = data.filter or self,
-			mask = MASK_OPAQUE_AND_NPCS
-		});
-		if traceToPortal.Hit and traceToPortal.Entity ~= foundPortalEntity then
-			canReachPortal = false;
-			if portal_laser_perf_debug:GetBool() then
-				GP2.Print("Laser bloqué vers portail par: %s à distance %f", tostring(traceToPortal.Entity), traceToPortal.Fraction * distanceToPortal);
-			end;
-		end;
-		if canReachPortal and distanceToPortal < distanceToHit and distanceToPortal > 50 then
-			actualEndPos = portalHitPos;
-			hitPortal = foundPortalEntity;
-		end;
-	end;
-	local segmentData = {
-		start = data.start,
-		endpos = actualEndPos
-	};
-	if hitPortal then
-		segmentData.hitsPortal = true;
-		segmentData.canReachPortal = true;
-	else
-		segmentData.hitsPortal = false;
-		segmentData.canReachPortal = false;
-	end;
-	table.insert(laserSegments, segmentData);
-	if not hitPortal then
-		return tr, laserSegments;
-	end;
-	local linkedPortal = hitPortal:GetLinkedPartner();
-	local newData = table.Copy(data);
-	local rayDirection = (rayEnd - rayStart):GetNormalized();
-	local newPos, newAng = self:TransformPortal(hitPortal, linkedPortal, actualEndPos, rayDirection:Angle());
-	newAng = Angle(newAng.p, newAng.y + 180, newAng.r);
-	local exitPortalPitch = (linkedPortal:GetAngles()).p;
-	if math.abs(exitPortalPitch - 90) < 10 then
-		newAng = Angle(-newAng.p, newAng.y, newAng.r);
-	elseif math.abs(exitPortalPitch - 270) < 10 then
-		newAng = Angle(-newAng.p, newAng.y, newAng.r);
-	end;
-	local rayLength = (rayEnd - rayStart):Length();
-	local usedLength = (actualEndPos - rayStart):Length();
-	local remainingLength = math.max(rayLength - usedLength, 100);
-	newPos = newPos + newAng:Forward() * 0;
-	table.insert(laserSegments, {
-		start = linkedPortal:GetPos(),
-		endpos = newPos,
-		hitsPortal = false,
-		canReachPortal = false
-	});
-	newData.start = newPos;
-	newData.endpos = newPos + newAng:Forward() * remainingLength;
-	if istable(data.filter) then
-		local newFilter = table.Copy(data.filter);
-		table.insert(newFilter, linkedPortal);
-		table.insert(newFilter, hitPortal);
-		newData.filter = newFilter;
-	else
-		newData.filter = {
-			data.filter,
-			linkedPortal,
-			hitPortal
-		};
-	end;
-	return self:RecursionLaserThroughPortals(newData, recursionDepth + 1, visitedPortals, laserSegments);
-end;
-function ENT:TransformPortal(entryPortal, exitPortal, hitPos, hitAng)
-	if not IsValid(entryPortal) or (not IsValid(exitPortal)) then
-		return hitPos, hitAng;
-	end;
-	local hitOffset = hitPos - entryPortal:GetPos();
-	local localOffset = Vector(hitOffset:Dot(entryPortal:GetRight()), hitOffset:Dot(entryPortal:GetUp()), hitOffset:Dot(entryPortal:GetForward()));
-	localOffset.x = -localOffset.x;
-	local newPos = exitPortal:GetPos() + localOffset.x * exitPortal:GetRight() + localOffset.y * exitPortal:GetUp() + localOffset.z * exitPortal:GetForward();
-	local localAng = entryPortal:WorldToLocalAngles(hitAng);
-	localAng.y = -localAng.y;
-	localAng.r = -localAng.r;
-	local newAng = exitPortal:LocalToWorldAngles(localAng);
-	return newPos, newAng;
-end;
+
+
 function ENT:FireLaser()
 	if not self:GetState() then
 		return;
@@ -368,20 +194,31 @@ function ENT:FireLaser()
 end;
 function ENT:ReflectLaserForEntity(reflector)
 	if not IsValid(reflector:GetChildLaser()) then
-		local laser = ents.Create(self:GetClass());
-		if IsValid(laser) then
-			laser:SetNoModel(true);
-			laser:SetPos(reflector:GetPos());
-			laser:SetAngles(reflector:GetAngles());
-			laser:SetParent(reflector);
-			laser:Spawn();
-			laser:AddEffects(EF_NODRAW + EF_NOSHADOW);
-			reflector:SetChildLaser(laser);
-			laser:SetParentLaser(self);
-			self:SetChildLaser(laser);
-			laser:SetTransmitWithParent(true);
-			laser:SetState(self:GetState());
-		end;
+		   local laser = ents.Create(self:GetClass());
+		   if IsValid(laser) then
+			   laser:SetNoModel(true);
+			   laser:SetPos(reflector:GetPos());
+			   laser:SetAngles(reflector:GetAngles());
+			   laser:SetParent(reflector);
+			   laser:Spawn();
+			   laser:AddEffects(EF_NODRAW + EF_NOSHADOW);
+			   reflector:SetChildLaser(laser);
+			   laser:SetParentLaser(self);
+			   self:SetChildLaser(laser);
+			   laser:SetTransmitWithParent(true);
+			   laser:SetState(self:GetState());
+			   -- Raycast pour le laser cloné
+			   local startPos = reflector:GetPos();
+			   local dir = reflector:GetAngles():Forward();
+			   local tr = util.TraceLine({
+				   start = startPos,
+				   endpos = startPos + dir * 3,
+				   filter = {reflector, laser},
+				   mask = MASK_OPAQUE_AND_NPCS
+			   });
+			   laser:SetHitPos(tr.HitPos);
+			   laser:SetHitNormal(tr.HitNormal);
+		   end;
 	else
 		local childLaser = reflector:GetChildLaser();
 		if IsValid(childLaser) then
