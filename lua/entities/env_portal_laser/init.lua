@@ -9,6 +9,7 @@ local clamp = math.Clamp;
 local util_TraceLine = util.TraceLine;
 local ents_FindAlongRay = ents.FindAlongRay;
 isTouchingEntryPortal = nil;
+foundCube = false;
 local CalcClosestPointOnLineSegment = function(pos, start, endpos)
 	if GP2 and GP2.Utils and GP2.Utils.CalcClosestPointOnLineSegment then
 		return GP2.Utils.CalcClosestPointOnLineSegment(pos, start, endpos);
@@ -362,6 +363,7 @@ function ENT:FireLaser()
 	self:SetReflector(hitEntity);
 	self:SetHitPos(tr.HitPos);
 	self:SetHitNormal(tr.HitNormal);
+	print("Hit Entity:", hitEntity, IsValid(hitEntity) and hitEntity:GetClass() or "nil");
 	if IsValid(hitEntity) then
 		local hitClass = hitEntity:GetClass();
 		if PROP_WEIGHTED_CUBE_CLASS[hitClass] and PROP_WEIGHTED_CUBE_TYPE[hitEntity:GetCubeType()] then
@@ -371,9 +373,9 @@ function ENT:FireLaser()
 		if TURRET_CLASS[hitClass] and (not hitEntity:IsOnFire()) then
 			hitEntity:Ignite(5);
 		end;
-		self:SetShouldSpark(true);
-	else
 		self:SetShouldSpark(false);
+	else
+		self:SetShouldSpark(not foundCube);
 	end;
 	if SERVER then
 		if self.PortalType then
@@ -644,18 +646,23 @@ function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recu
 			print("exitTr.Entity:", exitTr.Entity, IsValid(exitTr.Entity) and exitTr.Entity:GetClass() or "nil");
 			local actualExitPos = exitTr.HitPos;
 			local hitProp = false;
-			if IsValid(exitTr.Entity) and exitTr.Entity:GetClass() == "prop_weighted_cube" then
+			if IsValid(exitTr.Entity) then
 				print("Le cube a été touché !");
+				print("Found cube:", foundCube);
+				print("exitTr.Entity class:", IsValid(exitTr.Entity) and exitTr.Entity:GetClass() or "nil");
+				if foundCube and IsValid(exitTr.Entity) and PROP_WEIGHTED_CUBE_CLASS[exitTr.Entity:GetClass()] and PROP_WEIGHTED_CUBE_TYPE[exitTr.Entity:GetCubeType()] then
+					self:ReflectLaserForEntity(exitTr.Entity);
+					local childLaser = exitTr.Entity:GetChildLaser();
+				end;
 			end;
 			if IsValid(exitTr.Entity) and exitTr.Entity:GetClass() ~= "prop_portal" then
 				print("Le laser a touché une entité autre qu'un portail à la sortie.");
 				actualExitPos = exitTr.HitPos;
 			end;
 			local rayProps = ents.FindAlongRay(newPos, actualExitPos, Vector(-10, -10, -10), Vector(10, 10, 10));
-			local foundCube = false;
+			foundCube = false;
 			for _, ent in ipairs(rayProps) do
 				if IsValid(ent) and ent:GetClass() == "prop_weighted_cube" then
-					print("Cube détecté via FindAlongRay !", ent);
 					local mins, maxs = ent:GetCollisionBounds();
 					if not mins or (not maxs) then
 						mins, maxs = Vector(-34, -34, -34), Vector(34, 34, 34);
