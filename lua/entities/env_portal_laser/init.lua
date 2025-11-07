@@ -621,6 +621,12 @@ function ENT:CalculatePortalExitSegments(startPos, direction, collisionPos, recu
 				newAng = targetAng;
 				newPos = newPos + newAng:Forward() * (distanceToExitPortal - 20);
 			end;
+			if not isTouchingEntryPortal then
+				print("Adjusting newPos away from portal due to non-contact.");
+				newPos = newPos + newAng:Forward() * MAX_RAY_LENGTH;
+				newPos = newPos + newAng:Up() * MAX_RAY_LENGTH;
+				newPos = newPos + newAng:Right() * MAX_RAY_LENGTH;
+			end;
 			local origAng = self:GetAngles();
 			local mirroredDir = direction - 2 * direction:Dot(portalNormal) * portalNormal;
 			mirroredDir = -mirroredDir;
