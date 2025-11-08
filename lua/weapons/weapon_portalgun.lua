@@ -436,7 +436,7 @@ local function setPortalPlacementOld(owner, portal)
 
 		-- Check if the entity is in the 'cleanserCheck' table
 		if cleanserCheck[ent:GetClass()] then
-			if not ent:GetEnabled() then continue end
+		if not (ent.GetEnabled and ent:GetEnabled()) then continue end
 
 			local rayDirection = pos + aim * 99999
 
