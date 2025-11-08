@@ -50,8 +50,8 @@ if SERVER then
 				if triggered then
 					for _, ent in ipairs(ents.FindByClass("npc_personality_core")) do
 						if IsValid(ent) then
-							ent:SetSolid(SOLID_BBOX)
-							ent:SetCollisionGroup(COLLISION_GROUP_WORLD)
+							ent:SetSolid(SOLID_BBOX);
+							ent:SetCollisionGroup(COLLISION_GROUP_WORLD);
 							ply:PickupObject(ent);
 							print("GP2: Forced pickup of entity " .. tostring(ent) .. " by player " .. tostring(ply));
 							print("Collision group: " .. tostring(ent:GetCollisionGroup()));
@@ -109,6 +109,18 @@ if SERVER then
 		timer.Create("GP2_UpgradePortalgunForAllPlayers", 0.5, 0, function()
 			for _, ply in ipairs(player.GetAll()) do
 				ply:ConCommand("gp2_portalgun_upgraded 0");
+			end;
+		end);
+	end;
+end;
+if SERVER then
+	if game.GetMap() == "sp_a2_bts1" then
+		timer.Create("GP2_MoveCube_sp_a2_bts1", 3, 0, function()
+			for _, ent in ipairs(ents.FindByClass("prop_weighted_cube")) do
+				local pos = ent:GetPos();
+				if pos.x == -9728 and pos.y == -1888 and pos.z == 1168 then
+					ent:SetPos(Vector(pos.x, pos.y, pos.z - 400));
+				end;
 			end;
 		end);
 	end;

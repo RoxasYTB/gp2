@@ -42,6 +42,10 @@ function ENT:Initialize()
 	end;
 end;
 function ENT:StartTouch(ent)
+	if game.GetMap() == "sp_a2_bts1" then
+		return;
+	end;
+	print("Triggering cleanser on entity: " .. tostring(ent));
 	if ent:IsPlayer() and ent:Alive() then
 		local plyweap = ent:GetActiveWeapon();
 		if IsValid(plyweap) and plyweap:GetClass() == "weapon_portalgun" then
