@@ -450,7 +450,7 @@ function ENT:InternalFireLaser()
 		end;
 		self:SetShouldSpark(false);
 	else
-		self:SetShouldSpark(not foundCube);
+		self:SetShouldSpark(false);
 	end;
 	if SERVER then
 		if self.PortalType then
@@ -757,7 +757,7 @@ function ENT:CreateOrUpdatePortalExitEmitter(startPos, direction, recursionDepth
 					newPos = exitPos + Vector((-deltaY), deltaX, (-deltaZ)) + newAng:Forward() * (distanceToExitPortal - 20);
 				else
 					print("diffY 90");
-					newPos = exitPos + Vector(deltaY, (-deltaX), (-deltaZ)) + newAng:Forward() * (distanceToExitPortal + 20);
+					newPos = exitPos + Vector(deltaY, (-deltaX), (-deltaZ)) + newAng:Forward() * (distanceToExitPortal - 30);
 				end;
 			end;
 			if diffAngleP ~= 0 then

@@ -916,8 +916,8 @@ function ENT:SyncCloneVisuals(ent, clone)
 	end;
 end;
 function ENT:PromoteCloneToReal(ent, clone)
-	print("Promoting clone to real entity...")
-	if clone:GetModel() == "models/props_junk/popcan01a.mdl" then
+	print("Promoting clone to real entity...");
+	if clone:GetModel() == "models/props_junk/popcan01a.mdl" or clone:GetModel() == "models/props/laser_emitter.mdl" then
 		return;
 	end;
 	if not IsValid(clone) or (not IsValid(ent)) then
