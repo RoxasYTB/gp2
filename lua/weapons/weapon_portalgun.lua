@@ -4,8 +4,8 @@ concommand.Add("gp2_portal_debug_points", function(ply, cmd, args)
 end, nil, "Active/désactive le debug visuel des points de validation du portail.")
 
 local function debugDrawPoint(pos, valid)
-	if not gp2_portal_debug_points then return end
 	local color = valid and Color(0,255,0) or Color(255,0,0)
+	print("[GP2] Portal Debug Point at " .. tostring(pos) .. " | Valid: " .. tostring(valid))
 	debugoverlay.Cross(pos, 5, 1, color, true)
 end
 -- ----------------------------------------------------------------------------
@@ -410,7 +410,7 @@ local function portalsOverlap(pos, ang, size, ignore)
 end
 
 
-local function setPortalPlacementOld(owner, portal)
+local function setPortalPlacement(owner, portal)
 	local ang = Angle() -- The portal angle
 	local siz = portal:GetSize()
 	local pos = owner:GetShootPos()
@@ -454,30 +454,16 @@ local function setPortalPlacementOld(owner, portal)
 		end
 	end
 
-	if
-		not gp2_portal_placement_never_fail:GetBool() and
-		(
-			not tr.Hit
-			or IsValid(tr.Entity)
-			or tr.HitTexture == "**studio**"
-			--or bit.band(tr.DispFlags, DISPSURF_WALKABLE) ~= 0
-			or bit.band(tr.SurfaceFlags, SURF_NOPORTAL) ~= 0
-			or bit.band(tr.SurfaceFlags, SURF_TRANS) ~= 0
-		)
-	then
-		return PORTAL_PLACEMENT_BAD_SURFACE, tr
-	end
 
 	if tr.HitSky then
 		return PORTAL_PLACEMENT_UNKNOWN_SURFACE, tr
 	end
 
-	-- Align portals on 45 degree surfaces
 	if math.abs(tr.HitNormal:Dot(ang:Up())) < 0.71 then
 		ang:Set(tr.HitNormal:Angle())
 		ang:RotateAroundAxis(ang:Right(), -90)
 		ang:RotateAroundAxis(ang:Up(), 180)
-	else -- Place portals on any surface and angle
+	else
 		ang:Set(getSurfaceAngle(owner, tr.HitNormal))
 	end
 
@@ -773,7 +759,7 @@ function SWEP:PlacePortal(type, owner)
 
 
 
-    placementStatus, traceResult, pos, ang = setPortalPlacementOld(self:GetOwner(), portal)
+    placementStatus, traceResult, pos, ang = setPortalPlacement(self:GetOwner(), portal)
 
 
     --local effectData = EffectData()
@@ -1266,9 +1252,6 @@ function SWEP:AddViewmodelBob(vm,origin,ang)
 	local forward,right,up = ang:Forward(),ang:Right(),ang:Up()
 
 	CalcViewmodelBob(self)
-
-	/*local plr = self:GetOwner():IsPlayer() && self:GetOwner()
-	if !plr then return end*/
 
 	VectorMA(origin,g_verticalBob*.1,forward,origin)
 
