@@ -1068,7 +1068,6 @@ function SWEP:ViewModelDrawn(vm)
 
 	-- Top light particle (and beam) for first viewmodel
 	if not IsValid(self.TopLightFirstPerson) and IsValid(vm0) then
-		self.TopLightFirstPerson = CreateParticleSystem(vm0, "portalgun_top_light_firstperson", PATTACH_POINT_FOLLOW, self.TopLightFirstPersonAttachment or 0)
 		if IsValid(self.TopLightFirstPerson) then
 			self.TopLightFirstPerson:SetIsViewModelEffect(true)
 			self.TopLightFirstPerson:SetShouldDraw(false)
@@ -1083,7 +1082,6 @@ function SWEP:ViewModelDrawn(vm)
 
 	-- Top light particle (and beam) for second viewmodel (copie du premier)
 	if not IsValid(self.TopLightFirstPerson2) and IsValid(vm1) then
-		self.TopLightFirstPerson2 = CreateParticleSystem(vm1, "portalgun_top_light_firstperson", PATTACH_POINT_FOLLOW, self.TopLightFirstPerson2Attachment or 0)
 		if IsValid(self.TopLightFirstPerson2) then
 			self.TopLightFirstPerson2:SetIsViewModelEffect(true)
 			self.TopLightFirstPerson2:SetShouldDraw(false)
@@ -1172,21 +1170,7 @@ function SWEP:DrawWorldModel(studio)
         self.TopLightColor = Vector()
     end
 
-    -- Top light particle (and beam) - world model
-    if not IsValid(self.TopLightThirdPerson) then
-        self.TopLightThirdPerson = CreateParticleSystem(self, "portalgun_top_light_thirdperson", PATTACH_POINT_FOLLOW,
-            self.TopLightThirdPersonAttachment)
-        if IsValid(self.TopLightThirdPerson) then
-            self.TopLightThirdPerson:AddControlPoint(4, self, PATTACH_POINT_FOLLOW, "Beam_point5")
-        end
-    else
-        self.TopLightThirdPerson:Render()
-        -- On ne met à jour que le control point 1 (couleur)
-        self.TopLightThirdPerson:SetControlPoint(1, lightColor)
-        if self.TopLightColor ~= lightColor then
-            self.TopLightColor = lightColor
-        end
-    end
+
 
     self:DrawModel(studio)
 end
