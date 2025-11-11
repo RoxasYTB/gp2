@@ -118,10 +118,19 @@ if SERVER then
 		timer.Create("GP2_MoveCube_sp_a2_bts1", 3, 0, function()
 			for _, ent in ipairs(ents.FindByClass("prop_weighted_cube")) do
 				local pos = ent:GetPos();
-				if pos.x == -9728 and pos.y == -1888 and pos.z == 1168 then
+				if pos.x == (-9728) and pos.y == (-1888) and pos.z == 1168 then
 					ent:SetPos(Vector(pos.x, pos.y, pos.z - 400));
 				end;
 			end;
 		end);
+	end;
+end;
+notification.AddLegacy = function(msg, type, len)
+	return;
+end;
+RunConsoleCommand("gmod_admin_cleanup");
+if SERVER then
+	if game.GetMap() == "sp_a2_bts4" then
+		game.ConsoleCommand("sv_gravity 500\n");
 	end;
 end;

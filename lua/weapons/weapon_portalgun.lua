@@ -834,21 +834,13 @@ end
 function SWEP:PrimaryAttack()
 	if not SERVER then return end
 	if not self:GetCanFirePortal1() then return end
-
 	if not self:CanPrimaryAttack() then return end
-	self:GetOwner():EmitSound("Weapon_Portalgun.fire_blue")
-
+	self.Weapon:SetNetworkedInt("LastPortal",1)
+	self:ShootPortal(TYPE_BLUE)
 	self:SendWeaponAnim(ACT_VM_PRIMARYATTACK)
+	self:GetOwner():EmitSound("weapons/portalgun/portalgun_shoot_blue1.wav", 70, 100, .7, CHAN_WEAPON)
 	self:GetOwner():SetAnimation(PLAYER_ATTACK1)
-
 	self.NextIdleTime = CurTime() + 0.5
-
-	if IsValid(self:GetOwner()) and self:GetOwner():IsPlayer() then
-		self:GetOwner():ViewPunch(Angle(math.Rand(-1, -0.5), math.Rand(-1, 1), 0))
-	end
-
-	self:PlacePortal(PORTAL_TYPE_FIRST, self:GetOwner())
-
 	self:SetNextPrimaryFire(CurTime() + 0.5)
 	self:SetNextSecondaryFire(CurTime() + 0.5)
 end
@@ -856,23 +848,145 @@ end
 function SWEP:SecondaryAttack()
 	if not SERVER then return end
 	if not self:GetCanFirePortal2() then return end
-
 	if not self:CanPrimaryAttack() then return end
-	self:GetOwner():EmitSound("Weapon_Portalgun.fire_red")
-
+	self.Weapon:SetNetworkedInt("LastPortal",2)
+	self:ShootPortal(TYPE_ORANGE)
 	self:SendWeaponAnim(ACT_VM_PRIMARYATTACK)
+	self:GetOwner():EmitSound("weapons/portalgun/portalgun_shoot_red1.wav", 70, 100, .7, CHAN_WEAPON)
 	self:GetOwner():SetAnimation(PLAYER_ATTACK1)
-
 	self.NextIdleTime = CurTime() + 0.5
-
-	if IsValid(self:GetOwner()) and self:GetOwner():IsPlayer() then
-		self:GetOwner():ViewPunch(Angle(math.Rand(-1, -0.5), math.Rand(-1, 1), 0))
-	end
-
-	self:PlacePortal(PORTAL_TYPE_SECOND, self:GetOwner())
-
 	self:SetNextPrimaryFire(CurTime() + 0.5)
 	self:SetNextSecondaryFire(CurTime() + 0.5)
+
+	function SWEP:ShootBall(type, startpos, endpos, dir)
+		local ball = ents.Create("projectile_portal_ball")
+		local origin = startpos - Vector(0,0,10) + self:GetOwner():GetRight()*8
+		ball:SetPos(origin)
+		ball:SetAngles(dir:Angle())
+		ball:SetEffects(type)
+		ball:SetGun(self)
+		ball:Spawn()
+		ball:Activate()
+		ball:SetOwner(self:GetOwner())
+		local speed = 3500
+		local phy = ball:GetPhysicsObject()
+		if IsValid(phy) then phy:ApplyForceCenter((endpos-origin):GetNormal() * speed) end
+		return ball
+	end
+
+	function SWEP:ShootPortal(type)
+		local weapon = self.Weapon
+		local owner = self:GetOwner()
+		weapon:SetNextPrimaryFire(CurTime() + 0.5)
+		weapon:SetNextSecondaryFire(CurTime() + 0.5)
+		local OrangePortalEnt = owner:GetNWEntity("Portal:Orange", nil)
+		local BluePortalEnt = owner:GetNWEntity("Portal:Blue", nil)
+		local EntToUse = type == TYPE_BLUE and BluePortalEnt or OrangePortalEnt
+		local OtherEnt = type == TYPE_BLUE and OrangePortalEnt or BluePortalEnt
+		local tr = {}
+		tr.start = owner:GetShootPos()
+		tr.endpos = owner:GetShootPos() + (owner:GetAimVector() * 2048 * 1000)
+		tr.filter = { owner, EntToUse, EntToUse and EntToUse.Sides or nil }
+		for k,v in pairs(ents.FindByClass("prop_physics*")) do
+			table.insert(tr.filter, v)
+		end
+		for k,v in pairs(ents.FindByClass("npc_turret_floor")) do
+			table.insert(tr.filter, v)
+		end
+		tr.mask = MASK_SHOT
+		local trace = util.TraceLine(tr)
+		if IsFirstTimePredicted() and owner:IsValid() then
+			if SERVER then
+				local ball = self:ShootBall(type, tr.start, tr.endpos, trace.Normal)
+			end
+		end
+	end
+	function SWEP:ShootBall(type, startpos, endpos, dir)
+		local ball = ents.Create("projectile_portal_ball")
+		local origin = startpos - Vector(0,0,10) + self:GetOwner():GetRight()*8
+		ball:SetPos(origin)
+		ball:SetAngles(dir:Angle())
+		ball:SetEffects(type)
+		ball:SetGun(self)
+		ball:Spawn()
+		ball:Activate()
+		ball:SetOwner(self:GetOwner())
+		local speed = 3500
+		local phy = ball:GetPhysicsObject()
+		if IsValid(phy) then phy:ApplyForceCenter((endpos-origin):GetNormal() * speed) end
+		return ball
+	end
+
+	function SWEP:ShootPortal(type)
+		local weapon = self.Weapon
+		local owner = self:GetOwner()
+		weapon:SetNextPrimaryFire(CurTime() + 0.5)
+		weapon:SetNextSecondaryFire(CurTime() + 0.5)
+		local OrangePortalEnt = owner:GetNWEntity("Portal:Orange", nil)
+		local BluePortalEnt = owner:GetNWEntity("Portal:Blue", nil)
+		local EntToUse = type == TYPE_BLUE and BluePortalEnt or OrangePortalEnt
+		local OtherEnt = type == TYPE_BLUE and OrangePortalEnt or BluePortalEnt
+		local tr = {}
+		tr.start = owner:GetShootPos()
+		tr.endpos = owner:GetShootPos() + (owner:GetAimVector() * 2048 * 1000)
+		tr.filter = { owner, EntToUse, EntToUse and EntToUse.Sides or nil }
+		for k,v in pairs(ents.FindByClass("prop_physics*")) do
+			table.insert(tr.filter, v)
+		end
+		for k,v in pairs(ents.FindByClass("npc_turret_floor")) do
+			table.insert(tr.filter, v)
+		end
+		tr.mask = MASK_SHOT
+		local trace = util.TraceLine(tr)
+		if IsFirstTimePredicted() and owner:IsValid() then
+			if SERVER then
+				local ball = self:ShootBall(type, tr.start, tr.endpos, trace.Normal)
+			end
+		end
+	end
+function SWEP:ShootBall(type, startpos, endpos, dir)
+	local ball = ents.Create("projectile_portal_ball")
+	local origin = startpos - Vector(0,0,10) + self:GetOwner():GetRight()*8
+	ball:SetPos(origin)
+	ball:SetAngles(dir:Angle())
+	ball:SetEffects(type)
+	ball:SetGun(self)
+	ball:Spawn()
+	ball:Activate()
+	ball:SetOwner(self:GetOwner())
+	local speed = 3500
+	local phy = ball:GetPhysicsObject()
+	if IsValid(phy) then phy:ApplyForceCenter((endpos-origin):GetNormal() * speed) end
+	return ball
+end
+
+function SWEP:ShootPortal(type)
+	local weapon = self.Weapon
+	local owner = self:GetOwner()
+	weapon:SetNextPrimaryFire(CurTime() + 0.5)
+	weapon:SetNextSecondaryFire(CurTime() + 0.5)
+	local OrangePortalEnt = owner:GetNWEntity("Portal:Orange", nil)
+	local BluePortalEnt = owner:GetNWEntity("Portal:Blue", nil)
+	local EntToUse = type == TYPE_BLUE and BluePortalEnt or OrangePortalEnt
+	local OtherEnt = type == TYPE_BLUE and OrangePortalEnt or BluePortalEnt
+	local tr = {}
+	tr.start = owner:GetShootPos()
+	tr.endpos = owner:GetShootPos() + (owner:GetAimVector() * 2048 * 1000)
+	tr.filter = { owner, EntToUse, EntToUse and EntToUse.Sides or nil }
+	for k,v in pairs(ents.FindByClass("prop_physics*")) do
+		table.insert(tr.filter, v)
+	end
+	for k,v in pairs(ents.FindByClass("npc_turret_floor")) do
+		table.insert(tr.filter, v)
+	end
+	tr.mask = MASK_SHOT
+	local trace = util.TraceLine(tr)
+	if IsFirstTimePredicted() and owner:IsValid() then
+		if SERVER then
+			local ball = self:ShootBall(type, tr.start, tr.endpos, trace.Normal)
+		end
+	end
+end
 end
 
 

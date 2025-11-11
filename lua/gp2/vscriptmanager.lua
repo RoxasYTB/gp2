@@ -98,13 +98,13 @@ GP2.VScriptMgr = {
 		end;
 		local chunk, err = CompileString(code);
 		if not chunk and err then
-			GP2.VScriptMgr.Error(err:gsub("CompileString:(%d)+", ""));
+			GP2.Error(err:gsub("CompileString:(%d)+", ""));
 			return;
 		end;
 		setfenv(chunk, scope);
 		local success, runtimeErr = pcall(chunk);
 		if not success and runtimeErr then
-			GP2.VScriptMgr.Error(runtimeErr:gsub("CompileString%:%d+: ", "RunScriptCode: ( '" .. (ent:GetName() ~= "" and ent:GetName() or ent:GetClass()) .. "' )"));
+			GP2.Error(runtimeErr:gsub("CompileString%:%d+: ", "RunScriptCode: ( '" .. (ent:GetName() ~= "" and ent:GetName() or ent:GetClass()) .. "' )"));
 		end;
 		GP2.Print("Calling the %q on %q", code, tostring(ent));
 	end,
@@ -117,7 +117,7 @@ GP2.VScriptMgr = {
 		if func and func then
 			func();
 		elseif not failesilent then
-			GP2.VScriptMgr.Error("Attempt to call script function with name '%s' (not found)");
+			GP2.Error("Attempt to call script function with name '%s' (not found)");
 		end;
 	end,
 	CallScriptFunctionWithArgs = function(ent, funcname, failesilent, ...)
@@ -127,7 +127,7 @@ GP2.VScriptMgr = {
 		if func and func then
 			func(...);
 		elseif not failesilent then
-			GP2.VScriptMgr.Error("Attempt to call script function with name '%s' (not found)", funcname);
+			GP2.Error("Attempt to call script function with name '%s' (not found)", funcname);
 		end;
 	end,
 	CallHookFunction = function(hookname, failesilent, ...)
