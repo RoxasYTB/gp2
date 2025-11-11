@@ -25,6 +25,27 @@ if SERVER then
 		end;
 	end);
 end;
+timer.Create("GP2_RemovePlateEntities", 0.5, 0, function()
+	for _, ent in ipairs(ents.FindByClass("prop_physics")) do
+		if ent:GetModel() == "models/hunter/plates/plate1x1.mdl" and (ent:GetColor()).a == 255 then
+			ent:Remove();
+		end;
+	end;
+end);
+hook.Add("OnEntityCreated", "GP2_AdjustPortalOnce", function(ent)
+	if ent:GetClass() == "prop_portal" then
+		timer.Simple(0.1, function()
+			if not IsValid(ent) then
+				return;
+			end;
+			local ang = ent:GetAngles();
+			if ang.p > (-70) and ang.p < (-50) then
+				local up = ang:Up();
+				ent:SetPos(ent:GetPos() + up * 10);
+			end;
+		end);
+	end;
+end);
 if SERVER then
 	CreateConVar("shouldHold", "0", FCVAR_ARCHIVE, "Force pickup on sp_a1_wakeup");
 	if game.GetMap() == "sp_a1_wakeup" then

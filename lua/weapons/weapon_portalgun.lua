@@ -3,9 +3,8 @@ concommand.Add("gp2_portal_debug_points", function(ply, cmd, args)
 	 gp2_portal_debug_points = not gp2_portal_debug_points
 end, nil, "Active/désactive le debug visuel des points de validation du portail.")
 
-local function debugDrawPoint(pos, valid)
-	local color = valid and Color(0,255,0) or Color(255,0,0)
-	print("[GP2] Portal Debug Point at " .. tostring(pos) .. " | Valid: " .. tostring(valid))
+local function debugDrawPoint(pos, valid, color)
+	color = color or (valid and Color(0,255,0) or Color(255,0,0))
 	debugoverlay.Cross(pos, 5, 1, color, true)
 end
 -- ----------------------------------------------------------------------------
@@ -426,6 +425,29 @@ local function setPortalPlacement(owner, portal)
 
 	local alongRay = ents.FindAlongRay(tr.StartPos, tr.HitPos, -rayHull, rayHull)
 
+	local trSurface = owner:GetEyeTrace()
+	if not trSurface or not trSurface.Hit then
+		owner:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Aucun objet pointé.")
+		return
+	end
+	local texSurface = util.GetSurfaceData(trSurface.SurfaceProps)
+	local texNameSurface = trSurface.HitTexture or "inconnu"
+	owner:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Texture pointée : " .. tostring(texNameSurface))
+
+	local nonPortalableTextures = {
+		["METAL"] = true,
+		["displacement"] = true,
+		["TOOLS/TOOLSINVISIBLE"] = true
+
+	}
+	for k in pairs(nonPortalableTextures) do
+		if string.find(texNameSurface, k, 1, true) then
+			owner:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Surface non portalable détectée")
+			return PORTAL_PLACEMENT_BAD_SURFACE, tr
+		end
+	end
+
+
 
 	for i = 1, #alongRay do
 		local ent = alongRay[i]
@@ -467,45 +489,234 @@ local function setPortalPlacement(owner, portal)
 		ang:Set(getSurfaceAngle(owner, tr.HitNormal))
 	end
 
-	-- Extrude portal from the ground
-	local af, au = ang:Forward(), ang:Right()
-	local angTab = {
-		af * siz[1],
-		-af * siz[1],
-		au * siz[2],
-		-au * siz[2]
-	}
+	local portalHeightHalf = siz[2] * 0.5
+	local portalHeightComplete = siz[2]
+	local portalWidthHalf = siz[1] * 0.5
+	local portalWidthComplete = siz[1]
 
+	local betterPos = Vector(tr.HitPos.x, tr.HitPos.y, tr.HitPos.z)
+	local vHits = 0
+	local hHits = 0
 
-
-
-	for i = 1, 4 do
-		local extr = PortalManager.TraceLine({
-			start  = tr.HitPos + tr.HitNormal,
-			endpos = tr.HitPos + tr.HitNormal - angTab[i],
-			filter = ents.GetAll(),
+	local function MakePortalTrace(startPos, offset, normAng)
+		local trace = PortalManager.TraceLine({
+			start  = startPos,
+			endpos = startPos + offset,
+			filter = gtCheckFunc,
+			mask   = MASK_SHOT_PORTAL
 		})
 
-		if extr.Hit then
-			tr.HitPos = tr.HitPos + angTab[i] * (1 - extr.Fraction)
+		if not trace.Hit then
+			local newpos = startPos + offset
+			local trace2 = PortalManager.TraceLine({
+				start  = newpos,
+				endpos = newpos + normAng:Forward() * -2,
+				filter = gtCheckFunc,
+				mask   = MASK_SHOT_PORTAL
+			})
+
+			if not trace2.Hit then
+				local trace3 = PortalManager.TraceLine({
+					start  = startPos + offset + normAng:Forward() * -2,
+					endpos = startPos + normAng:Forward() * -2,
+					filter = gtCheckFunc,
+					mask   = MASK_SHOT_PORTAL
+				})
+
+				if trace3.Hit then
+					trace.Hit = true
+					trace.Fraction = 1 - trace3.Fraction
+					trace.HitPos = trace3.HitPos
+					trace.HitNormal = trace3.HitNormal
+				end
+			else
+				trace.Hit = true
+				trace.Fraction = 1
+				trace.HitPos = trace2.HitPos
+				trace.HitNormal = trace2.HitNormal
+			end
 		end
+
+		return trace
 	end
+
+
+	local traceRight = MakePortalTrace(tr.HitPos + ang:Right() * portalWidthHalf, -ang:Forward() * 8, ang)
+	local validRight = traceRight.Hit and not traceRight.HitSky and traceRight.Entity == nil
+	debugDrawPoint(tr.HitPos + ang:Right() * portalWidthHalf, validRight)
+
+	local traceLeft = MakePortalTrace(tr.HitPos - ang:Right() * portalWidthHalf, -ang:Forward() * 8, ang)
+	local validLeft = traceLeft.Hit and not traceLeft.HitSky and traceLeft.Entity == nil
+	debugDrawPoint(tr.HitPos - ang:Right() * portalWidthHalf, validLeft)
+
+	local traceUp = MakePortalTrace(tr.HitPos + ang:Forward() * portalWidthComplete, -ang:Forward() * 8, ang)
+	local validUp = traceUp.Hit and not traceUp.HitSky and traceUp.Entity == nil
+	debugDrawPoint(tr.HitPos + ang:Forward() * portalWidthComplete, validUp)
+
+	local traceDown = MakePortalTrace(tr.HitPos - ang:Forward() * portalWidthComplete, -ang:Forward() * 8, ang)
+	local validDown = traceDown.Hit and not traceDown.HitSky and traceDown.Entity == nil
+	debugDrawPoint(tr.HitPos - ang:Forward() * portalWidthComplete, validDown)
+
+	-- Debug: Tracer les lignes des tracelines arrière
+	-- Debug: Mesurer la distance à la surface en dessous (vers le down de l'angle du portail)
+	local downVec = -ang:Up() * 1000
+
+	local startPosRight = tr.HitPos + ang:Right() * portalWidthHalf
+	local traceDownRight = PortalManager.TraceLine({
+		start = startPosRight,
+		endpos = startPosRight + downVec,
+		filter = gtCheckFunc,
+		mask = MASK_SHOT_PORTAL
+	})
+	local distRight, distLeft = nil, nil
+	if traceDownRight.Hit then
+		distRight = (startPosRight - traceDownRight.HitPos):Length()
+		print("Distance à la surface en dessous (droite): " .. distRight)
+
+	end
+
+	local startPosLeft = tr.HitPos - ang:Right() * portalWidthHalf
+	local traceDownLeft = PortalManager.TraceLine({
+		start = startPosLeft,
+		endpos = startPosLeft + downVec,
+		filter = gtCheckFunc,
+		mask = MASK_SHOT_PORTAL
+	})
+	if traceDownLeft.Hit then
+		distLeft = (startPosLeft - traceDownLeft.HitPos):Length()
+		print("Distance à la surface en dessous (gauche): " .. distLeft)
+
+	end
+
+
+
+
+	local startPosUp = tr.HitPos + ang:Forward() * portalHeightHalf
+	local traceDownUp = PortalManager.TraceLine({
+		start = startPosUp,
+		endpos = startPosUp + downVec,
+		filter = gtCheckFunc,
+		mask = MASK_SHOT_PORTAL
+	})
+	local distUp
+	if traceDownUp.Hit then
+		distUp = (startPosUp - traceDownUp.HitPos):Length()
+		print("Distance à la surface en dessous (haut): " .. distUp)
+	end
+
+	local startPosDown = tr.HitPos - ang:Forward() * portalHeightHalf
+	local traceDownDown = PortalManager.TraceLine({
+		start = startPosDown,
+		endpos = startPosDown + downVec,
+		filter = gtCheckFunc,
+		mask = MASK_SHOT_PORTAL
+	})
+	local distDown
+	if traceDownDown.Hit then
+		distDown = (startPosDown - traceDownDown.HitPos):Length()
+		print("Distance à la surface en dessous (bas): " .. distDown)
+	end
+
+	local maxTries = 20
+	local step = nil
+	local tries = 0
+
+	local function isZeroDist(val)
+		return val == nil or math.abs(val) < 0.0001
+	end
+
+	while (not isZeroDist(distLeft) or not isZeroDist(distRight)) and tries < maxTries do
+		step = 15
+		if isZeroDist(distLeft) and not isZeroDist(distRight) then
+			betterPos = betterPos - ang:Right() * step
+		elseif isZeroDist(distRight) and not isZeroDist(distLeft) then
+			betterPos = betterPos + ang:Right() * step
+		else
+			break
+		end
+
+		local startPosRight = betterPos + ang:Right() * portalWidthHalf
+		local traceDownRight = PortalManager.TraceLine({
+			start = startPosRight,
+			endpos = startPosRight + downVec,
+			filter = gtCheckFunc,
+			mask = MASK_SHOT_PORTAL
+		})
+		if traceDownRight.Hit then
+			distRight = (startPosRight - traceDownRight.HitPos):Length()
+		else
+			distRight = nil
+		end
+
+		local startPosLeft = betterPos - ang:Right() * portalWidthHalf
+		local traceDownLeft = PortalManager.TraceLine({
+			start = startPosLeft,
+			endpos = startPosLeft + downVec,
+			filter = gtCheckFunc,
+			mask = MASK_SHOT_PORTAL
+		})
+		if traceDownLeft.Hit then
+			distLeft = (startPosLeft - traceDownLeft.HitPos):Length()
+		else
+			distLeft = nil
+		end
+
+		tries = tries + 1
+	end
+
+
+
+	tries = 0
+	while (not isZeroDist(distUp) or not isZeroDist(distDown)) and tries < maxTries do
+		step = 50
+		if isZeroDist(distUp) and not isZeroDist(distDown) then
+			betterPos = betterPos + ang:Forward() * step
+			print("Adjusting portal position up")
+		elseif isZeroDist(distDown) and not isZeroDist(distUp) then
+			betterPos = betterPos - ang:Forward() * step
+			print("Adjusting portal position down")
+		else
+			break
+		end
+
+		local startPosUp = betterPos + ang:Forward() * portalHeightHalf
+		local traceDownUp = PortalManager.TraceLine({
+			start = startPosUp,
+			endpos = startPosUp + downVec,
+			filter = gtCheckFunc,
+			mask = MASK_SHOT_PORTAL
+		})
+		if traceDownUp.Hit then
+			distUp = (startPosUp - traceDownUp.HitPos):Length()
+		else
+			distUp = nil
+		end
+
+		local startPosDown = betterPos - ang:Forward() * portalHeightHalf
+		local traceDownDown = PortalManager.TraceLine({
+			start = startPosDown,
+			endpos = startPosDown + downVec,
+			filter = gtCheckFunc,
+			mask = MASK_SHOT_PORTAL
+		})
+		if traceDownDown.Hit then
+			distDown = (startPosDown - traceDownDown.HitPos):Length()
+		else
+			distDown = nil
+		end
+
+		tries = tries + 1
+	end
+
+	tr.HitPos = betterPos
+
+
 
 	pos:Set(tr.HitNormal)
 	pos:Mul(mul)
-	pos:Add(tr.HitPos + tr.HitNormal * 0.5)
+	pos:Add(betterPos + tr.HitNormal * 0.5)
 
-	local trBehind = PortalManager.TraceLine({
-		start  = tr.HitPos + tr.HitNormal,
-		endpos = tr.HitPos + tr.HitNormal * 1000,
-		filter = gtCheckFunc,
-		mask   = MASK_SHOT_PORTAL
-	})
 
-	if trBehind.Hit and trBehind.HitNormal and tr.HitNormal:Dot(trBehind.HitNormal) > -0.5 then
-
-		return PORTAL_PLACEMENT_BAD_SURFACE, tr
-	end
 
 	local portalValid = true
 	local numTests = 6
@@ -797,10 +1008,8 @@ function SWEP:PlacePortal(type, owner)
         portal:SetPos(pos)
     end
     portal:SetAngles(ang)
-    portal:SetPlacedByMap(false)
-    if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
-        portal:BuildPortalEnvironment()
-    end
+    portal:SetPlacedByMap(true)
+
 
     portal:SetActivated(true)
 
