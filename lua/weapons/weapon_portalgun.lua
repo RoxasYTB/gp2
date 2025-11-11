@@ -771,11 +771,10 @@ function SWEP:PlacePortal(type, owner)
     end
     local placementStatus, traceResult, pos, ang
 
-    if PORTAL_USE_NEW_ENVIRONMENT_SYSTEM then
-        placementStatus, traceResult, pos, ang = setPortalPlacementNew(self:GetOwner(), portal)
-    else
-        placementStatus, traceResult, pos, ang = setPortalPlacementOld(self:GetOwner(), portal)
-    end
+
+
+    placementStatus, traceResult, pos, ang = setPortalPlacementOld(self:GetOwner(), portal)
+
 
     --local effectData = EffectData()
     --effectData:SetNormal(Vector(r, g, b)) -- color
