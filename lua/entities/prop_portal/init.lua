@@ -302,6 +302,7 @@ end;
 function ENT:CleanupAllClones()
 	for _, ent in pairs(ents.GetAll()) do
 		if IsValid(ent) and ent.clone and IsValid(ent.clone) and ent.clone.InPortal == self then
+			print("Removing clone of entity ", ent, " due to portal removal.");
 			ent.clone:Remove();
 			ent.clone = nil;
 			ent.InPortal = nil;
@@ -319,6 +320,7 @@ function ENT:BootAllPlayers()
 				ply.OriginalCollisionGroup = nil;
 			end;
 			if ply.PortalClone and IsValid(ply.PortalClone) then
+				print("Removing portal clone for player ", ply, " due to portal removal.");
 				ply.PortalClone:Remove();
 				ply.PortalClone = nil;
 			end;

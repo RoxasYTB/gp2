@@ -4,6 +4,8 @@ local HOLD_CLASS_WHITELIST = {
 	prop_physics_multiplayer = true,
 	prop_weighted_cube = true
 };
+local offsetPlayerZ = 0;
+local minimumAimPitch = 40;
 if SERVER then
 	hook.Add("PlayerUse", "InstantHold_PlayerUse", function(ply, ent)
 		for _, e in ipairs(ents.GetAll()) do
@@ -15,6 +17,7 @@ if SERVER then
 			local distance = (ply:GetPos()):Distance(ent:GetPos());
 			local MIN_HOLD_OFFSET = 100;
 			HOLD_DISTANCE = math.max(distance, MIN_HOLD_OFFSET);
+			offsetPlayerZ = (ply:GetPos()).z - (ent:GetPos()).z;
 		end;
 		if not IsValid(ply) or (not ply:IsPlayer()) then
 			return;
@@ -96,7 +99,6 @@ if SERVER then
 					ent:SetCollisionGroup(COLLISION_GROUP_NONE);
 				else
 					local aim = ply:EyeAngles();
-					local minimumAimPitch = 50;
 					if aim.p > minimumAimPitch then
 						aim.p = minimumAimPitch;
 					end;
@@ -128,6 +130,9 @@ if SERVER then
 							ignoreTrace = true;
 						end;
 						if trace.Hit and (not ignoreTrace) then
+							if pos.z < (ply:GetPos()).z + offsetPlayerZ then
+								pos.z = (ply:GetPos()).z + offsetPlayerZ;
+							end;
 							pos = trace.HitPos;
 						end;
 					end;
