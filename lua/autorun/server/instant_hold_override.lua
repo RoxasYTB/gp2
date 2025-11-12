@@ -104,7 +104,6 @@ if SERVER then
 						aim.p = minimumAimPitch;
 					end;
 					local MIN_HOLD_OFFSET = 100;
-					print("HOLD_DISTANCE: ", (ply:GetPos()):Distance(ent:GetPos()));
 					local pos = ply:EyePos() + aim:Forward() * 100;
 					local ang = Angle(0, aim.y, 0) + (ent.HoldAngleOffset or Angle(0, 0, 0));
 					local mins, maxs = ent:OBBMins(), ent:OBBMaxs();
