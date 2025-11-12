@@ -253,7 +253,28 @@ function SWEP:Deploy()
 	end
 
 	if not self.GotCustomLinkageGroup then self:SetLinkageGroup(self:GetOwner():EntIndex() - 1) end
-	if self:GetIsPotatoGun() then self:SendWeaponAnim(ACT_VM_DEPLOY) self:GetOwner():GetViewModel(0):SetBodygroup(1, 1) self:SetBodygroup(1, 1) end
+	if self:GetIsPotatoGun() then
+		self:SendWeaponAnim(ACT_VM_DEPLOY)
+		self:GetOwner():GetViewModel(0):SetBodygroup(1, 1)
+		self:SetBodygroup(1, 1)
+		local vm1 = owner:GetViewModel(1)
+		if not IsValid(self.HoldingParticleFirstPerson) then
+			self.HoldingParticleFirstPerson = CreateParticleSystem(vm1, "portalgun_beam_holding_FP", PATTACH_POINT_FOLLOW, self.FirstPersonMuzzleAttachment2)
+			if IsValid(self.HoldingParticleFirstPerson) then
+				self.HoldingParticleFirstPerson:AddControlPoint(1, vm1, PATTACH_POINT_FOLLOW, "Arm1_attach3")
+				self.HoldingParticleFirstPerson:AddControlPoint(2, vm1, PATTACH_POINT_FOLLOW, "Arm2_attach3")
+				self.HoldingParticleFirstPerson:AddControlPoint(3, vm1, PATTACH_POINT_FOLLOW, "Arm3_attach3")
+				self.HoldingParticleFirstPerson:AddControlPoint(4, owner, PATTACH_CUSTOMORIGIN)
+				self.HoldingParticleFirstPerson:SetControlPointEntity(4, vm1)
+				if IsValid(entityInUse) then
+					self.HoldingParticleFirstPerson:AddControlPoint(5, entityInUse, PATTACH_ABSORIGIN_FOLLOW, 0)
+				else
+					self.HoldingParticleFirstPerson:AddControlPoint(5, vm1, PATTACH_POINT_FOLLOW, "muzzle")
+				end
+				self.HoldingParticleFirstPersonDieTime = CurTime() + 0.5
+			end
+		end
+	end
 	local vm0 = owner:GetViewModel(0)
 	local vm1 = owner:GetViewModel(1)
 	if not IsValid(self.HoldSound) then local filter = RecipientFilter() filter:AddPlayer(owner) self.HoldSound = CreateSound(self, "PortalPlayer.ObjectUse", filter) end
@@ -441,3 +462,26 @@ function SWEP:OnRemove()
 	self.HeldRealObject = nil
 	self:ClearPortals()
 end
+
+
+concommand.Add("player_holding_animation", function(ply, cmd, args)
+	if not IsValid(ply) then return end
+	local wep = ply:GetActiveWeapon()
+	local vm0 = ply:GetViewModel(0)
+	if IsValid(vm0) then vm0:SendViewModelMatchingSequence(11) end
+	if not IsValid(wep) or wep:GetClass() ~= "weapon_portalgun" then ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Vous n'avez pas de Portal Gun équipé.") return end
+
+	wep:EmitSound("PortalPlayer.ObjectUse", 0)
+	ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Animation de prise d'objet lancée.")
+end, nil, "Joue l'animation et le son de prise d'objet du Portal Gun.")
+
+concommand.Add("stop_holding_animation", function(ply, cmd, args)
+	if not IsValid(ply) then return end
+	local wep = ply:GetActiveWeapon()
+	local vm0 = ply:GetViewModel(0)
+	vm0:SendViewModelMatchingSequence(12)
+	if not IsValid(wep) or wep:GetClass() ~= "weapon_portalgun" then ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Vous n'avez pas de Portal Gun équipé.") return end
+	wep:StopSound("PortalPlayer.ObjectUse")
+	wep:EmitSound("PortalPlayer.ObjectUseStop", 0)
+	ply:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Animation de prise d'objet arrêtée.")
+end, nil, "Arrête l'animation et le son de prise d'objet du Portal Gun.")
