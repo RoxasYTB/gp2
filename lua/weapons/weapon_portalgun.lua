@@ -1562,35 +1562,33 @@ function SWEP:GetSyncedPortalGunState()
     end
 end
 
+
 function SWEP:play_hold_animation()
-	local owner = self:GetOwner()
-	if not IsValid(owner) then return end
-	local vm = owner:GetViewModel(0)
-	if not IsValid(vm) then return end
-
-	vm:SendViewModelMatchingSequence(11)
-	self.GotEntityInUse = true
-	self:EmitSound("PortalPlayer.ObjectUse", 0)
-	self:SetEntityInUse(owner:GetEntityInUse())
-
+	print("Playing hold animation")
+		local ent = ents.Create("prop_physics")
+		if not IsValid(ent) then return end
+		ent:SetModel("models/props_junk/PopCan01a.mdl")
+		ent:SetNoDraw(false)
+		ent:SetCollisionGroup(COLLISION_GROUP_DEBRIS)
+		ent:SetSolid(SOLID_NONE)
+		ent:SetParent(self.Owner)
+		ent:SetOwner(self.Owner)
+		ent:Spawn()
+		self.Owner:PickupObject(ent)
+		self.HoldEnt = ent
+		print("Created hold entity")
+	self.HoldActive = true
 end
 
 function SWEP:stop_hold_animation()
-	local owner = self:GetOwner()
-	if not IsValid(owner) then return end
-	local vm = owner:GetViewModel(1)
-	if not IsValid(vm) then return end
-
-	vm:SendViewModelMatchingSequence(self:SelectWeightedSequence(ACT_VM_RELEASE))
-	self.GotEntityInUse = false
-	self:EmitSound("PortalPlayer.ObjectUseStop", 0)
-	self:SetEntityInUse(NULL)
-
-	if IsValid(self.HoldingParticleFirstPerson) then
-		self.HoldingParticleFirstPerson:StopEmission(false, true)
-		self.HoldingParticleFirstPerson = NULL
+	if IsValid(self.HoldEnt) then
+		self.HoldEnt:Remove()
+		self.HoldEnt = nil
 	end
+	self.HoldActive = false
 end
+
+
 
 concommand.Add("gp2_play_hold_animation", function(ply)
 	local wep = ply:GetActiveWeapon()

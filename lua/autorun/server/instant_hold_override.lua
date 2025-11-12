@@ -8,7 +8,6 @@ local offsetPlayerZ = 0;
 local minimumAimPitch = 40;
 if SERVER then
 	hook.Add("PlayerUse", "InstantHold_PlayerUse", function(ply, ent)
-		ply:ConCommand("gp2_play_hold_animation");
 		for _, e in ipairs(ents.GetAll()) do
 			if IsValid(e) and e.HeldBy == ply then
 				return;
@@ -35,6 +34,8 @@ if SERVER then
 				return;
 			end;
 		end;
+				ply:ConCommand("gp2_play_hold_animation");
+
 		local angles = ply:EyeAngles();
 		local phys = ent:GetPhysicsObject();
 		ent.HeldBy = ply;
