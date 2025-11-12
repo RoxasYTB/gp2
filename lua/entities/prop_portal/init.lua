@@ -459,7 +459,6 @@ function ENT:Touch(ent)
 		end;
 	else
 		self:SyncClone(ent);
-		print("Entity ", ent, " is touching portal ", self, ".");
 		ent:SetGroundEntity(NULL);
 	end;
 end;
@@ -529,7 +528,6 @@ local FloorToWallTransforms = {
 	end
 };
 function ENT:EndTouch(ent)
-	print("Entity ", ent, " ended touch with portal ", self, ".");
 	if not ent or (not ent:IsValid()) or ent:IsPlayer() or ent:IsPlayerHolding() then
 		return;
 	end;
@@ -744,6 +742,10 @@ function ENT:CanPort(ent)
 	end;
 end;
 function ENT:MakeClone(ent)
+	print(ent, ent:GetClass(), ent:GetModel(), ent:GetPos(), ent:GetAngles(), ent:GetSkin(), ent:GetMaterial(), ent:GetColor(), ent:GetOwner());
+	if ent:GetModel() == "models/props_junk/popcan01a.mdl" then
+		return;
+	end;
 	if not self:IsLinked() or (not self:GetActivated()) then
 		return;
 	end;

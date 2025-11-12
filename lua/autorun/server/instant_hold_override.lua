@@ -16,7 +16,7 @@ if SERVER then
 		if IsValid(ent) and IsValid(ply) then
 			local distance = (ply:GetPos()):Distance(ent:GetPos());
 			local MIN_HOLD_OFFSET = 100;
-			HOLD_DISTANCE = math.max(distance, MIN_HOLD_OFFSET);
+			HOLD_DISTANCE = 100;
 			offsetPlayerZ = (ply:GetPos()).z - (ent:GetPos()).z;
 		end;
 		if not IsValid(ply) or (not ply:IsPlayer()) then
@@ -45,7 +45,7 @@ if SERVER then
 			phys:Wake();
 		end;
 		local MIN_HOLD_OFFSET = 20;
-		local pos = ply:EyePos() + aim:Forward() * math.max(HOLD_DISTANCE, MIN_HOLD_OFFSET);
+		local pos = ply:EyePos() + aim:Forward() * 100;
 		local ang = Angle(0, aim.y, 0) + (ent.HoldAngleOffset or Angle(0, 0, 0));
 		local mins, maxs = ent:OBBMins(), ent:OBBMaxs();
 		local trace = util.TraceHull({
@@ -104,7 +104,8 @@ if SERVER then
 						aim.p = minimumAimPitch;
 					end;
 					local MIN_HOLD_OFFSET = 100;
-					local pos = ply:EyePos() + aim:Forward() * math.max(HOLD_DISTANCE, MIN_HOLD_OFFSET);
+					print("HOLD_DISTANCE: ", (ply:GetPos()):Distance(ent:GetPos()));
+					local pos = ply:EyePos() + aim:Forward() * 100;
 					local ang = Angle(0, aim.y, 0) + (ent.HoldAngleOffset or Angle(0, 0, 0));
 					local mins, maxs = ent:OBBMins(), ent:OBBMaxs();
 					local ignoreTrace = false;
