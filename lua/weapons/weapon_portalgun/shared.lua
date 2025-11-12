@@ -54,7 +54,9 @@ function SWEP:PrimaryAttack()
 	if (self:GetOwner()):IsPlayer() then
 		(self:GetOwner()):ViewPunch(Angle(math.Rand(-1, -0.5), math.Rand(-1, 1), 0));
 	end;
-	self:PlacePortal(PORTAL_TYPE_FIRST, self:GetOwner());
+	if SERVER then
+		self:PlacePortal(PORTAL_TYPE_FIRST, self:GetOwner());
+	end;
 	self:SetNextPrimaryFire(CurTime() + 0.5);
 	self:SetNextSecondaryFire(CurTime() + 0.5);
 end;
@@ -69,7 +71,9 @@ function SWEP:SecondaryAttack()
 	if (self:GetOwner()):IsPlayer() then
 		(self:GetOwner()):ViewPunch(Angle(math.Rand(-1, -0.5), math.Rand(-1, 1), 0));
 	end;
-	self:PlacePortal(PORTAL_TYPE_SECOND, self:GetOwner());
+	if SERVER then
+		self:PlacePortal(PORTAL_TYPE_SECOND, self:GetOwner());
+	end;
 	self:SetNextPrimaryFire(CurTime() + 0.5);
 	self:SetNextSecondaryFire(CurTime() + 0.5);
 end;
