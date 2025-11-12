@@ -460,6 +460,18 @@ function ENT:Touch(ent)
 	else
 		self:SyncClone(ent);
 		ent:SetGroundEntity(NULL);
+		local entPos = ent:GetPos();
+		local portalPos = self:GetPos();
+		local normal = self:GetForward();
+		local backOffset = (-normal) * 40;
+		local backPos = entPos + backOffset;
+		local function IsBehind(posA, posB, normal)
+			local Vec1 = (posB - posA):GetNormalized();
+			return normal:Dot(Vec1) < 0;
+		end;
+		if IsBehind(backPos, portalPos, normal) then
+			self:StartTouch(ent);
+		end;
 	end;
 end;
 local VelocityTransformCache = {};
@@ -738,7 +750,6 @@ function ENT:CanPort(ent)
 	end;
 end;
 function ENT:MakeClone(ent)
-	print(ent, ent:GetClass(), ent:GetModel(), ent:GetPos(), ent:GetAngles(), ent:GetSkin(), ent:GetMaterial(), ent:GetColor(), ent:GetOwner());
 	if ent:GetModel() == "models/props_junk/popcan01a.mdl" then
 		return;
 	end;
@@ -993,7 +1004,7 @@ function ENT:PromoteCloneToReal(ent, clone)
 	newEnt:SetSkin(savedProps.skin);
 	newEnt:SetMaterial(savedProps.material);
 	newEnt:SetColor(savedProps.color);
-	newEnt:SetCollisionGroup(COLLISION_GROUP_NONE);
+	newEnt:SetCollisionGroup(COLLISION_GROUP_PASSABLE_DOOR);
 	if IsValid(owner_portalgun) then
 		newEnt:SetOwner(owner_portalgun);
 	elseif ent.GP2_HoldInfo and IsValid(ent.GP2_HoldInfo.portalgunOwner) then
@@ -1043,37 +1054,34 @@ local GP2_CloneCheckCache = {};
 local GP2_LastCloneCheck = 0;
 local GP2_CloneCheckInterval = 0.1;
 function ENT:Think()
-	self:NextThink(CurTime() + 0.1);
 	if SERVER then
-		if not self:GetPlacedByMap() then
-			local linked = self:GetLinkedPartner();
-			for _, ent in ipairs(ents.GetAll()) do
-				if not ent.isClone and self:CanPort(ent) then
-					local dist = (ent:GetPos()):Distance(self:GetPos());
-					if dist <= 100 then
-						if not ent.clone then
-							self:MakeClone(ent);
-						end;
-						self:SyncClone(ent);
-					elseif ent.clone and ent.clone.InPortal == (linked or self) then
-						SafeRemoveEntity(ent.clone);
-						ent.clone = nil;
+		local linked = self:GetLinkedPartner();
+		for _, ent in ipairs(ents.GetAll()) do
+			if not ent.isClone and self:CanPort(ent) and ent:GetClass() == "prop_weighted_cube" then
+				local dist = (ent:GetPos()):Distance(self:GetPos());
+				if dist <= 100 then
+					if not ent.clone then
+						self:MakeClone(ent);
 					end;
+					self:SyncClone(ent);
+				elseif ent.clone and ent.clone.InPortal == (linked or self) then
+					SafeRemoveEntity(ent.clone);
+					ent.clone = nil;
 				end;
-				if ent.isClone and ent.daddyEnt and (not IsValid(ent.daddyEnt)) then
-					SafeRemoveEntity(ent);
-				end;
-				if ent.LastPortalIntangibleTime and (not ent.InPortal) then
-					local timeSinceLast = CurTime() - ent.LastPortalIntangibleTime;
-					if timeSinceLast > 5 and ent:GetCollisionGroup() ~= COLLISION_GROUP_PASSABLE_DOOR then
-						ent.OriginalCollisionGroup = nil;
-						ent.LastPortalIntangibleTime = nil;
-					end;
+			end;
+			if ent.isClone and ent.daddyEnt and (not IsValid(ent.daddyEnt)) then
+				SafeRemoveEntity(ent);
+			end;
+			if ent.LastPortalIntangibleTime and (not ent.InPortal) then
+				local timeSinceLast = CurTime() - ent.LastPortalIntangibleTime;
+				if timeSinceLast > 5 and ent:GetCollisionGroup() ~= COLLISION_GROUP_PASSABLE_DOOR then
+					ent.OriginalCollisionGroup = nil;
+					ent.LastPortalIntangibleTime = nil;
 				end;
 			end;
 		end;
 	end;
-	self:NextThink(CurTime() + 0.1);
+	self:NextThink(CurTime());
 	return true;
 end;
 function ENT:DoPort(ent)

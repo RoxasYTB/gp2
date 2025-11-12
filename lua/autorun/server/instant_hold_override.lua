@@ -116,6 +116,9 @@ if SERVER then
 							break;
 						end;
 					end;
+						if pos.z < (ply:GetPos()).z + 18 then
+							pos.z = (ply:GetPos()).z + 18;
+						end;
 					if not ignoreTrace then
 						local trace = util.TraceHull({
 							start = ply:EyePos(),
@@ -128,9 +131,7 @@ if SERVER then
 							}
 						});
 						ignoreTrace = false;
-						if pos.z < (ply:GetPos()).z + offsetPlayerZ then
-							pos.z = (ply:GetPos()).z + offsetPlayerZ;
-						end;
+
 						if trace.Hit and IsValid(trace.Entity) and trace.Entity:GetClass() == "prop_portal" then
 							ignoreTrace = true;
 						end;
