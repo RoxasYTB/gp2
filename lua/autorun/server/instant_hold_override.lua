@@ -2,7 +2,7 @@ local HOLD_DISTANCE = 100;
 local HOLD_CLASS_WHITELIST = {
 	prop_physics = true,
 	prop_physics_multiplayer = true,
-	prop_weighted_cube = true
+	// prop_weighted_cube = true
 };
 local offsetPlayerZ = 0;
 local minimumAimPitch = 40;
