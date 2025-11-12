@@ -1201,6 +1201,13 @@ function SWEP:OnRemove()
 	self.HoldProxy = nil
 	self.HeldRealObject = nil
 
+	-- Nettoyer le prop de hold persistant
+	if SERVER and IsValid(self.HoldProp) then
+		self.HoldProp:Remove()
+		GP2_HoldProps[self] = nil
+	end
+	self.HoldProp = nil
+
 	self:ClearPortals()
 end
 
@@ -1562,30 +1569,101 @@ function SWEP:GetSyncedPortalGunState()
     end
 end
 
+	timer.Create("GP2_PrintHoldPropVelocity", 0.1, 0, function()
+		for wep, prop in pairs(GP2_HoldProps) do
+			if IsValid(prop) then
+				local phys = prop:GetPhysicsObject()
+				if IsValid(phys) then
+					phys:SetVelocity(Vector(0,0,0))
+
+				end
+				prop:SetPos(wep:GetPos()+Vector(0,0,50))
+			end
+		end
+		local isHoldingThing = GetConVar("isHoldingThing")
+		if isHoldingThing and isHoldingThing:GetInt() == 1 then
+			print("isHoldingThing lol:", isHoldingThing and isHoldingThing:GetInt())
+
+
+
+		end
+	end)
+
+
+-- Prop persistant pour l'animation de hold (un seul par arme)
+GP2_HoldProps = GP2_HoldProps or {}
 
 function SWEP:play_hold_animation()
-	print("Playing hold animation")
-		local ent = ents.Create("prop_physics")
-		if not IsValid(ent) then return end
-		ent:SetModel("models/props_junk/PopCan01a.mdl")
-		ent:SetNoDraw(false)
-		ent:SetCollisionGroup(COLLISION_GROUP_DEBRIS)
-		ent:SetSolid(SOLID_NONE)
-		ent:SetParent(self.Owner)
-		ent:SetOwner(self.Owner)
-		ent:Spawn()
-		self.Owner:PickupObject(ent)
-		self.HoldEnt = ent
-		print("Created hold entity")
-	self.HoldActive = true
+	if not SERVER then return end
+			print("Picking up hold prop")
+
+	local owner = self:GetOwner()
+	if not IsValid(owner) then return end
+
+	-- Vérifier si on a déjà un prop pour cette arme
+	if not IsValid(self.HoldProp) then
+		-- Créer le prop une seule fois
+		local prop = ents.Create("prop_physics")
+		if not IsValid(prop) then return end
+
+		prop:SetModel("models/props_junk/PopCan01a.mdl")
+		prop:SetPos(owner:GetPos() + Vector(0, 0, 50))
+		prop:Spawn()
+
+
+
+		-- Rendre le prop visible et non-collidable avec le monde
+		prop:SetNoDraw(true)
+		prop:SetCollisionGroup(COLLISION_GROUP_NONE)
+		prop:SetSolid(SOLID_NONE)
+		prop:SetOwner(owner)
+		owner:PickupObject(prop)
+
+		-- Sauvegarder le prop
+		self.HoldProp = prop
+		GP2_HoldProps[self] = prop
+	end
+
+
+	-- Pickup du prop existant sans le drop
+	if IsValid(self.HoldProp) and IsValid(owner) then
+			print("Using existing hold prop")
+
+
+
+		phys = self.HoldProp:GetPhysicsObject()
+		if IsValid(phys) then
+			phys:EnableMotion(true)
+			phys:Sleep()
+			phys:EnableGravity(false)
+
+		end
+
+
+		-- Si le joueur tient déjà quelque chose, ne pas le drop
+		local currentHeld = owner:GetEntityInUse()
+		if not IsValid(currentHeld) or currentHeld ~= self.HoldProp then
+			print("Picking up hold prop again")
+			owner:PickupObject(self.HoldProp)
+		end
+		self.HoldActive = true
+	end
 end
 
+
 function SWEP:stop_hold_animation()
-	if IsValid(self.HoldEnt) then
-		self.HoldEnt:Remove()
-		self.HoldEnt = nil
+	if not SERVER then return end
+
+	local owner = self:GetOwner()
+	if IsValid(owner) and IsValid(self.HoldProp) then
+		-- Lâcher l'objet mais ne pas détruire le prop
+		if owner:GetEntityInUse() == self.HoldProp then
+			owner:DropObject()
+		end
 	end
+
 	self.HoldActive = false
+	-- Ne PAS supprimer le prop, on le garde pour une prochaine utilisation
 end
 
 

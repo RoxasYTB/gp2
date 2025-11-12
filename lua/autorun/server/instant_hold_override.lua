@@ -6,6 +6,7 @@ local HOLD_CLASS_WHITELIST = {
 };
 local offsetPlayerZ = 0;
 local minimumAimPitch = 40;
+local isHoldingThing = CreateConVar("isHoldingThing", "0", FCVAR_SERVER_CAN_EXECUTE + FCVAR_REPLICATED, "", 0, 1);
 if SERVER then
 	hook.Add("PlayerUse", "InstantHold_PlayerUse", function(ply, ent)
 		for _, e in ipairs(ents.GetAll()) do
@@ -30,12 +31,9 @@ if SERVER then
 		end;
 		for _, e in ipairs(ents.GetAll()) do
 			if IsValid(e) and e.HeldBy == ply then
-
 				return;
 			end;
 		end;
-				ply:ConCommand("gp2_play_hold_animation");
-
 		local angles = ply:EyeAngles();
 		local phys = ent:GetPhysicsObject();
 		ent.HeldBy = ply;
@@ -65,6 +63,10 @@ if SERVER then
 		end;
 		ent:SetPos(pos);
 		ent:SetAngles(ang);
+		isHoldingThing:SetInt(1);
+		if IsValid(ply) then
+			ply:ConCommand("gp2_play_hold_animation")
+		end
 		return true;
 	end);
 	hook.Add("KeyPress", "InstantHold_DetectUseKey", function(ply, key)
@@ -100,6 +102,7 @@ if SERVER then
 						phys:Wake();
 					end;
 					ent:SetCollisionGroup(COLLISION_GROUP_PASSABLE_DOOR);
+					isHoldingThing:SetInt(0);
 				else
 					local aim = ply:EyeAngles();
 					if aim.p > minimumAimPitch then
@@ -108,7 +111,6 @@ if SERVER then
 					ent:SetOwner(ply);
 					local MIN_HOLD_OFFSET = 100;
 					local pos = ply:EyePos() + aim:Forward() * 100;
-					// print("Distance : " .. tostring((ply:GetPos()):Distance(ent:GetPos())));
 					local ang = Angle(0, aim.y, 0) + (ent.HoldAngleOffset or Angle(0, 0, 0));
 					local mins, maxs = ent:OBBMins(), ent:OBBMaxs();
 					local ignoreTrace = false;
@@ -118,9 +120,9 @@ if SERVER then
 							break;
 						end;
 					end;
-						if pos.z < (ply:GetPos()).z + 18 then
-							pos.z = (ply:GetPos()).z + 18;
-						end;
+					if pos.z < (ply:GetPos()).z + 18 then
+						pos.z = (ply:GetPos()).z + 18;
+					end;
 					if not ignoreTrace then
 						local trace = util.TraceHull({
 							start = ply:EyePos(),
@@ -133,7 +135,6 @@ if SERVER then
 							}
 						});
 						ignoreTrace = false;
-
 						if trace.Hit and IsValid(trace.Entity) and trace.Entity:GetClass() == "prop_portal" then
 							ignoreTrace = true;
 						end;
@@ -143,6 +144,7 @@ if SERVER then
 					end;
 					ent:SetPos(pos);
 					ent:SetAngles(ang);
+					isHoldingThing:SetInt(1);
 				end;
 			end;
 		end;
@@ -164,6 +166,7 @@ if SERVER then
 					phys:SetVelocity(ToApplyVelocity);
 					ent.HoldVelocity = nil;
 				end;
+				isHoldingThing:SetInt(0);
 			end;
 		end;
 	end);
