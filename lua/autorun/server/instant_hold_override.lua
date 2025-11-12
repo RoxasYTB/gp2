@@ -97,15 +97,16 @@ if SERVER then
 						phys:EnableMotion(true);
 						phys:Wake();
 					end;
-					ent:SetOwner(ply);
 					ent:SetCollisionGroup(COLLISION_GROUP_PASSABLE_DOOR);
 				else
 					local aim = ply:EyeAngles();
 					if aim.p > minimumAimPitch then
 						aim.p = minimumAimPitch;
 					end;
+					ent:SetOwner(ply);
 					local MIN_HOLD_OFFSET = 100;
 					local pos = ply:EyePos() + aim:Forward() * 100;
+					print("Distance : " .. tostring((ply:GetPos()):Distance(ent:GetPos())));
 					local ang = Angle(0, aim.y, 0) + (ent.HoldAngleOffset or Angle(0, 0, 0));
 					local mins, maxs = ent:OBBMins(), ent:OBBMaxs();
 					local ignoreTrace = false;
@@ -152,6 +153,7 @@ if SERVER then
 			if IsValid(ent) and ent.HeldBy == ply then
 				ent.HeldBy = nil;
 				ent:SetNWEntity("InstantHold_HeldBy", NULL);
+				ent:SetOwner(nil);
 				local phys = ent:GetPhysicsObject();
 				if IsValid(phys) then
 					phys:EnableMotion(true);
