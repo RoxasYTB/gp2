@@ -436,8 +436,12 @@ local function setPortalPlacement(owner, portal)
 
 	local nonPortalableTextures = {
 		["METAL"] = true,
+		["CONCRETE"] = true,
 		["displacement"] = true,
-		["TOOLS/TOOLSINVISIBLE"] = true
+		["studio"] = true,
+		["nodraw"] = true,
+		["ELEVATOR"] = true,
+		["TOOLS"] = true
 
 	}
 	for k in pairs(nonPortalableTextures) do

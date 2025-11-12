@@ -3,7 +3,10 @@
 -- Architecture modulaire combinant nouveau système de rendu et ancien système de téléportation
 -- ----------------------------------------------------------------------------
 
+
 include("shared.lua")
+
+ENT.PortalBrightness = 0 -- 1 = normal, 0 = blanc, 0.5 = assombri, 0 = noir
 
 -- Initialize global tables on CLIENT to prevent nil value errors in multiplayer
 if CLIENT then
@@ -226,15 +229,12 @@ function ENT:Draw()
 
 	-- Try to build gradient texture for current color
 	-- to override color - without shaders :(
-	local portalOverlay = PortalRendering and PortalRendering.ValidateAndSetRingRT and PortalRendering.ValidateAndSetRingRT(self)
 
+	local portalOverlay = PortalRendering and PortalRendering.ValidateAndSetRingRT and PortalRendering.ValidateAndSetRingRT(self)
 	if not portalOverlay or not portalOverlay.SetFloat then
-		-- PortalRendering not fully loaded yet, skip rendering this frame
 		return
 	end
 
-	-- No PortalOpenAmount proxy
-	-- because it uses mesh rather entity's model
 	stencilHole:SetFloat("$portalopenamount", self:GetOpenAmount())
 	portalOverlay:SetFloat("$portalopenamount", self:GetOpenAmount())
 	portalOverlay:SetFloat("$time", CurTime())
@@ -244,6 +244,11 @@ function ENT:Draw()
 	else
 		portalOverlay:SetFloat("$portalstatic", 1)
 	end
+
+	-- Application de la luminosité/contraste sur la couleur du portail
+	local brightness = self.PortalBrightness or 1
+	local color = self:GetPlayerBasedColor() * brightness
+	portalOverlay:SetVector("$color", color / 255)
 
 	--
 	-- Render portal view:
@@ -434,15 +439,14 @@ function ENT:Think()
 		PropPortal.AddToRenderList(self)
 	end
 
-    -- Détermination du preset à utiliser BASÉ SUR LE LINKAGE GROUP DU JOUEUR
-    local preset = self:GetPortalEdgePresetName()
-    local portalType = self:GetType() == PORTAL_TYPE_SECOND and 2 or 1
-    local effectName = "gp2_portal_"..portalType.."_edge"
-    if preset then
-        effectName = effectName .. "_" .. preset
-    end
 
-    -- Création du système de particules uniquement si le preset change
+	local preset = self:GetPortalEdgePresetName()
+	local portalType = self:GetType() == PORTAL_TYPE_SECOND and 2 or 1
+	local effectName = "gp2_portal_"..portalType.."_edge"
+	if preset then
+		effectName = effectName .. "_" .. preset
+	end
+
 	if self._lastRingEffect ~= effectName or not IsValid(self.RingParticle) then
 		if IsValid(self.RingParticle) then
 			self.RingParticle:StopEmissionAndDestroyImmediately()
@@ -466,7 +470,6 @@ function ENT:Think()
 		local ringAngles = Angle(RING_PITCH, RING_YAW, RING_ROLL)
 		self.RingParticle:SetControlPoint(0, self:GetPos() - self:GetAngles():Up() * 15)
 		self.RingParticle:SetControlPointOrientation(0, ringAngles:Forward(), ringAngles:Right(), ringAngles:Up())
-		-- Application correcte de la rotation personnalisée du ring
 		local pitch = 0
 		local yaw = 0
 		local roll = 0
@@ -480,11 +483,10 @@ function ENT:Think()
 		local up = mat:GetUp() * 0.5
 		self.RingParticle:SetControlPointOrientation(0, right, fwd, up)
 
-		-- Ajout : mise à jour dynamique de la couleur du ring
-		local color = self:GetPlayerBasedColor()
-		if color then
-			self.RingParticle:SetControlPoint(1, color / 255)
-		end
+		-- Application de la luminosité/contraste sur la couleur du ring
+		local brightness = self.PortalBrightness or 1
+		local color = self:GetPlayerBasedColor() * brightness
+		self.RingParticle:SetControlPoint(1, color / 255)
 	end
 
 	-- Gestion dynamique de la recréation du ring si les angles changent
