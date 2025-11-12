@@ -547,9 +547,29 @@ hook.Add("NetworkEntityCreated", "seamless_portal_init", function(ent)
 	end
 end)
 
--- hacky bullet fix
 if game.SinglePlayer() then
 	function ENT:TestCollision(startpos, delta, isbox, extents, mask)
 		if bit.band(mask, CONTENTS_GRATE) ~= 0 then return true end
 	end
+end
+
+function ENT:Use(activator, caller)
+	if not IsValid(activator) or not activator:IsPlayer() then return end
+
+	if self.HeldBy == activator then
+		self.HeldBy = nil
+		self:SetParent(nil)
+		self:GetPhysicsObject():EnableMotion(true)
+		return
+	end
+
+	self.HeldBy = activator
+	self:GetPhysicsObject():EnableMotion(false)
+
+	local pos = activator:GetShootPos() + activator:GetAimVector() * 100
+	local ang = activator:EyeAngles()
+
+	self:SetPos(pos)
+	self:SetAngles(ang)
+	self:SetParent(activator)
 end
