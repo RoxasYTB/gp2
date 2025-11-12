@@ -1562,39 +1562,34 @@ function SWEP:GetSyncedPortalGunState()
     end
 end
 
-
 function SWEP:play_hold_animation()
-	local ent = ents.Create("prop_physics")
-	if not IsValid(ent) then return end
-	ent:SetModel("models/props_junk/PopCan01a.mdl")
 	local owner = self:GetOwner()
 	if not IsValid(owner) then return end
-	local pos = owner:GetPos() + Vector(0, 0, 80)
-	ent:SetPos(pos)
-	ent:SetAngles(Angle(0, 0, 0))
-	ent:SetNoDraw(false)
-	ent:SetSolid(SOLID_NONE)
-	ent:SetCollisionGroup(COLLISION_GROUP_IN_VEHICLE)
-	ent:SetRenderMode(RENDERMODE_TRANSALPHA)
-	ent:SetColor(Color(255, 255, 255, 0))
-	ent:SetOwner(owner)
-	ent:Spawn()
-	owner:PickupObject(ent)
+	local vm = owner:GetViewModel(0)
+	if not IsValid(vm) then return end
 
-	self.HoldEnt = ent
-	self.HoldActive = true
+	vm:SendViewModelMatchingSequence(11)
+	self.GotEntityInUse = true
+	self:EmitSound("PortalPlayer.ObjectUse", 0)
+	self:SetEntityInUse(owner:GetEntityInUse())
+
 end
 
 function SWEP:stop_hold_animation()
-	if IsValid(self.HoldEnt) then
-		local owner = self:GetOwner()
-		if IsValid(owner) and owner:GetEntityInUse() == self.HoldEnt then
-			owner:DropObject()
-		end
-		self.HoldEnt:Remove()
-		self.HoldEnt = nil
+	local owner = self:GetOwner()
+	if not IsValid(owner) then return end
+	local vm = owner:GetViewModel(1)
+	if not IsValid(vm) then return end
+
+	vm:SendViewModelMatchingSequence(self:SelectWeightedSequence(ACT_VM_RELEASE))
+	self.GotEntityInUse = false
+	self:EmitSound("PortalPlayer.ObjectUseStop", 0)
+	self:SetEntityInUse(NULL)
+
+	if IsValid(self.HoldingParticleFirstPerson) then
+		self.HoldingParticleFirstPerson:StopEmission(false, true)
+		self.HoldingParticleFirstPerson = NULL
 	end
-	self.HoldActive = false
 end
 
 concommand.Add("gp2_play_hold_animation", function(ply)

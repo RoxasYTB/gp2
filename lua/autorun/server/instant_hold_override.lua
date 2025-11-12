@@ -8,6 +8,7 @@ local offsetPlayerZ = 0;
 local minimumAimPitch = 40;
 if SERVER then
 	hook.Add("PlayerUse", "InstantHold_PlayerUse", function(ply, ent)
+		ply:ConCommand("gp2_play_hold_animation");
 		for _, e in ipairs(ents.GetAll()) do
 			if IsValid(e) and e.HeldBy == ply then
 				return;
@@ -30,7 +31,7 @@ if SERVER then
 		end;
 		for _, e in ipairs(ents.GetAll()) do
 			if IsValid(e) and e.HeldBy == ply then
-				ply:ConCommand("gp2_play_hold_animation");
+
 				return;
 			end;
 		end;
@@ -78,7 +79,7 @@ if SERVER then
 				end;
 			end;
 			if holding then
-				timer.Simple(0.07, function()
+				timer.Simple(0.2, function()
 					if IsValid(ply) then
 						ply:ConCommand("gp2_dropheld");
 					end;
