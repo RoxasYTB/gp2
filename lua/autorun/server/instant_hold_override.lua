@@ -28,9 +28,9 @@ if SERVER then
 		if not HOLD_CLASS_WHITELIST[ent:GetClass()] then
 			return;
 		end;
-		ply:ConCommand("gp2_play_hold_animation");
 		for _, e in ipairs(ents.GetAll()) do
 			if IsValid(e) and e.HeldBy == ply then
+				ply:ConCommand("gp2_play_hold_animation");
 				return;
 			end;
 		end;
@@ -97,7 +97,8 @@ if SERVER then
 						phys:EnableMotion(true);
 						phys:Wake();
 					end;
-					ent:SetCollisionGroup(COLLISION_GROUP_NONE);
+					ent:SetOwner(ply);
+					ent:SetCollisionGroup(COLLISION_GROUP_PASSABLE_DOOR);
 				else
 					local aim = ply:EyeAngles();
 					if aim.p > minimumAimPitch then
