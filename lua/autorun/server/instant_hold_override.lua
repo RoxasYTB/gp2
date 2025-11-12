@@ -65,8 +65,8 @@ if SERVER then
 		ent:SetAngles(ang);
 		isHoldingThing:SetInt(1);
 		if IsValid(ply) then
-			ply:ConCommand("gp2_play_hold_animation")
-		end
+			ply:ConCommand("gp2_play_hold_animation");
+		end;
 		return true;
 	end);
 	hook.Add("KeyPress", "InstantHold_DetectUseKey", function(ply, key)
@@ -85,6 +85,7 @@ if SERVER then
 				timer.Simple(0.2, function()
 					if IsValid(ply) then
 						ply:ConCommand("gp2_dropheld");
+						ply:ConCommand("gp2_stop_hold_animation");
 					end;
 				end);
 			end;

@@ -828,8 +828,8 @@ function SWEP:Deploy()
 		end
 	end
 	if self.GotEntityInUse then
-		self:StopSound("PortalPlayer.ObjectUse")
-		self:EmitSound("PortalPlayer.ObjectUseStop", 0)
+		// self:StopSound("PortalPlayer.ObjectUse")
+		// self:EmitSound("PortalPlayer.ObjectUseStop", 0)
 		self:SetEntityInUse(NULL)
 		self.GotEntityInUse = false
 		timer.Simple(0, function()
@@ -865,7 +865,7 @@ function SWEP:Holster(arguments)
 
 				vm1:SendViewModelMatchingSequence(self:SelectWeightedSequence(ACT_VM_PICKUP))
 				self.GotEntityInUse = true
-				self:EmitSound("PortalPlayer.ObjectUse", 0)
+				// self:EmitSound("PortalPlayer.ObjectUse", 0)
 				self:SetEntityInUse(owner:GetEntityInUse())
 
 
@@ -1569,7 +1569,7 @@ function SWEP:GetSyncedPortalGunState()
     end
 end
 
-	timer.Create("GP2_PrintHoldPropVelocity", 0.1, 0, function()
+	timer.Create("GP2_PrintHoldPropVelocity", 0, 0, function()
 		for wep, prop in pairs(GP2_HoldProps) do
 			if IsValid(prop) then
 				local phys = prop:GetPhysicsObject()
@@ -1579,14 +1579,24 @@ end
 				end
 				prop:SetPos(wep:GetPos()+Vector(0,0,50))
 			end
+			local isHoldingThing = GetConVar("isHoldingThing")
+			if isHoldingThing and isHoldingThing:GetInt() == 1 then
+				if IsValid(wep) and wep.GetEntityInUse then
+					local ent = wep:GetEntityInUse()
+					isNull = ent == nil or ent == NULL
+
+					if isNull and isHoldingThing then
+
+						wep:play_hold_animation()
+						isNull = false
+
+					end
+				end
+
+
+			end
 		end
-		local isHoldingThing = GetConVar("isHoldingThing")
-		if isHoldingThing and isHoldingThing:GetInt() == 1 then
-			print("isHoldingThing lol:", isHoldingThing and isHoldingThing:GetInt())
 
-
-
-		end
 	end)
 
 
@@ -1594,6 +1604,7 @@ end
 GP2_HoldProps = GP2_HoldProps or {}
 
 function SWEP:play_hold_animation()
+	 self:EmitSound("PortalPlayer.ObjectUse", 0)
 	if not SERVER then return end
 			print("Picking up hold prop")
 
@@ -1607,7 +1618,7 @@ function SWEP:play_hold_animation()
 		if not IsValid(prop) then return end
 
 		prop:SetModel("models/props_junk/PopCan01a.mdl")
-		prop:SetPos(owner:GetPos() + Vector(0, 0, 50))
+		// prop:SetPos(owner:GetPos() + Vector(0, 0, 50))
 		prop:Spawn()
 
 
@@ -1634,7 +1645,7 @@ function SWEP:play_hold_animation()
 		phys = self.HoldProp:GetPhysicsObject()
 		if IsValid(phys) then
 			phys:EnableMotion(true)
-			phys:Sleep()
+			phys:Wake()
 			phys:EnableGravity(false)
 
 		end
@@ -1655,12 +1666,12 @@ function SWEP:stop_hold_animation()
 	if not SERVER then return end
 
 	local owner = self:GetOwner()
-	if IsValid(owner) and IsValid(self.HoldProp) then
-		-- Lâcher l'objet mais ne pas détruire le prop
-		if owner:GetEntityInUse() == self.HoldProp then
-			owner:DropObject()
-		end
-	end
+
+	owner:DropObject()
+
+	self:StopSound("PortalPlayer.ObjectUse")
+	self:EmitSound("PortalPlayer.ObjectUseStop", 0)
+
 
 	self.HoldActive = false
 	-- Ne PAS supprimer le prop, on le garde pour une prochaine utilisation
