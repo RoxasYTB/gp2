@@ -106,7 +106,7 @@ if SERVER then
 					ent:SetOwner(ply);
 					local MIN_HOLD_OFFSET = 100;
 					local pos = ply:EyePos() + aim:Forward() * 100;
-					print("Distance : " .. tostring((ply:GetPos()):Distance(ent:GetPos())));
+					// print("Distance : " .. tostring((ply:GetPos()):Distance(ent:GetPos())));
 					local ang = Angle(0, aim.y, 0) + (ent.HoldAngleOffset or Angle(0, 0, 0));
 					local mins, maxs = ent:OBBMins(), ent:OBBMaxs();
 					local ignoreTrace = false;

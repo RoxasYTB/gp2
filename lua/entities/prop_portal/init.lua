@@ -557,10 +557,6 @@ function ENT:EndTouch(ent)
 	if wasTouching then
 		success = self:TeleportEntityOptimized(ent, clone, phys, placementIn, placementOut, portalOut);
 	end;
-	if ent.clone and IsValid(ent.clone) then
-		SafeRemoveEntity(ent.clone);
-		ent.clone = nil;
-	end;
 	if success then
 		self:CleanupEntity(ent);
 	else
