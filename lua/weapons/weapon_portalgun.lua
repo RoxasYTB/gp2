@@ -1606,7 +1606,6 @@ GP2_HoldProps = GP2_HoldProps or {}
 function SWEP:play_hold_animation()
 	 self:EmitSound("PortalPlayer.ObjectUse", 0)
 	if not SERVER then return end
-			print("Picking up hold prop")
 
 	local owner = self:GetOwner()
 	if not IsValid(owner) then return end
@@ -1638,7 +1637,6 @@ function SWEP:play_hold_animation()
 
 	-- Pickup du prop existant sans le drop
 	if IsValid(self.HoldProp) and IsValid(owner) then
-			print("Using existing hold prop")
 
 
 
@@ -1654,7 +1652,6 @@ function SWEP:play_hold_animation()
 		-- Si le joueur tient déjà quelque chose, ne pas le drop
 		local currentHeld = owner:GetEntityInUse()
 		if not IsValid(currentHeld) or currentHeld ~= self.HoldProp then
-			print("Picking up hold prop again")
 			owner:PickupObject(self.HoldProp)
 		end
 		self.HoldActive = true
