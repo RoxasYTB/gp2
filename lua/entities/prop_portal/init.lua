@@ -1032,6 +1032,7 @@ function ENT:PromoteCloneToReal(ent, clone)
 	newEnt:SetModel(savedModel);
 	ent:Remove();
 	if IsValid(clone) then
+		print("Removing clone entity...");
 		clone:Remove();
 	end;
 end;

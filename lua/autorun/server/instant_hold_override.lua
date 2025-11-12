@@ -40,17 +40,23 @@ if SERVER then
 			phys:EnableMotion(false);
 			phys:Wake();
 		end;
-		ent:SetParent(nil);
-		ent:SetCollisionGroup(0);
-		if ent.SetSolid then
-			ent:SetSolid(6);
-		end;
-		if ent.SetMoveType then
-			ent:SetMoveType(6);
-		end;
 		local MIN_HOLD_OFFSET = 20;
 		local pos = ply:EyePos() + aim:Forward() * math.max(HOLD_DISTANCE, MIN_HOLD_OFFSET);
 		local ang = Angle(0, aim.y, 0) + (ent.HoldAngleOffset or Angle(0, 0, 0));
+		local mins, maxs = ent:OBBMins(), ent:OBBMaxs();
+		local trace = util.TraceHull({
+			start = ply:EyePos(),
+			endpos = pos,
+			mins = mins,
+			maxs = maxs,
+			filter = {
+				ply,
+				ent
+			}
+		});
+		if trace.Hit then
+			pos = trace.HitPos;
+		end;
 		ent:SetPos(pos);
 		ent:SetAngles(ang);
 		return true;
@@ -90,27 +96,43 @@ if SERVER then
 					ent:SetCollisionGroup(COLLISION_GROUP_NONE);
 				else
 					local aim = ply:EyeAngles();
-					print("Yaw:", aim.y, "Pitch:", aim.p, "Raw:", aim);
-					if aim.p > 60 then
-						aim.p = 60;
+					local minimumAimPitch = 50;
+					if aim.p > minimumAimPitch then
+						aim.p = minimumAimPitch;
 					end;
-					local MIN_HOLD_OFFSET = 20;
+					local MIN_HOLD_OFFSET = 100;
 					local pos = ply:EyePos() + aim:Forward() * math.max(HOLD_DISTANCE, MIN_HOLD_OFFSET);
 					local ang = Angle(0, aim.y, 0) + (ent.HoldAngleOffset or Angle(0, 0, 0));
-					offsetPlayerZ = 26;
-					if pos.z < (ply:GetPos()).z + offsetPlayerZ then
-						pos.z = (ply:GetPos()).z + offsetPlayerZ;
+					local mins, maxs = ent:OBBMins(), ent:OBBMaxs();
+					local ignoreTrace = false;
+					for _, portal in ipairs(ents.FindByClass("prop_portal")) do
+						if IsValid(portal) and (portal:GetPos()):Distance(pos) < 10 then
+							ignoreTrace = true;
+							break;
+						end;
+					end;
+					if not ignoreTrace then
+						local trace = util.TraceHull({
+							start = ply:EyePos(),
+							endpos = pos,
+							mins = mins,
+							maxs = maxs,
+							filter = {
+								ply,
+								ent
+							}
+						});
+						ignoreTrace = false;
+						if trace.Hit and IsValid(trace.Entity) and trace.Entity:GetClass() == "prop_portal" then
+							print("Trace hit a prop_portal, ignoring...");
+							ignoreTrace = true;
+						end;
+						if trace.Hit and (not ignoreTrace) then
+							pos = trace.HitPos;
+						end;
 					end;
 					ent:SetPos(pos);
 					ent:SetAngles(ang);
-					ent:SetCollisionGroup(0);
-					if ent.SetSolid then
-						ent:SetSolid(6);
-					end;
-					if ent.SetMoveType then
-						ent:SetMoveType(6);
-					end;
-					local phys = ent:GetPhysicsObject();
 				end;
 			end;
 		end;
@@ -132,8 +154,6 @@ if SERVER then
 						ent.HoldVelocity = nil;
 					end;
 				end;
-				print("Dropping held prop via command.");
-				ent:SetCollisionGroup(COLLISION_GROUP_NONE);
 			end;
 		end;
 	end);
