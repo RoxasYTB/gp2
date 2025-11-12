@@ -863,7 +863,7 @@ function SWEP:Holster(arguments)
 
 			if IsValid(vm1) and IsValid(owner:GetEntityInUse()) then
 
-				vm1:SendViewModelMatchingSequence(self:SelectWeightedSequence(ACT_VM_PICKUP))
+				vm1:SendViewModelMatchingSequence(11)
 				self.GotEntityInUse = true
 				// self:EmitSound("PortalPlayer.ObjectUse", 0)
 				self:SetEntityInUse(owner:GetEntityInUse())
