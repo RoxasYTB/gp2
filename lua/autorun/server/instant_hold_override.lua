@@ -77,7 +77,7 @@ if SERVER then
 				end;
 			end;
 			if holding then
-				timer.Simple(0.05, function()
+				timer.Simple(0.1, function()
 					if IsValid(ply) then
 						ply:ConCommand("gp2_dropheld");
 					end;
@@ -142,6 +142,7 @@ if SERVER then
 		end;
 	end);
 	concommand.Add("gp2_dropheld", function(ply)
+		ToApplyVelocity = ply:GetVelocity();
 		if not IsValid(ply) or (not ply:IsPlayer()) then
 			return;
 		end;
@@ -153,10 +154,8 @@ if SERVER then
 				if IsValid(phys) then
 					phys:EnableMotion(true);
 					phys:Wake();
-					if ent.HoldVelocity then
-						phys:SetVelocity(ply.HoldVelocity);
-						ent.HoldVelocity = nil;
-					end;
+					phys:SetVelocity(ToApplyVelocity);
+					ent.HoldVelocity = nil;
 				end;
 			end;
 		end;
