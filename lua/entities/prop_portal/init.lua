@@ -332,6 +332,7 @@ function ENT:BootAllProps()
 		if IsValid(ent) and ent.InPortal == self and (not ent:IsPlayer()) then
 			ent.InPortal = nil;
 			if ent.clone and IsValid(ent.clone) then
+				print("Removing clone of entity ", ent, " due to portal removal.");
 				ent.clone:Remove();
 				ent.clone = nil;
 			end;
@@ -458,6 +459,7 @@ function ENT:Touch(ent)
 		end;
 	else
 		self:SyncClone(ent);
+		print("Entity ", ent, " is touching portal ", self, ".");
 		ent:SetGroundEntity(NULL);
 	end;
 end;
@@ -527,6 +529,7 @@ local FloorToWallTransforms = {
 	end
 };
 function ENT:EndTouch(ent)
+	print("Entity ", ent, " ended touch with portal ", self, ".");
 	if not ent or (not ent:IsValid()) or ent:IsPlayer() or ent:IsPlayerHolding() then
 		return;
 	end;

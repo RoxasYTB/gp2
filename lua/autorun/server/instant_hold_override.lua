@@ -125,14 +125,13 @@ if SERVER then
 							}
 						});
 						ignoreTrace = false;
+						if pos.z < (ply:GetPos()).z + offsetPlayerZ then
+							pos.z = (ply:GetPos()).z + offsetPlayerZ;
+						end;
 						if trace.Hit and IsValid(trace.Entity) and trace.Entity:GetClass() == "prop_portal" then
-							print("Trace hit a prop_portal, ignoring...");
 							ignoreTrace = true;
 						end;
 						if trace.Hit and (not ignoreTrace) then
-							if pos.z < (ply:GetPos()).z + offsetPlayerZ then
-								pos.z = (ply:GetPos()).z + offsetPlayerZ;
-							end;
 							pos = trace.HitPos;
 						end;
 					end;
