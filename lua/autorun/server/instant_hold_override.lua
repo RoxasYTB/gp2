@@ -2,7 +2,7 @@ local HOLD_DISTANCE = 100;
 local HOLD_CLASS_WHITELIST = {
 	prop_physics = true,
 	prop_physics_multiplayer = true,
-	// prop_weighted_cube = true
+	prop_weighted_cube = true
 };
 local offsetPlayerZ = 0;
 local minimumAimPitch = 40;
@@ -28,6 +28,7 @@ if SERVER then
 		if not HOLD_CLASS_WHITELIST[ent:GetClass()] then
 			return;
 		end;
+		ply:ConCommand("gp2_play_hold_animation");
 		for _, e in ipairs(ents.GetAll()) do
 			if IsValid(e) and e.HeldBy == ply then
 				return;
@@ -77,7 +78,7 @@ if SERVER then
 				end;
 			end;
 			if holding then
-				timer.Simple(0.1, function()
+				timer.Simple(0.07, function()
 					if IsValid(ply) then
 						ply:ConCommand("gp2_dropheld");
 					end;

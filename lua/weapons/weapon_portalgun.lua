@@ -453,6 +453,7 @@ local function setPortalPlacement(owner, portal)
 
 
 
+
 	for i = 1, #alongRay do
 		local ent = alongRay[i]
 			-- Vérification du chevauchement avec d'autres portails
@@ -1560,3 +1561,55 @@ function SWEP:GetSyncedPortalGunState()
         return GetConVar("gp2_portalgun_upgraded"):GetBool(), GetConVar("gp2_portalgun_potato"):GetBool()
     end
 end
+
+
+function SWEP:play_hold_animation()
+	local ent = ents.Create("prop_physics")
+	if not IsValid(ent) then return end
+	ent:SetModel("models/props_junk/PopCan01a.mdl")
+	local owner = self:GetOwner()
+	if not IsValid(owner) then return end
+	local pos = owner:GetPos() + Vector(0, 0, 80)
+	ent:SetPos(pos)
+	ent:SetAngles(Angle(0, 0, 0))
+	ent:SetNoDraw(false)
+	ent:SetSolid(SOLID_NONE)
+	ent:SetCollisionGroup(COLLISION_GROUP_IN_VEHICLE)
+	ent:SetRenderMode(RENDERMODE_TRANSALPHA)
+	ent:SetColor(Color(255, 255, 255, 0))
+	ent:SetOwner(owner)
+	ent:Spawn()
+	owner:PickupObject(ent)
+
+	self.HoldEnt = ent
+	self.HoldActive = true
+end
+
+function SWEP:stop_hold_animation()
+	if IsValid(self.HoldEnt) then
+		local owner = self:GetOwner()
+		if IsValid(owner) and owner:GetEntityInUse() == self.HoldEnt then
+			owner:DropObject()
+		end
+		self.HoldEnt:Remove()
+		self.HoldEnt = nil
+	end
+	self.HoldActive = false
+end
+
+concommand.Add("gp2_play_hold_animation", function(ply)
+	local wep = ply:GetActiveWeapon()
+	if IsValid(wep) and wep:GetClass() == "weapon_portalgun" then
+		wep:play_hold_animation()
+	end
+end)
+
+concommand.Add("gp2_stop_hold_animation", function(ply)
+	local wep = ply:GetActiveWeapon()
+	if IsValid(wep) and wep:GetClass() == "weapon_portalgun" then
+		wep:stop_hold_animation()
+	end
+end)
+
+
+
