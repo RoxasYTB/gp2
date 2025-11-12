@@ -106,7 +106,7 @@ local function setPortalPlacement(owner, portal)
 	local texNameSurface = trSurface.HitTexture or "inconnu"
 	owner:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Texture pointée : " .. tostring(texNameSurface))
 
-	local nonPortalableTextures = {["METAL"]=true, ["CONCRETE"]=true, ["displacement"]=true, ["studio"]=true, ["nodraw"]=true, ["ELEVATOR"]=true, ["TOOLS"]=true}
+	local nonPortalableTextures = {["METAL"]=true, ["CONCRETE"]=true, ["displacement"]=true, ["nodraw"]=true, ["ELEVATOR"]=true, ["TOOLS"]=true}
 	for k in pairs(nonPortalableTextures) do
 		if string.find(texNameSurface, k, 1, true) then owner:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Surface non portalable détectée") return PORTAL_PLACEMENT_BAD_SURFACE, tr end
 	end
@@ -137,6 +137,7 @@ local function setPortalPlacement(owner, portal)
 	local portalHeightHalf = siz[2] * 0.5
 	local portalWidthHalf = siz[1] * 0.5
 	local portalWidthComplete = siz[1]
+	local portalHeightComplete = siz[2]
 	local betterPos = Vector(tr.HitPos.x, tr.HitPos.y, tr.HitPos.z)
 
 	local function MakePortalTrace(startPos, offset, normAng)
@@ -203,7 +204,7 @@ local function setPortalPlacement(owner, portal)
 		tries = tries + 1
 	end
 
-	tries, step = 0, 50
+	local maxTries, tries, step = 100 ,0, 50
 	while (not isZeroDist(distUp) or not isZeroDist(distDown)) and tries < maxTries do
 		if isZeroDist(distUp) and not isZeroDist(distDown) then betterPos = betterPos + ang:Forward() * step
 		elseif isZeroDist(distDown) and not isZeroDist(distUp) then betterPos = betterPos - ang:Forward() * step
