@@ -33,6 +33,7 @@ if SERVER then
 		end;
 		for _, e in ipairs(ents.GetAll()) do
 			if IsValid(e) and e.HeldBy == ply then
+				isHoldingThing:SetInt(1);
 				return;
 			end;
 		end;
@@ -91,6 +92,9 @@ if SERVER then
 		end;
 	end);
 	hook.Add("Think", "InstantHold_TrackPosition", function()
+		// if isHoldingThing:GetInt() == 0 then
+		// 	return;
+		// end;
 		for _, ent in ipairs(ents.GetAll()) do
 			if IsValid(ent) and IsValid(ent.HeldBy) then
 				local ply = ent.HeldBy;
