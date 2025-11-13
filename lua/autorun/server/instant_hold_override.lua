@@ -9,6 +9,7 @@ local minimumAimPitch = 40;
 local isHoldingThing = CreateConVar("isHoldingThing", "0", FCVAR_SERVER_CAN_EXECUTE + FCVAR_REPLICATED, "", 0, 1);
 if SERVER then
 	hook.Add("PlayerUse", "InstantHold_PlayerUse", function(ply, ent)
+		print("InstantHold: Player " .. tostring(ply) .. " used entity " .. tostring(ent));
 		for _, e in ipairs(ents.GetAll()) do
 			if IsValid(e) and e.HeldBy == ply then
 				return;
@@ -29,11 +30,8 @@ if SERVER then
 		if not HOLD_CLASS_WHITELIST[ent:GetClass()] then
 			return;
 		end;
-				ply:ConCommand("gp2_play_hold_animation");
-
 		for _, e in ipairs(ents.GetAll()) do
 			if IsValid(e) and e.HeldBy == ply then
-				isHoldingThing:SetInt(1);
 				return;
 			end;
 		end;
@@ -66,6 +64,7 @@ if SERVER then
 		end;
 		ent:SetPos(pos);
 		ent:SetAngles(ang);
+		isHoldingThing:SetInt(1);
 		return true;
 	end);
 	hook.Add("KeyPress", "InstantHold_DetectUseKey", function(ply, key)
@@ -92,9 +91,6 @@ if SERVER then
 		end;
 	end);
 	hook.Add("Think", "InstantHold_TrackPosition", function()
-		// if isHoldingThing:GetInt() == 0 then
-		// 	return;
-		// end;
 		for _, ent in ipairs(ents.GetAll()) do
 			if IsValid(ent) and IsValid(ent.HeldBy) then
 				local ply = ent.HeldBy;
