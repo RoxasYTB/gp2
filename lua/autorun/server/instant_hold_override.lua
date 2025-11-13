@@ -1,4 +1,4 @@
-local HOLD_DISTANCE = 100;
+local HOLD_DISTANCE = 50;
 local HOLD_CLASS_WHITELIST = {
 	prop_physics = true,
 	prop_physics_multiplayer = true,
@@ -18,7 +18,7 @@ if SERVER then
 		if IsValid(ent) and IsValid(ply) then
 			local distance = (ply:GetPos()):Distance(ent:GetPos());
 			local MIN_HOLD_OFFSET = 100;
-			HOLD_DISTANCE = 100;
+			HOLD_DISTANCE = 50 + MIN_HOLD_OFFSET;
 			offsetPlayerZ = (ply:GetPos()).z - (ent:GetPos()).z;
 		end;
 		if not IsValid(ply) or (not ply:IsPlayer()) then
@@ -65,9 +65,6 @@ if SERVER then
 		ent:SetPos(pos);
 		ent:SetAngles(ang);
 		isHoldingThing:SetInt(1);
-		if IsValid(ply) then
-			ply:ConCommand("gp2_play_hold_animation");
-		end;
 		return true;
 	end);
 	hook.Add("KeyPress", "InstantHold_DetectUseKey", function(ply, key)
@@ -85,6 +82,7 @@ if SERVER then
 			if holding then
 				timer.Simple(0.2, function()
 					if IsValid(ply) then
+						isHoldingThing:SetInt(0);
 						ply:ConCommand("gp2_dropheld");
 						ply:ConCommand("gp2_stop_hold_animation");
 					end;
@@ -112,7 +110,7 @@ if SERVER then
 					end;
 					ent:SetOwner(ply);
 					local MIN_HOLD_OFFSET = 100;
-					local pos = ply:EyePos() + aim:Forward() * 100;
+					local pos = ply:EyePos() + aim:Forward() * 75;
 					local ang = Angle(0, aim.y, 0) + (ent.HoldAngleOffset or Angle(0, 0, 0));
 					local mins, maxs = ent:OBBMins(), ent:OBBMaxs();
 					local ignoreTrace = false;
@@ -145,11 +143,10 @@ if SERVER then
 						end;
 					end;
 					ent:SetPos(pos);
-					ent:SetAngles(ang);
+					ent:SetAngles(Angle(0, (ply:EyeAngles()).y, 0));
 					if ent:GetClass() == "npc_personality_core" then
 						ent:SetMoveType(MOVETYPE_VPHYSICS);
 					end;
-					isHoldingThing:SetInt(1);
 				end;
 			end;
 		end;

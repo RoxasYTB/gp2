@@ -441,7 +441,6 @@ local function setPortalPlacement(owner, portal)
 		["displacement"] = true,
 		["nodraw"] = true,
 		["ELEVATOR"] = true,
-		["TOOLS"] = true
 
 	}
 	for k in pairs(nonPortalableTextures) do
@@ -1595,12 +1594,13 @@ end
 			end
 			local isHoldingThing = GetConVar("isHoldingThing")
 			if isHoldingThing and isHoldingThing:GetInt() == 1 then
+				print("Player is holding something")
 				if IsValid(wep) and wep.GetEntityInUse then
 					local ent = wep:GetEntityInUse()
 					isNull = ent == nil or ent == NULL
 
-					if isNull and isHoldingThing then
-
+					if isNull and isHoldingThing:GetInt() == 1 then
+						print("Replaying hold animation for "..tostring(wep)..", prop is "..tostring(prop))
 						wep:play_hold_animation()
 						isNull = false
 
@@ -1619,6 +1619,8 @@ GP2_HoldProps = GP2_HoldProps or {}
 
 function SWEP:play_hold_animation()
 	 self:EmitSound("PortalPlayer.ObjectUse", 0)
+	 	print("Playing hold animation")
+
 	if not SERVER then return end
 
 	local owner = self:GetOwner()

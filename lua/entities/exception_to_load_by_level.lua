@@ -176,3 +176,19 @@ if SERVER then
 		game.ConsoleCommand("sv_gravity 500\n");
 	end;
 end;
+
+
+
+concommand.Add("glados_claw_pickup", function()
+	game.ConsoleCommand('ent_fire @glados RunScriptCode "sp_a1_wakeup_WheatleyGettingGrabbed()" 1.2\n')
+	game.ConsoleCommand('ent_fire glados_cables_hip_03 DisableDraw "" 1.2\n')
+	game.ConsoleCommand('ent_fire claw_clang_sound PlaySound "" 2.2\n')
+	game.ConsoleCommand('ent_fire camera_1 Enable "" 2.2\n')
+	game.ConsoleCommand('ent_fire camera_1 Disable "" 3.4\n')
+	game.ConsoleCommand('ent_fire camera_ghostAnim_2 Enable "" 3.4\n')
+	game.ConsoleCommand('ent_fire @sphere SetParent ghostAnim 3.4\n')
+	game.ConsoleCommand('ent_fire @sphere SetParentAttachment attach_2 3.5\n')
+	game.ConsoleCommand('ent_fire gun_shooter Shoot "" 6\n')
+	game.ConsoleCommand('ent_fire relay_incinerator_open Trigger "" 30.6\n')
+	game.ConsoleCommand('ent_fire achievement_wakeup_glados FireEvent "" 37.45\n')
+end)
