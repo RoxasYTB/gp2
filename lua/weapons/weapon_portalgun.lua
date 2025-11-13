@@ -425,6 +425,7 @@ local function setPortalPlacement(owner, portal)
 
 	local alongRay = ents.FindAlongRay(tr.StartPos, tr.HitPos, -rayHull, rayHull)
 
+
 	local trSurface = owner:GetEyeTrace()
 	if not trSurface or not trSurface.Hit then
 		owner:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Aucun objet pointé.")
@@ -438,7 +439,6 @@ local function setPortalPlacement(owner, portal)
 		["METAL"] = true,
 		["CONCRETE"] = true,
 		["displacement"] = true,
-		["studio"] = true,
 		["nodraw"] = true,
 		["ELEVATOR"] = true,
 		["TOOLS"] = true
@@ -684,7 +684,7 @@ local function setPortalPlacement(owner, portal)
 			break
 		end
 
-		local startPosUp = betterPos + ang:Forward() * portalHeightHalf
+		local startPosUp = betterPos + ang:Forward() * portalHeightComplete
 		local traceDownUp = PortalManager.TraceLine({
 			start = startPosUp,
 			endpos = startPosUp + downVec,
@@ -697,7 +697,7 @@ local function setPortalPlacement(owner, portal)
 			distUp = nil
 		end
 
-		local startPosDown = betterPos - ang:Forward() * portalHeightHalf
+		local startPosDown = betterPos - ang:Forward() * portalHeightComplete
 		local traceDownDown = PortalManager.TraceLine({
 			start = startPosDown,
 			endpos = startPosDown + downVec,
@@ -711,6 +711,26 @@ local function setPortalPlacement(owner, portal)
 		end
 
 		tries = tries + 1
+	end
+
+	-- Vérification out of bounds après ajustement hauteur
+	local posUp = betterPos + ang:Forward() * portalWidthComplete
+	local posDown = betterPos - ang:Forward() * portalWidthComplete
+	while (not util.IsInWorld(posUp) or not util.IsInWorld(posDown)) and tries < maxTries do
+		step = 10
+		if not util.IsInWorld(posUp) and util.IsInWorld(posDown) then
+			betterPos = betterPos - ang:Forward() * step
+		elseif not util.IsInWorld(posDown) and util.IsInWorld(posUp) then
+			betterPos = betterPos + ang:Forward() * step
+		else
+			break
+		end
+		posUp = betterPos + ang:Forward() * portalWidthComplete
+		posDown = betterPos - ang:Forward() * portalWidthComplete
+		tries = tries + 1
+	end
+	if not util.IsInWorld(posUp) or not util.IsInWorld(posDown) then
+		return PORTAL_PLACEMENT_BAD_SURFACE, tr
 	end
 
 	tr.HitPos = betterPos
