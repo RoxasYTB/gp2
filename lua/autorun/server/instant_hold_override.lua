@@ -10,6 +10,7 @@ local isHoldingThing = CreateConVar("isHoldingThing", "0", FCVAR_SERVER_CAN_EXEC
 if SERVER then
 	hook.Add("PlayerUse", "InstantHold_PlayerUse", function(ply, ent)
 		print("InstantHold: Player " .. tostring(ply) .. " used entity " .. tostring(ent));
+		ply:ConCommand("gp2_play_hold_animation");
 		for _, e in ipairs(ents.GetAll()) do
 			if IsValid(e) and e.HeldBy == ply then
 				return;
@@ -64,7 +65,6 @@ if SERVER then
 		end;
 		ent:SetPos(pos);
 		ent:SetAngles(ang);
-		isHoldingThing:SetInt(1);
 		return true;
 	end);
 	hook.Add("KeyPress", "InstantHold_DetectUseKey", function(ply, key)
