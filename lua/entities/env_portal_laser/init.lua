@@ -748,7 +748,6 @@ function ENT:CreateOrUpdatePortalExitEmitter(startPos, direction, recursionDepth
 			local distanceToExitPortal = (newPos - exitPos):Length();
 			if distanceToExitPortal >= sphereRadius and diffAngleP == 0 then
 				local absDiffY = math.abs(diffAngleY);
-				print(absDiffY);
 				if math.abs(absDiffY - 0) < 2 then
 					newPos = exitPos + Vector(deltaX, deltaY, (-deltaZ)) + newAng:Forward() * (distanceToExitPortal - 30);
 				elseif math.abs(absDiffY - 180) < 2 then
@@ -756,7 +755,6 @@ function ENT:CreateOrUpdatePortalExitEmitter(startPos, direction, recursionDepth
 				elseif math.abs(absDiffY - 270) < 2 then
 					newPos = exitPos + Vector((-deltaY), deltaX, (-deltaZ)) + newAng:Forward() * (distanceToExitPortal - 20);
 				else
-					print("diffY 90");
 					newPos = exitPos + Vector(deltaY, (-deltaX), (-deltaZ)) + newAng:Forward() * (distanceToExitPortal - 30);
 				end;
 			end;

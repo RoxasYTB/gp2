@@ -717,7 +717,7 @@ local function setPortalPlacement(owner, portal)
 	local posUp = betterPos + ang:Forward() * portalWidthComplete
 	local posDown = betterPos - ang:Forward() * portalWidthComplete
 	while (not util.IsInWorld(posUp) or not util.IsInWorld(posDown)) and tries < maxTries do
-		step = 10
+		step = 1
 		if not util.IsInWorld(posUp) and util.IsInWorld(posDown) then
 			betterPos = betterPos - ang:Forward() * step
 		elseif not util.IsInWorld(posDown) and util.IsInWorld(posUp) then
