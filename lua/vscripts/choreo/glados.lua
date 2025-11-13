@@ -39,7 +39,7 @@ function MapNameConversion(orgname)
     return MapBspConversion[orgname] or orgname
 end
 
-GladosDialog = 
+GladosDialog =
 {
     ["sp_a1_intro2"] = { prestart = "PreHub01PortalCarouselEntry01", completed = "PreHub01PortalCarouselSuccess01" },
     ["sp_a1_intro3"] = { prestart = "sp_intro_03Start01", completed = "sp_intro_03MindTheGapFinish01" },
@@ -158,7 +158,7 @@ function EvaluateTimeKey(keyname, keytable)
         ret = 0.00
     end
 
-    printdebug(">>>>>>>>>EVALUATE TIME KEY: ".. keyname .. " : " .. ret) 		
+    printdebug(">>>>>>>>>EVALUATE TIME KEY: ".. keyname .. " : " .. ret)
     return ret
 end
 
@@ -220,7 +220,7 @@ function GladosPlayVcd(arg, IgnoreQueue, caller)
         if SceneTable[arg]["queue"] then
             if not IgnoreQueue then
                 if SceneTable[arg]["queuecharacter"] then
-                    -- queue if a specific character is talking 
+                    -- queue if a specific character is talking
                     if IsValid(characterCurscene(SceneTable[arg].queuecharacter)) then
                         printdebug('Adding to queue because a specific character ' .. SceneTable[arg].queuecharacter .. ' is talking ' .. tostring(characterCurscene(SceneTable[arg].char)))
                         QueueAdd(arg)
@@ -263,7 +263,7 @@ function GladosPlayVcd(arg, IgnoreQueue, caller)
             inst.waitNoDingOn = true
         else
             inst.waitNoDingOn = false
-        end        
+        end
     end
 
     local preDelay = 0.00
@@ -295,7 +295,7 @@ function GladosPlayVcd(arg, IgnoreQueue, caller)
         if not inst.naginchain then
             arg = nags_fetch(inst)
         end
-        
+
         -- if nothing fetched (because the nag has used all the lines and isn't marked as "repeat"), remove this scene
         if arg == nil then
             scenequeue_DeleteScene(inst.index)
@@ -306,8 +306,8 @@ function GladosPlayVcd(arg, IgnoreQueue, caller)
     -- Set ducking volume correctly for booming glados audio
     --SendToConsole( "snd_ducktovolume 0.2" )
 
-    --SetDucking( "announcerVOLayer", "announcerVO", 0.01 ) 
-    --SetDucking( "gladosVOLayer", "gladosVO", 0.1 ) 
+    --SetDucking( "announcerVOLayer", "announcerVO", 0.01 )
+    --SetDucking( "gladosVOLayer", "gladosVO", 0.1 )
 
     if arg ~= nil then
         local ltalkover = SceneTable[arg]["talkover"]
@@ -325,7 +325,7 @@ function GladosPlayVcd(arg, IgnoreQueue, caller)
             EntFireByHandle( sceneDingOn, "Start", "", 0.00 )
         end
 
-        -- Start the new vcd	
+        -- Start the new vcd
         printdebug("===================Playing:" .. arg)
         inst.currentCharacter = SceneTable[arg].char
 
@@ -357,7 +357,7 @@ function GladosPlayVcd(arg, IgnoreQueue, caller)
 
         if dingon and not inst.waitNoDingOn then
             EntFireByHandle( SceneTable[arg].vcd, "Start", "", 0.18 )
-        else	
+        else
             EntFireByHandle( SceneTable[arg].vcd, "Start", "", 0.00 )
         end
 
@@ -412,30 +412,30 @@ function GladosPlayVcd(arg, IgnoreQueue, caller)
                 else
                     inst.waitNext = SceneTable[arg].next
                 end
-                
+
                 inst.waitExitingEarly = true
                 inst.waitLength = nil
                 inst.waitExitingEarlyStartTime = CurTime()
-                
+
                 --If we're in a nag vcd chain, use the vcds postdelay rather than the nag-wide delay
                 --This is because vcd chains generally need to be explicitly timed at the chain level
-                --since the vcds are grouped together as a block   
+                --since the vcds are grouped together as a block
                 if inst.naginchain then
                     pdelay = EvaluateTimeKey("postdelay",SceneTable[arg])
                 end
-                
+
                 inst.waitExitingEarlyThreshold = pdelay * -1
             else
                 inst.waitExitingEarly = false
                 if inst.isNag then
                     if SceneTable[arg].next ~= nil then
-                        -- If the "next" key != nil, it means we're in a vcd chain                        
+                        -- If the "next" key != nil, it means we're in a vcd chain
                         inst.waitNext = SceneTable[arg].next
                         inst.naginchain = true
                     else
                         -- Otherwise, just slug in the same index (any non-nil value would work here, however)
                         inst.waitNext = arg
-                        inst.naginchain = false                        
+                        inst.naginchain = false
                     end
                 else
                     inst.waitNext = SceneTable[arg].next
@@ -443,7 +443,7 @@ function GladosPlayVcd(arg, IgnoreQueue, caller)
 
                 -- If we're in a nag vcd chain, use the vcds postdelay rather than the nag-wide delay
                 -- This is because vcd chains generally need to be explicitly timed at the chain level
-                -- since the vcds are grouped together as a block                
+                -- since the vcds are grouped together as a block
                 if inst.naginchain then
                     pdelay = EvaluateTimeKey("postdelay", SceneTable[arg])
                 end
@@ -456,6 +456,7 @@ function GladosPlayVcd(arg, IgnoreQueue, caller)
         end
     end
 end
+
 
 function GladosCharacterStopScene(arg)
     local ent = nil
@@ -477,7 +478,7 @@ function GladosAllCharactersStopScene()
     GladosCharacterStopScene("core02")
     GladosCharacterStopScene("core03")
 end
-    
+
 function characterCurscene(arg)
     local ret
     local ent
@@ -507,7 +508,7 @@ function characterCurscene(arg)
         printdebug("&&&&&&FOUND ENTITY: " .. tostring(ent))
         ret = ent:GetCurrentScene()
     end
-    
+
     return ret
 end
 
@@ -601,7 +602,7 @@ function GladosThink()
                 end
 
                 pitchShiftValue = pitchShiftValue + shiftAmount
-                
+
                 if pitchShiftValue <= 0 or pitchShiftValue >= 1.7 then
                     pitchShiftValue = pitchShiftValue - (shiftAmount * 2)
                 end
@@ -700,7 +701,7 @@ function FindSceneInstanceByTeam(team)
     return inst
 end
 
--- If a vcd is tagged to "exit early" (by setting postdelay < 0), 
+-- If a vcd is tagged to "exit early" (by setting postdelay < 0),
 -- this event fires rather than PlayNextScene() when the vcd finishes.
 function SkipOnCompletion()
     printdebug("========SKIPONCOMPLETION CALLING ENTITY: " .. findIndex(owninginstance.id) .. " : TIME " .. CurTime())
@@ -728,7 +729,7 @@ end
 function PlayNextScene()
     local team = owninginstance.id
 	local inst = FindSceneInstanceByTeam(team)
- 
+
     if inst ~= nil then
         printdebug("========PLAYNEXTSCENE CALLING ENTITY: " .. findIndex(owninginstance.id) .. " : TIME " .. CurTime())
         inst:deleteFiredVcd(team)
@@ -812,7 +813,7 @@ function OnPostSpawn()
         val.index = i
         printdebug('name: ' .. name .. ' ' .. tostring(val.vcd) .. ' has team now ' .. i)
     end
-    
+
     -- Initialize the deferred scene queue
     QueueInitialize()
     PuzzlePreStart()
@@ -836,7 +837,7 @@ function scene(a, caller)
     local self = setmetatable({}, Scene)
 
     printdebug("Creating scene with index " .. a)
-    
+
     -- Instance properties
     self.index = 0
     self.owner = nil
@@ -866,7 +867,7 @@ function scene(a, caller)
     self.nagtimeslistcompleted = 0
     self.nagrepeat = false
     self.naginchain = false
-    
+
     return self
 end
 
@@ -895,7 +896,7 @@ function Scene:deleteFiredVcd(team)
             break
         end
     end
-    
+
     if fnd then
         table.remove(self.waitFiredVcds, fnd)
     end
@@ -962,7 +963,7 @@ end
 
 function QueueAdd(arg)
     table.insert(Queue, { item = arg, added = CurTime() })
-    
+
     if SceneTable[arg] then
         if SceneTable[arg].queueforcesecs then
             Queue[#Queue].queueforcesecs = SceneTable[arg].queueforcesecs
@@ -999,12 +1000,12 @@ end
 function QueueGetNext()
     local ret = nil
     local l = QueueLen()
-    
+
     if l > 0 then
         ret = Queue[l].item
         table.remove(Queue, l)
     end
-    
+
     return ret
 end
 
@@ -1166,7 +1167,7 @@ function nags_createpool(inst)
         if #tempa > 1 and inst.naglastfetched ~= nil then
             while true do
                 r = math.random(1, #tempa)
-                
+
                 if tempa[r].SceneTableIndex ~= inst.naglastfetched then
                     table.insert(inst.nagpool, tempa[r])
                     table.remove(tempa, r)
@@ -1174,7 +1175,7 @@ function nags_createpool(inst)
                 end
             end
         end
-    
+
         -- Populate the rest of the pool
         while #tempa > 0 do
             r = math.random(1, #tempa)
@@ -1217,7 +1218,7 @@ function nags_fetch(inst)
 	--nags_nagpooldump(inst)
 	table.remove(inst.nagpool, 1)
 	inst.naglastfetched = ret
-	return ret    
+	return ret
 end
 
 local function StopNag(name, arg)
@@ -1280,5 +1281,5 @@ function PotatosTurnOff()
 end
 
 function PotatosTurnOn()
-    TurnOnPotatos()    
+    TurnOnPotatos()
 end

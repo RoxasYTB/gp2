@@ -96,6 +96,9 @@ GP2.VScriptMgr = {
 		scope.include = function(fileName)
 			GP2.VScriptMgr.Error("Include function is not supported in RunScriptCode.");
 		end;
+		if GladosPlayVcd then
+			scope.GladosPlayVcd = GladosPlayVcd;
+		end;
 		local chunk, err = CompileString(code);
 		if not chunk and err then
 			GP2.Error(err:gsub("CompileString:(%d)+", ""));
@@ -154,3 +157,57 @@ GP2.InputsHandler.AddCallback("callscriptfunction", function(ent, activator, cal
 end);
 GP2.KeyValueHandler.Add("vscripts", GP2.VScriptMgr.InitializeScriptForEntity);
 GP2.KeyValueHandler.Add("thinkfunction", GP2.VScriptMgr.InitializeScriptThinkFuncForEntity);
+concommand.Add("gp2_setasglados", function(ply, cmd, args)
+	local ent = (ply:GetEyeTrace()).Entity;
+	if IsValid(ent) then
+		ent:SetKeyValue("classname", "npc_generic_actor");
+		ent:SetKeyValue("targetname", "@glados");
+		ent:SetKeyValue("model", "models/props_lab/glados.mdl");
+		ent:SetKeyValue("spawnflags", "224");
+		ent:Spawn();
+		GP2.Print("Entity transformed into NPC [224][generic_actor] as @glados: " .. tostring(ent));
+	end;
+end);
+concommand.Add("gp2_runscriptcode", function(ply, cmd, args)
+	local ent = ents.GetByIndex(224);
+	if IsValid(ent) then
+		GP2.VScriptMgr.RunScriptCode(ent, table.concat(args, " "));
+	end;
+end);
+concommand.Add("gp2_runscriptfile", function(ply, cmd, args)
+	local ent = (ply:GetEyeTrace()).Entity;
+	if IsValid(ent) then
+		GP2.VScriptMgr.RunScriptFile(ent, args[1] or "");
+	end;
+end);
+concommand.Add("gp2_callscriptfunction", function(ply, cmd, args)
+	local ent = (ply:GetEyeTrace()).Entity;
+	if IsValid(ent) then
+		GP2.VScriptMgr.CallScriptFunction(ent, args[1] or "", false, ply);
+	end;
+end);
+concommand.Add("gp2_gladosplayvcd", function(ply, cmd, args)
+	local glados = (ents.FindByName("@glados"))[1];
+	if not IsValid(glados) then
+		GP2.Error("@glados entity not found");
+		return;
+	end;
+	local scope = glados:GetOrCreateVScriptScope();
+	if not scope.GladosPlayVcd then
+		GP2.Print("Loading choreo/glados script on @glados entity...");
+		GP2.VScriptMgr.RunScriptFile(glados, "choreo/glados");
+		scope = glados:GetOrCreateVScriptScope();
+		if not scope.GladosPlayVcd then
+			GP2.Error("Failed to load GladosPlayVcd function");
+			return;
+		end;
+	end;
+	local arg = args[1];
+	if arg and tonumber(arg) then
+		scope.GladosPlayVcd(tonumber(arg));
+	elseif arg then
+		scope.GladosPlayVcd(arg);
+	else
+		GP2.Print("Usage: gp2_gladosplayvcd <scene_name_or_number>");
+	end;
+end);
