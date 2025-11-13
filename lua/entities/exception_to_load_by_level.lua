@@ -47,9 +47,28 @@ hook.Add("OnEntityCreated", "GP2_AdjustPortalOnce", function(ent)
 	end;
 end);
 if SERVER then
+	hook.Add("Think", "GP2_CheckFuncBrushPitch_sp_a1_intro5", function()
+		if game.GetMap() ~= "sp_a1_intro5" then
+			return;
+		end;
+		for _, ent in ipairs(ents.FindByClass("func_brush")) do
+			if ent:EntIndex() >= 429 and ent:EntIndex() <= 433 then
+				local pitch = (ent:GetAngles()).p;
+				if pitch > (-2) then
+					ent:SetSolid(SOLID_NONE);
+				else
+					ent:SetSolid(SOLID_VPHYSICS);
+				end;
+			end;
+		end;
+	end);
+end;
+if SERVER then
 	CreateConVar("shouldHold", "0", FCVAR_ARCHIVE, "Force pickup on sp_a1_wakeup");
-	if game.GetMap() == "sp_a1_wakeup" then
-		(GetConVar("shouldHold")):SetBool(true);
+	if game.GetMap() == "sp_a1_wakeup" or game.GetMap() == "sp_a1_intro7" then
+		if game.GetMap() == "sp_a1_wakeup" then
+			(GetConVar("shouldHold")):SetBool(true);
+		end;
 		timer.Create("GP2_WaitForPlayerAndForcePickup", 0.1, 0, function()
 			if (GetConVar("shouldHold")):GetBool() then
 				local ply = (player.GetAll())[1];
@@ -74,8 +93,8 @@ if SERVER then
 							ent:SetSolid(SOLID_BBOX);
 							ent:SetCollisionGroup(COLLISION_GROUP_WORLD);
 							ply:PickupObject(ent);
-							print("GP2: Forced pickup of entity " .. tostring(ent) .. " by player " .. tostring(ply));
-							print("Collision group: " .. tostring(ent:GetCollisionGroup()));
+							CreateSound(ent, "PortalPlayer.ObjectUse", filter);
+							ent:EmitSound("PortalPlayer.ObjectUse", 0);
 							ent.GP2ForcePickup = true;
 						end;
 					end;
@@ -146,10 +165,12 @@ if SERVER then
 		end);
 	end;
 end;
-notification.AddLegacy = function(msg, type, len)
-	return;
+if notification then
+	notification.AddLegacy = function(msg, type, len)
+		return;
+	end;
 end;
-RunConsoleCommand("gmod_admin_cleanup");
+// RunConsoleCommand("gmod_admin_cleanup");
 if SERVER then
 	if game.GetMap() == "sp_a2_bts4" then
 		game.ConsoleCommand("sv_gravity 500\n");

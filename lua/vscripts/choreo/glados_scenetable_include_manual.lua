@@ -573,6 +573,8 @@ end
 function sp_a1_intro7_PickUp()
 	sp_a1_intro7_pickedup = true
 
+
+	game.ConsoleCommand("shouldHold 1\n")
 	if sp_a1_intro7_pickedupcount == 0 then
 		sp_a1_intro7_pickedupcount = sp_a1_intro7_pickedupcount + 1
 		-- before the "I'm not dead!" line has started playing
@@ -601,6 +603,10 @@ end
 
 function sp_a1_intro7_NoWatching()
 	sp_a1_intro7_pluggedin = true
+
+	game.ConsoleCommand("shouldHold 0\n")
+	game.ConsoleCommand("gp2_dropheld\n")
+
 	WheatleyStopNag()
 	GladosPlayVcd(477)
 end
@@ -625,6 +631,8 @@ function sp_a1_intro7_BamSecretPanel()
 end
 
 function sp_a1_intro7_GloriousFreedom()
+
+	game.ConsoleCommand("shouldHold 1\n")
 	GladosPlayVcd(480)
 end
 
@@ -726,11 +734,12 @@ end
 function sp_a1_wakeup_Do_Not_Touch()
 	sp_a1_wakeup_In_Breaker_Room = true
 	GladosPlayVcd(493)
-	game.ConsoleCommand("shouldHold false\n")
 end
 
 function sp_a1_wakeup_Lights_On()
 	GladosPlayVcd(494)
+	game.ConsoleCommand("shouldHold false\n")
+	game.ConsoleCommand("gp2_dropheld\n")
 
 end
 

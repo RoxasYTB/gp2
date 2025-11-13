@@ -576,7 +576,6 @@ local function setPortalPlacement(owner, portal)
 	local distRight, distLeft = nil, nil
 	if traceDownRight.Hit then
 		distRight = (startPosRight - traceDownRight.HitPos):Length()
-		print("Distance à la surface en dessous (droite): " .. distRight)
 
 	end
 
@@ -589,7 +588,6 @@ local function setPortalPlacement(owner, portal)
 	})
 	if traceDownLeft.Hit then
 		distLeft = (startPosLeft - traceDownLeft.HitPos):Length()
-		print("Distance à la surface en dessous (gauche): " .. distLeft)
 
 	end
 
@@ -606,7 +604,6 @@ local function setPortalPlacement(owner, portal)
 	local distUp
 	if traceDownUp.Hit then
 		distUp = (startPosUp - traceDownUp.HitPos):Length()
-		print("Distance à la surface en dessous (haut): " .. distUp)
 	end
 
 	local startPosDown = tr.HitPos - ang:Forward() * portalHeightHalf
@@ -619,7 +616,6 @@ local function setPortalPlacement(owner, portal)
 	local distDown
 	if traceDownDown.Hit then
 		distDown = (startPosDown - traceDownDown.HitPos):Length()
-		print("Distance à la surface en dessous (bas): " .. distDown)
 	end
 
 	local maxTries = 20
@@ -676,10 +672,8 @@ local function setPortalPlacement(owner, portal)
 		step = 50
 		if isZeroDist(distUp) and not isZeroDist(distDown) then
 			betterPos = betterPos + ang:Forward() * step
-			print("Adjusting portal position up")
 		elseif isZeroDist(distDown) and not isZeroDist(distUp) then
 			betterPos = betterPos - ang:Forward() * step
-			print("Adjusting portal position down")
 		else
 			break
 		end
@@ -1686,7 +1680,10 @@ function SWEP:stop_hold_animation()
 
 	owner:DropObject()
 
-	self:StopSound("PortalPlayer.ObjectUse")
+
+	for _, ent in ipairs(ents.GetAll()) do
+		ent:StopSound("PortalPlayer.ObjectUse")
+	end
 	self:EmitSound("PortalPlayer.ObjectUseStop", 0)
 
 
@@ -1710,5 +1707,16 @@ concommand.Add("gp2_stop_hold_animation", function(ply)
 	end
 end)
 
+concommand.Add("gp2_dropheld", function(ply)
+	local wep = ply:GetActiveWeapon()
+	ply:StopSound("PortalPlayer.ObjectUse")
+	ply:EmitSound("PortalPlayer.ObjectUseStop", 0)
+	if IsValid(wep) and wep:GetClass() == "weapon_portalgun" then
+		wep:stop_hold_animation()
+	end
+	if IsValid(ply) then
+		ply:DropObject()
+	end
+end)
 
 
