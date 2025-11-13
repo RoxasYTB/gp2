@@ -433,7 +433,14 @@ local function setPortalPlacement(owner, portal)
 	end
 	local texSurface = util.GetSurfaceData(trSurface.SurfaceProps)
 	local texNameSurface = trSurface.HitTexture or "inconnu"
+	local subSurface = trSurface.SurfaceProps or "inconnue"
 	owner:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Texture pointée : " .. tostring(texNameSurface))
+	owner:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Sous-texture : " .. tostring(subSurface))
+
+	if texNameSurface == "**studio**" and subSurface != 13 then
+			return PORTAL_PLACEMENT_BAD_SURFACE, tr
+
+	end
 
 	local nonPortalableTextures = {
 		["METAL"] = true,
@@ -441,13 +448,17 @@ local function setPortalPlacement(owner, portal)
 		["displacement"] = true,
 		["nodraw"] = true,
 		["ELEVATOR"] = true,
+		["TOOLS/TOOLSNODRAW"] = true,
 
 	}
 	for k in pairs(nonPortalableTextures) do
+
 		if string.find(texNameSurface, k, 1, true) then
 			owner:PrintMessage(HUD_PRINTCONSOLE, "[GP2] Surface non portalable détectée")
 			return PORTAL_PLACEMENT_BAD_SURFACE, tr
 		end
+
+
 	end
 
 

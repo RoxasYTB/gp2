@@ -46,6 +46,21 @@ hook.Add("OnEntityCreated", "GP2_AdjustPortalOnce", function(ent)
 		end);
 	end;
 end);
+if game.GetMap() == "sp_a2_laser_intro" then
+	hook.Add("OnEntityCreated", "GP2_AdjustPortalOnce", function(ent)
+		if ent:GetClass() == "prop_portal" then
+			timer.Simple(0.1, function()
+				if not IsValid(ent) then
+					return;
+				end;
+				local ang = ent:GetAngles();
+				local up = ang:Up();
+				ent:SetPos(ent:GetPos() + up * 2);
+				ent:SetAngles(Angle(ang.p + 2, ang.y, ang.r));
+			end);
+		end;
+	end);
+end;
 if SERVER then
 	hook.Add("Think", "GP2_CheckFuncBrushPitch_sp_a1_intro5", function()
 		if game.GetMap() ~= "sp_a1_intro5" then
