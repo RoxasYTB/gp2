@@ -72,10 +72,21 @@ if SERVER then
 		end;
 		if key == IN_USE then
 			local holding = false;
+			local heldEnt = nil;
 			for _, ent in ipairs(ents.GetAll()) do
 				if IsValid(ent) and ent.HeldBy == ply then
 					holding = true;
+					heldEnt = ent;
 					break;
+				end;
+			end;
+			if not holding then
+				for _, ent in ipairs(ents.GetAll()) do
+					if IsValid(ent) and ent:GetNWEntity("InstantHold_HeldBy") == ply then
+						holding = true;
+						heldEnt = ent;
+						break;
+					end;
 				end;
 			end;
 			if holding then
@@ -151,7 +162,7 @@ if SERVER then
 		end;
 	end);
 	concommand.Add("gp2_dropheld", function(ply)
-		ToApplyVelocity = ply:GetVelocity();
+		local ToApplyVelocity = ply:GetVelocity();
 		if not IsValid(ply) or (not ply:IsPlayer()) then
 			return;
 		end;
@@ -160,6 +171,9 @@ if SERVER then
 				ent.HeldBy = nil;
 				ent:SetNWEntity("InstantHold_HeldBy", NULL);
 				ent:SetOwner(nil);
+				ent:SetCollisionGroup(COLLISION_GROUP_NONE);
+				ent:SetMoveType(MOVETYPE_VPHYSICS);
+				ent:SetSolid(SOLID_VPHYSICS);
 				local phys = ent:GetPhysicsObject();
 				if IsValid(phys) then
 					phys:EnableMotion(true);
