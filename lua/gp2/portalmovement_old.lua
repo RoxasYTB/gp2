@@ -188,7 +188,8 @@ hook.Add("Move", "seamless_portal_teleport", function(ply, mv)
 					local dx = portalPos.x - plyPos.x
 					local dy = portalPos.y - plyPos.y
 					local dz = portalPos.z - plyPos.z
-					if math.abs(dx) < 100 and math.abs(dy) < 100 and math.abs(dz) < 100 then
+					local threshold = 200
+					if math.abs(dx) < threshold and math.abs(dy) < threshold and math.abs(dz) < threshold * 3 then
 						print("Attracting player to portal with deltas " .. tostring(dx) .. ", " .. tostring(dy) .. ", " .. tostring(dz))
 						local dist2D = math.sqrt(dx * dx + dy * dy)
 						if dist2D < closestDist2D then
@@ -296,7 +297,6 @@ hook.Add("Move", "seamless_portal_teleport", function(ply, mv)
 			for _, ent in ipairs(nearbyWalls) do
 				if IsValid(ent) and ent:GetClass() == "projected_wall_entity" then
 					-- On relève le joueur de 8 unités pour éviter le blocage
-					print("Correction GP2 : Relevage du joueur pour éviter le blocage dans un projected_wall_entity.")
 					finalPos = finalPos + Vector(0, 0, 8)
 					break
 				end

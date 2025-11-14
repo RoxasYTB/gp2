@@ -450,6 +450,7 @@ local function setPortalPlacement(owner, portal)
 		["ELEVATOR"] = true,
 		["TOOLS/TOOLSNODRAW"] = true,
 		["NATURE/DIRTFLOOR004C"] = true,
+		["SIGNAGE/"] = true,
 
 	}
 	for k in pairs(nonPortalableTextures) do
