@@ -8,6 +8,37 @@ local offsetPlayerZ = 0;
 local minimumAimPitch = 40;
 local isHoldingThing = CreateConVar("isHoldingThing", "0", FCVAR_SERVER_CAN_EXECUTE + FCVAR_REPLICATED, "", 0, 1);
 if SERVER then
+	hook.Add("InitPostEntity", "GP2_CreateHoldPropsOnMapInit", function()
+		print("Creating hold props for existing portal guns...");
+		for _, ply in ipairs(player.GetAll()) do
+			local wep = ply:GetActiveWeapon();
+			if IsValid(wep) and wep:GetClass() == "weapon_portalgun" then
+				if not IsValid(wep.HoldProp) then
+					local prop = ents.Create("prop_physics");
+					if IsValid(prop) then
+						prop:SetModel("models/props_junk/PopCan01a.mdl");
+						prop:SetNoDraw(true);
+						prop:SetCollisionGroup(COLLISION_GROUP_NONE);
+						prop:SetSolid(SOLID_NONE);
+						prop:SetOwner(ply);
+						prop:Spawn();
+						wep.HoldProp = prop;
+						GP2_HoldProps[wep] = prop;
+					end;
+				end;
+			end;
+		end;
+	end);
+	local instantHoldFirstKeyPressDone = false;
+	local lastDropTime = {};
+	hook.Add("InitPostEntity", "InstantHold_CleanupOnMapStart", function()
+		for _, ent in ipairs(ents.GetAll()) do
+			if IsValid(ent) then
+				ent.HeldBy = nil;
+				ent:SetNWEntity("InstantHold_HeldBy", NULL);
+			end;
+		end;
+	end);
 	hook.Add("PlayerUse", "InstantHold_PlayerUse", function(ply, ent)
 		for _, e in ipairs(ents.GetAll()) do
 			if IsValid(e) and e.HeldBy == ply then
@@ -67,10 +98,23 @@ if SERVER then
 		return true;
 	end);
 	hook.Add("KeyPress", "InstantHold_DetectUseKey", function(ply, key)
+		if not instantHoldFirstKeyPressDone then
+			for _, ent in ipairs(ents.GetAll()) do
+				if IsValid(ent) then
+					ent.HeldBy = nil;
+					ent:SetNWEntity("InstantHold_HeldBy", NULL);
+				end;
+			end;
+			instantHoldFirstKeyPressDone = true;
+		end;
 		if not IsValid(ply) or (not ply:IsPlayer()) then
 			return;
 		end;
 		if key == IN_USE then
+			local now = CurTime();
+			if lastDropTime[ply] and now - lastDropTime[ply] < 0.5 then
+				return;
+			end;
 			local holding = false;
 			local heldEnt = nil;
 			for _, ent in ipairs(ents.GetAll()) do
@@ -89,14 +133,30 @@ if SERVER then
 					end;
 				end;
 			end;
-			if holding then
-				timer.Simple(0.2, function()
-					if IsValid(ply) then
-						isHoldingThing:SetInt(0);
-						ply:ConCommand("gp2_dropheld");
-						ply:ConCommand("gp2_stop_hold_animation");
-					end;
-				end);
+			if holding and IsValid(heldEnt) then
+				print("Player is holding an entity, dropping it now.");
+				lastDropTime[ply] = now;
+				if IsValid(ply) then
+					isHoldingThing:SetInt(0);
+					timer.Simple(0.3, function()
+						if IsValid(ply) then
+							ply:ConCommand("gp2_dropheld");
+							ply:ConCommand("gp2_stop_hold_animation");
+							heldEnt.HeldBy = nil;
+							heldEnt:SetNWEntity("InstantHold_HeldBy", NULL);
+							heldEnt:SetOwner(nil);
+							local phys = heldEnt:GetPhysicsObject();
+							if IsValid(phys) then
+								phys:EnableMotion(true);
+								phys:Wake();
+								phys:EnableGravity(true);
+							end;
+						end;
+					end);
+				end;
+			else
+				print("Player is not holding any entity");
+				ply:ConCommand("gp2_play_hold_animation ");
 			end;
 		end;
 	end);

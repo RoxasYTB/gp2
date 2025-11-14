@@ -58,7 +58,7 @@ local function ForcePortalGunStateForPlayer(ply)
 	local map = game.GetMap()
 	local no_portal_gun = {
 		["sp_a1_intro1"] = true,
-		["sp_a1_intro2"] = false
+		["sp_a1_intro2"] = true
 	}
 	local single_portal_gun = {
 		["sp_a1_intro3"] = true,
