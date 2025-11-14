@@ -156,9 +156,6 @@ if SERVER then
 				end;
 			else
 				print("Player is not holding any entity");
-				if holding and IsValid(heldEnt) then
-					ply:ConCommand("gp2_play_hold_animation ");
-				end;
 			end;
 		end;
 	end);
@@ -181,6 +178,7 @@ if SERVER then
 						aim.p = minimumAimPitch;
 					end;
 					ent:SetOwner(ply);
+					ply:ConCommand("gp2_play_hold_animation ");
 					local MIN_HOLD_OFFSET = 100;
 					local pos = ply:EyePos() + aim:Forward() * 75;
 					local ang = Angle(0, aim.y, 0) + (ent.HoldAngleOffset or Angle(0, 0, 0));
