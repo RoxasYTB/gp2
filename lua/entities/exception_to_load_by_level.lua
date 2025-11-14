@@ -80,15 +80,12 @@ if game.GetMap() == "sp_a1_intro2" then
 			local portalType = ent.GetType and ent:GetType() or ent.PortalType or nil;
 			local triggered = GetConVar("gp2_last_portal_triggered") and GetConVar("gp2_last_portal_triggered"):GetString() or ""
 			if triggered == "emitter_blue_1" and portalType == 0 then
-				print("Adjusting portal_blue_1 position and angle");
 				ent:SetPos(Vector(-684.900024, 96.000000, 4.000003))
 				ent:SetAngles(Angle(-90, 180, 0))
 			elseif triggered == "emitter_blue_2" and portalType == 0 then
-				print("Adjusting portal_blue_2 position and angle");
 				ent:SetPos(Vector(-430.899994, 512.000000, -4.139997))
 				ent:SetAngles(Angle(-90, 180, 0))
 			elseif triggered == "emitter_blue_3" and portalType == 0 then
-				print("Adjusting portal_blue_3 position and angle");
 				ent:SetPos(Vector(-31.999996, 398.899994, -3.999997))
 				ent:SetAngles(Angle(-90, 90, 0))
 			end
