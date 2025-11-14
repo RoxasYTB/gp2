@@ -9,14 +9,14 @@ end
 function ENT:Touch( ent )
 	if ent:IsPlayer() and ent:Alive() then
 		plyweap = ent:GetActiveWeapon()
-		if IsValid( plyweap ) and plyweap:GetClass() == "weapon_portalgun" and plyweap.CleanPortals then
-			plyweap:CleanPortals()
+		if IsValid( plyweap ) and plyweap:GetClass() == "weapon_portalgun" and plyweap.Reload then
+			plyweap:Reload()
 		end
-		if IsValid( plyweap ) and plyweap:GetClass() == "weapon_portalgun_atlas" and plyweap.CleanPortals then
-			plyweap:CleanPortals()
+		if IsValid( plyweap ) and plyweap:GetClass() == "weapon_portalgun_atlas" and plyweap.Reload then
+			plyweap:Reload()
 		end
-		if IsValid( plyweap ) and plyweap:GetClass() == "weapon_portalgun_pbody" and plyweap.CleanPortals then
-			plyweap:CleanPortals()
+		if IsValid( plyweap ) and plyweap:GetClass() == "weapon_portalgun_pbody" and plyweap.Reload then
+			plyweap:Reload()
 		end
 	elseif ent and ent:IsValid() then
 		if ent:GetClass()=="projectile_portal_ball" or ent:GetClass()=="projectile_portal_ball_atlas" or ent:GetClass()=="projectile_portal_ball_pbody" or ent:GetClass()=="projectile_portal_ball_guest" or ent:GetClass()=="projectile_portal_unknown" then
