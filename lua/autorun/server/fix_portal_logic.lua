@@ -10,6 +10,7 @@ hook.Add("AcceptInput", "FixPortalLogic_FirstPressAlways", function(ent, input, 
 			(GetConVar("gp2_last_portal_triggered")):SetString(ent:GetName());
 		end;
 	end;
+	local triggered = GetConVar("gp2_last_portal_triggered") and (GetConVar("gp2_last_portal_triggered")):GetString() or "";
 	if input ~= "Trigger" then
 		return;
 	end;
@@ -32,17 +33,16 @@ hook.Add("AcceptInput", "FixPortalLogic_FirstPressAlways", function(ent, input, 
 		if IsValid(p) then
 			p:SetName(name);
 			p:Spawn();
-			p:Fire("SetActivatedState", "0", 0);
+			p:Fire("SetActivatedState", "1", 0);
 		end;
-	end;
-	if ent:GetName() ~= "portal_blue_1" and input == "SetActivatedState" then
-		return;
 	end;
 	local relays = {
 		"blue_1_portal_activate_rl",
 		"blue_2_portal_deactivate_rl",
 		"blue_3_portal_deactivate_rl",
-		"logic_make_blue_1"
+		"logic_make_blue_1",
+		"logic_make_blue_2",
+		"logic_make_blue_3"
 	};
 	for _, name in ipairs(relays) do
 		for _, e in ipairs(ents.FindByName(name)) do

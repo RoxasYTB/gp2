@@ -89,7 +89,7 @@ if game.GetMap() == "sp_a1_intro2" then
 				ent:SetAngles(Angle(-90, 180, 0))
 			elseif triggered == "emitter_blue_3" and portalType == 0 then
 				print("Adjusting portal_blue_3 position and angle");
-				ent:SetPos(Vector(-31.999996, 397.899994, -3.999997))
+				ent:SetPos(Vector(-31.999996, 398.899994, -3.999997))
 				ent:SetAngles(Angle(-90, 90, 0))
 			end
 		end
