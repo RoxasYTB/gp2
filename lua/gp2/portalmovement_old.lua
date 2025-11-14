@@ -174,6 +174,8 @@ hook.Add("Move", "seamless_portal_teleport", function(ply, mv)
 	local plyVel = mv:GetVelocity()
 	local plyPos = ply:EyePos()
 
+
+
 	-- Attirer le joueur vers le centre des portails horizontaux s'il tombe
 	if plyVel.z < 0 then
 		local closestPortal
