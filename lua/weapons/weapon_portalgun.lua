@@ -449,6 +449,7 @@ local function setPortalPlacement(owner, portal)
 		["nodraw"] = true,
 		["ELEVATOR"] = true,
 		["TOOLS/TOOLSNODRAW"] = true,
+		["NATURE/DIRTFLOOR004C"] = true,
 
 	}
 	for k in pairs(nonPortalableTextures) do
@@ -1605,13 +1606,11 @@ end
 			end
 			local isHoldingThing = GetConVar("isHoldingThing")
 			if isHoldingThing and isHoldingThing:GetInt() == 1 then
-				print("Player is holding something")
 				if IsValid(wep) and wep.GetEntityInUse then
 					local ent = wep:GetEntityInUse()
 					isNull = ent == nil or ent == NULL
 
 					if isNull and isHoldingThing:GetInt() == 1 then
-						print("Replaying hold animation for "..tostring(wep)..", prop is "..tostring(prop))
 						wep:play_hold_animation()
 						isNull = false
 

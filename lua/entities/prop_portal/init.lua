@@ -1292,7 +1292,7 @@ concommand.Add("getblueinfo", function(ply)
 		if portalType == 0 then
 			local pos = ent:GetPos();
 			local ang = ent:GetAngles();
-			ply:ChatPrint("Blue Portal - Pos: " .. tostring(pos) .. " Ang: " .. tostring(ang));
+			ply:ChatPrint("Blue Portal - ID : " .. tostring(ent:EntIndex()) .. " Pos: " .. tostring(pos) .. " Ang: " .. tostring(ang));
 		end;
 	end;
 end);
@@ -1302,7 +1302,7 @@ concommand.Add("getorangeinfo", function(ply)
 		if portalType == 1 then
 			local pos = ent:GetPos();
 			local ang = ent:GetAngles();
-			ply:ChatPrint("Orange Portal - Pos: " .. tostring(pos) .. " Ang: " .. tostring(ang));
+			ply:ChatPrint("Orange Portal - ID : " .. tostring(ent:EntIndex()) .. " Pos: " .. tostring(pos) .. " Ang: " .. tostring(ang));
 		end;
 	end;
 end);

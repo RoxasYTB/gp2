@@ -173,6 +173,50 @@ hook.Add("Move", "seamless_portal_teleport", function(ply, mv)
 
 	local plyVel = mv:GetVelocity()
 	local plyPos = ply:EyePos()
+
+	-- Attirer le joueur vers le centre des portails horizontaux s'il tombe
+	if plyVel.z < 0 then
+		local closestPortal
+		local closestDist2D = math.huge
+		for _, portal in ipairs(ents.FindByClass("prop_portal")) do
+			if IsValid(portal) and portal:GetActivated() and portal.GetLinkedPartner and IsValid(portal:GetLinkedPartner()) then
+				local portalAng = portal:GetAngles()
+				if math.abs(portalAng.p) < 15 then
+					local portalPos = portal:GetPos()
+					local dx = portalPos.x - plyPos.x
+					local dy = portalPos.y - plyPos.y
+					local dz = portalPos.z - plyPos.z
+					if math.abs(dx) < 100 and math.abs(dy) < 100 and math.abs(dz) < 100 then
+						print("Attracting player to portal with deltas " .. tostring(dx) .. ", " .. tostring(dy) .. ", " .. tostring(dz))
+						local dist2D = math.sqrt(dx * dx + dy * dy)
+						if dist2D < closestDist2D then
+							closestDist2D = dist2D
+							closestPortal = portal
+						end
+					end
+				end
+			end
+		end
+		if closestPortal then
+			local portalCenter = closestPortal:GetPos()
+			local toCenter = Vector(portalCenter.x - plyPos.x, portalCenter.y - plyPos.y, 0)
+			local distance = toCenter:Length()
+			if distance > 0 then
+				if distance < 20 then
+					plyVel.x = 0
+					plyVel.y = 0
+					mv:SetVelocity(plyVel)
+				else
+					toCenter:Normalize()
+					local timeToImpact = math.abs((plyPos.z - portalCenter.z) / plyVel.z)
+					local requiredVel = distance / math.max(timeToImpact, 0.01)
+					local newVel = plyVel + toCenter * (requiredVel - plyVel:Dot(toCenter))
+					mv:SetVelocity(newVel)
+					plyVel = newVel
+				end
+			end
+		end
+	end
 	traceTable.start = plyPos - plyVel * 0.02
 	traceTable.endpos = plyPos + plyVel * 0.02
 	traceTable.filter = seamless_check2
