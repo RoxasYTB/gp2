@@ -9,7 +9,6 @@ local minimumAimPitch = 40;
 local isHoldingThing = CreateConVar("isHoldingThing", "0", FCVAR_SERVER_CAN_EXECUTE + FCVAR_REPLICATED, "", 0, 1);
 if SERVER then
 	hook.Add("PlayerUse", "InstantHold_PlayerUse", function(ply, ent)
-		print("InstantHold: Player " .. tostring(ply) .. " used entity " .. tostring(ent));
 		for _, e in ipairs(ents.GetAll()) do
 			if IsValid(e) and e.HeldBy == ply then
 				return;

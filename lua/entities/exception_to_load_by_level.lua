@@ -61,6 +61,41 @@ if game.GetMap() == "sp_a2_laser_intro" then
 		end;
 	end);
 end;
+if game.GetMap() == "sp_a1_intro2" then
+	hook.Add("Think", "GP2_AdjustPortalAlways", function()
+		for _, ent in ipairs(ents.FindByClass("prop_portal")) do
+			for _, ent in ipairs(ents.FindByClass("prop_weighted_cube")) do
+			if ent:EntIndex() == 43 and ent:GetModel() == "models/props/metal_box.mdl" then
+				local pos = ent:GetPos()
+				if math.abs(pos.x - (-60)) < 1 and math.abs(pos.y - 128) < 1 and math.abs(pos.z - (-8)) < 1 then
+
+				local pos = ent:GetPos()
+				local phys = ent:GetPhysicsObject()
+				if IsValid(phys) then
+					phys:SetVelocity(Vector(0, 0, -50))
+				end
+				end
+			end
+		end
+			local portalType = ent.GetType and ent:GetType() or ent.PortalType or nil;
+			local triggered = GetConVar("gp2_last_portal_triggered") and GetConVar("gp2_last_portal_triggered"):GetString() or ""
+			if triggered == "emitter_blue_1" and portalType == 0 then
+				print("Adjusting portal_blue_1 position and angle");
+				ent:SetPos(Vector(-684.900024, 96.000000, 4.000003))
+				ent:SetAngles(Angle(-90, 180, 0))
+			elseif triggered == "emitter_blue_2" and portalType == 0 then
+				print("Adjusting portal_blue_2 position and angle");
+				ent:SetPos(Vector(-430.899994, 512.000000, -4.139997))
+				ent:SetAngles(Angle(-90, 180, 0))
+			elseif triggered == "emitter_blue_3" and portalType == 0 then
+				print("Adjusting portal_blue_3 position and angle");
+				ent:SetPos(Vector(-31.999996, 397.899994, -3.999997))
+				ent:SetAngles(Angle(-90, 90, 0))
+			end
+		end
+
+	end)
+end
 if SERVER then
 	hook.Add("Think", "GP2_CheckFuncBrushPitch_sp_a1_intro5", function()
 		if game.GetMap() ~= "sp_a1_intro5" then
