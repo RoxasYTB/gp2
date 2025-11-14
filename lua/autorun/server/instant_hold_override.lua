@@ -156,7 +156,9 @@ if SERVER then
 				end;
 			else
 				print("Player is not holding any entity");
-				ply:ConCommand("gp2_play_hold_animation ");
+				if holding and IsValid(heldEnt) then
+					ply:ConCommand("gp2_play_hold_animation ");
+				end;
 			end;
 		end;
 	end);
