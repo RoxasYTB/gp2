@@ -1685,7 +1685,6 @@ function SWEP:play_hold_animation()
 	end
 end
 
-
 function SWEP:stop_hold_animation()
 	if not SERVER then return end
 
@@ -1704,6 +1703,19 @@ function SWEP:stop_hold_animation()
 	-- Ne PAS supprimer le prop, on le garde pour une prochaine utilisation
 end
 
+function SWEP:play_reload_animation(ply)
+      // self:EmitSound("Portal.fizzle_invalid_surface", 0)
+
+	if not SERVER then return end
+	local owner = self:GetOwner()
+	local wep = owner:GetActiveWeapon()
+	local vm0 = owner:GetViewModel(0)
+	print(vm0)
+	if IsValid(vm0) then
+		vm0:SendViewModelMatchingSequence(1)
+	end
+end
+
 
 
 concommand.Add("gp2_play_hold_animation", function(ply)
@@ -1713,10 +1725,18 @@ concommand.Add("gp2_play_hold_animation", function(ply)
 	end
 end)
 
+
 concommand.Add("gp2_stop_hold_animation", function(ply)
 	local wep = ply:GetActiveWeapon()
 	if IsValid(wep) and wep:GetClass() == "weapon_portalgun" then
 		wep:stop_hold_animation()
+	end
+end)
+
+concommand.Add("gp2_play_reload_animation", function(ply)
+	local wep = ply:GetActiveWeapon()
+	if IsValid(wep) and wep:GetClass() == "weapon_portalgun" then
+		wep:play_reload_animation(ply)
 	end
 end)
 
