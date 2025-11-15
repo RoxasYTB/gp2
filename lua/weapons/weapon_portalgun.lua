@@ -449,7 +449,6 @@ local function setPortalPlacement(owner, portal)
 		["nodraw"] = true,
 		["ELEVATOR"] = true,
 		["TOOLS/TOOLSNODRAW"] = true,
-		["TOOLS/TOOLSINVISIBLE"] = true,
 		["NATURE/DIRTFLOOR004C"] = true,
 		["SIGNAGE/"] = true,
 
