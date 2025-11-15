@@ -104,7 +104,8 @@ local function ChangePortalColor1(ply, cmd, args)
 		local col = DISPLAY_COLORS[colorNumber] or Color(255, 255, 255);
 		if SERVER then
 			local currentColors = GP2.GetPlayerPortalColors(ply);
-			GP2.SetPlayerPortalColors(ply, col.r, col.g, col.b, currentColors.r2, currentColors.g2, currentColors.b2);
+			local darkCol = GP2_GetPortalDisplayColorDarkened(colorNumber);
+			GP2.SetPlayerPortalColors(ply, darkCol.r, darkCol.g, darkCol.b, currentColors.r2, currentColors.g2, currentColors.b2);
 		else
 			RunConsoleCommand("gp2_crosshair_color_1", tostring(colorNumber));
 			RunConsoleCommand("gp2_portal_color1", string.format("%d %d %d", col.r, col.g, col.b));
@@ -129,7 +130,8 @@ local function ChangePortalColor2(ply, cmd, args)
 		local col = DISPLAY_COLORS[colorNumber] or Color(255, 255, 255);
 		if SERVER then
 			local currentColors = GP2.GetPlayerPortalColors(ply);
-			GP2.SetPlayerPortalColors(ply, currentColors.r1, currentColors.g1, currentColors.b1, col.r, col.g, col.b);
+			local darkCol = GP2_GetPortalDisplayColorDarkened(colorNumber);
+			GP2.SetPlayerPortalColors(ply, currentColors.r1, currentColors.g1, currentColors.b1, darkCol.r, darkCol.g, darkCol.b);
 		else
 			RunConsoleCommand("gp2_crosshair_color_2", tostring(colorNumber));
 			RunConsoleCommand("gp2_portal_color2", string.format("%d %d %d", col.r, col.g, col.b));
@@ -174,7 +176,8 @@ local function ChangeLocalPortalColor1(ply, cmd, args)
 		local col = DISPLAY_COLORS[colorNumber] or Color(255, 255, 255);
 		if SERVER then
 			local currentColors = GP2.GetPlayerPortalColors(ply);
-			GP2.SetPlayerPortalColors(ply, col.r, col.g, col.b, currentColors.r2, currentColors.g2, currentColors.b2);
+			local darkCol = GP2_GetPortalDisplayColorDarkened(colorNumber);
+			GP2.SetPlayerPortalColors(ply, darkCol.r, darkCol.g, darkCol.b, currentColors.r2, currentColors.g2, currentColors.b2);
 			ply:PrintMessage(HUD_PRINTTALK, string.format("Votre couleur de portail 1 changée en: %s", colorName));
 		end;
 	else
@@ -196,7 +199,8 @@ local function ChangeLocalPortalColor2(ply, cmd, args)
 		local col = DISPLAY_COLORS[colorNumber] or Color(255, 255, 255);
 		if SERVER then
 			local currentColors = GP2.GetPlayerPortalColors(ply);
-			GP2.SetPlayerPortalColors(ply, currentColors.r1, currentColors.g1, currentColors.b1, col.r, col.g, col.b);
+			local darkCol = GP2_GetPortalDisplayColorDarkened(colorNumber);
+			GP2.SetPlayerPortalColors(ply, currentColors.r1, currentColors.g1, currentColors.b1, darkCol.r, darkCol.g, darkCol.b);
 			ply:PrintMessage(HUD_PRINTTALK, string.format("Votre couleur de portail 2 changée en: %s", colorName));
 		end;
 	else
@@ -232,9 +236,9 @@ local function ChangeGlobalPortalColor1(ply, cmd, args)
 			return;
 		end;
 		local colorName = COLOR_NAMES[colorNumber];
-		local col = DISPLAY_COLORS[colorNumber] or Color(255, 255, 255);
+		local darkCol = GP2_GetPortalDisplayColorDarkened(colorNumber);
 		local currentColors = GP2.GetPlayerPortalColors(targetPlayer);
-		GP2.SetPlayerPortalColors(targetPlayer, col.r, col.g, col.b, currentColors.r2, currentColors.g2, currentColors.b2);
+		GP2.SetPlayerPortalColors(targetPlayer, darkCol.r, darkCol.g, darkCol.b, currentColors.r2, currentColors.g2, currentColors.b2);
 		ply:PrintMessage(HUD_PRINTTALK, string.format("Couleur du portail 1 de %s changée en: %s", targetPlayer:Nick(), colorName));
 		targetPlayer:PrintMessage(HUD_PRINTTALK, string.format("%s a changé votre couleur de portail 1 en: %s", ply:Nick(), colorName));
 	end;
@@ -268,9 +272,9 @@ local function ChangeGlobalPortalColor2(ply, cmd, args)
 			return;
 		end;
 		local colorName = COLOR_NAMES[colorNumber];
-		local col = DISPLAY_COLORS[colorNumber] or Color(255, 255, 255);
+		local darkCol = GP2_GetPortalDisplayColorDarkened(colorNumber);
 		local currentColors = GP2.GetPlayerPortalColors(targetPlayer);
-		GP2.SetPlayerPortalColors(targetPlayer, currentColors.r1, currentColors.g1, currentColors.b1, col.r, col.g, col.b);
+		GP2.SetPlayerPortalColors(targetPlayer, currentColors.r1, currentColors.g1, currentColors.b1, darkCol.r, darkCol.g, darkCol.b);
 		ply:PrintMessage(HUD_PRINTTALK, string.format("Couleur du portail 2 de %s changée en: %s", targetPlayer:Nick(), colorName));
 		targetPlayer:PrintMessage(HUD_PRINTTALK, string.format("%s a changé votre couleur de portail 2 en: %s", ply:Nick(), colorName));
 	end;
@@ -288,6 +292,14 @@ function GP2_GetPortalColorNumber(colorName)
 end;
 function GP2_GetPortalDisplayColor(colorNumber)
 	return DISPLAY_COLORS[colorNumber] or Color(255, 255, 255);
+end;
+function GP2_GetPortalDisplayColorDarkened(colorNumber)
+	local col = DISPLAY_COLORS[colorNumber] or Color(255, 255, 255);
+	local darken = 30;
+	local r = math.max(0, col.r - darken);
+	local g = math.max(0, col.g - darken);
+	local b = math.max(0, col.b - darken);
+	return Color(r, g, b);
 end;
 if CLIENT then
 	local function ShowColoredHelp()

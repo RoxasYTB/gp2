@@ -362,13 +362,13 @@ end
 -- Table de correspondance RGB -> nom de couleur (pour preset)
 local GP2_PORTAL_COLOR_PRESETS = {
     ["180,40,40"] = "red",
-    ["210,114,2"] = "orange",
+    ["210,114,30"] = "orange",
     ["200,200,60"] = "yellow",
     ["90,180,30"] = "lime",
     ["40,180,40"] = "green",
     ["40,180,180"] = "cyan",
     ["70,120,180"] = "lightblue",
-    ["2,114,210"] = "blue",
+    ["30,114,210"] = "blue",
     ["20,50,120"] = "darkblue",
     ["180,40,180"] = "magenta",
     ["180,80,120"] = "pink",
@@ -409,7 +409,7 @@ function ENT:GetPortalEdgePresetName()
     local color = self:GetType() == PORTAL_TYPE_SECOND and playerColors.color2 or playerColors.color1
 
     if not color then return nil end
-    local key = math.Round(color.x)..","..math.Round(color.y)..","..math.Round(color.z)
+    local key = math.Round(color.x + 30)..","..math.Round(color.y +30)..","..math.Round(color.z+30)
     return GP2_PORTAL_COLOR_PRESETS[key]
 end
 
