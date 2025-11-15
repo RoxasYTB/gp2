@@ -170,16 +170,9 @@ local function ChangeLocalPortalColor1(ply, cmd, args)
 		return;
 	end;
 	local colorInput = string.lower(args[1]);
-	local colorNumber = PORTAL_COLORS[colorInput];
-	if colorNumber then
-		local colorName = COLOR_NAMES[colorNumber];
-		local col = DISPLAY_COLORS[colorNumber] or Color(255, 255, 255);
-		if SERVER then
-			local currentColors = GP2.GetPlayerPortalColors(ply);
-			local darkCol = GP2_GetPortalDisplayColorDarkened(colorNumber);
-			GP2.SetPlayerPortalColors(ply, darkCol.r, darkCol.g, darkCol.b, currentColors.r2, currentColors.g2, currentColors.b2);
-			ply:PrintMessage(HUD_PRINTTALK, string.format("Votre couleur de portail 1 changée en: %s", colorName));
-		end;
+	if PORTAL_COLORS[colorInput] then
+		GP2.SetPlayerPortalColors(ply, colorInput, (GP2.GetPlayerPortalColors(ply)).color2);
+		ply:PrintMessage(HUD_PRINTTALK, string.format("Votre couleur de portail 1 changée en: %s", colorInput));
 	else
 		ply:PrintMessage(HUD_PRINTTALK, "Couleur invalide! Tapez 'pc1 help' pour voir les couleurs disponibles.");
 	end;
@@ -219,8 +212,7 @@ local function ChangeGlobalPortalColor1(ply, cmd, args)
 	if SERVER then
 		local targetName = args[1];
 		local colorInput = string.lower(args[2]);
-		local colorNumber = PORTAL_COLORS[colorInput];
-		if not colorNumber then
+		if not PORTAL_COLORS[colorInput] then
 			ply:PrintMessage(HUD_PRINTTALK, "Couleur invalide! Utilisez une couleur valide.");
 			return;
 		end;
@@ -235,12 +227,7 @@ local function ChangeGlobalPortalColor1(ply, cmd, args)
 			ply:PrintMessage(HUD_PRINTTALK, "Joueur '" .. targetName .. "' introuvable!");
 			return;
 		end;
-		local colorName = COLOR_NAMES[colorNumber];
-		local darkCol = GP2_GetPortalDisplayColorDarkened(colorNumber);
-		local currentColors = GP2.GetPlayerPortalColors(targetPlayer);
-		GP2.SetPlayerPortalColors(targetPlayer, darkCol.r, darkCol.g, darkCol.b, currentColors.r2, currentColors.g2, currentColors.b2);
-		ply:PrintMessage(HUD_PRINTTALK, string.format("Couleur du portail 1 de %s changée en: %s", targetPlayer:Nick(), colorName));
-		targetPlayer:PrintMessage(HUD_PRINTTALK, string.format("%s a changé votre couleur de portail 1 en: %s", ply:Nick(), colorName));
+		GP2.SetPlayerPortalColors(targetPlayer, colorInput, (GP2.GetPlayerPortalColors(targetPlayer)).color2);
 	end;
 end;
 local function ChangeGlobalPortalColor2(ply, cmd, args)
@@ -283,102 +270,3 @@ concommand.Add("pc1", ChangeLocalPortalColor1);
 concommand.Add("pc2", ChangeLocalPortalColor2);
 concommand.Add("pcolors", ShowCurrentColors);
 concommand.Add("global_pc1", ChangeGlobalPortalColor1);
-concommand.Add("global_pc2", ChangeGlobalPortalColor2);
-function GP2_GetPortalColorName(colorNumber)
-	return COLOR_NAMES[colorNumber] or "Inconnue";
-end;
-function GP2_GetPortalColorNumber(colorName)
-	return PORTAL_COLORS[string.lower(colorName)];
-end;
-function GP2_GetPortalDisplayColor(colorNumber)
-	return DISPLAY_COLORS[colorNumber] or Color(255, 255, 255);
-end;
-function GP2_GetPortalDisplayColorDarkened(colorNumber)
-	local col = DISPLAY_COLORS[colorNumber] or Color(255, 255, 255);
-	local darken = 30;
-	local r = math.max(0, col.r - darken);
-	local g = math.max(0, col.g - darken);
-	local b = math.max(0, col.b - darken);
-	return Color(r, g, b);
-end;
-if CLIENT then
-	local function ShowColoredHelp()
-		if not LocalPlayer() or (not (LocalPlayer()):IsValid()) then
-			return;
-		end;
-		chat.AddText(Color(255, 255, 100), "=== COULEURS DES PORTAILS DISPONIBLES ===");
-		chat.AddText(Color(200, 200, 200), "Utilisez: portal_color1 <couleur> ou portal_color2 <couleur>");
-		chat.AddText(Color(200, 200, 200), "");
-		for i = 0, 14 do
-			local colorName = COLOR_NAMES[i];
-			if colorName then
-				local displayColor = DISPLAY_COLORS[i];
-				chat.AddText(Color(150, 150, 150), "[" .. i .. "] ", displayColor, colorName);
-			end;
-		end;
-		chat.AddText(Color(200, 200, 200), "");
-		chat.AddText(Color(100, 255, 100), "Exemples:");
-		chat.AddText(Color(150, 150, 150), "  portal_color1 blue");
-		chat.AddText(Color(150, 150, 150), "  portal_color2 orange");
-		chat.AddText(Color(150, 150, 150), "  portal_color1 green");
-	end;
-	concommand.Add("portal_colors_help_colored", function()
-		ShowColoredHelp();
-	end, nil, "Affiche l'aide des couleurs avec aperçu coloré");
-	concommand.Add("phelp", function()
-		ShowColoredHelp();
-	end);
-	hook.Add("InitPostEntity", "GP2_PortalColorsWelcome", function()
-		timer.Simple(2, function()
-			if LocalPlayer() and (LocalPlayer()):IsValid() then
-				print("Tapez 'phelp' pour voir les couleurs de portails disponibles!");
-			end;
-		end);
-	end);
-end;
-concommand.Add("portal_color1", ChangePortalColor1, nil, "Change la couleur du portail 1. Usage: portal_color1 <couleur> ou portal_color1 help");
-concommand.Add("portal_color2", ChangePortalColor2, nil, "Change la couleur du portail 2. Usage: portal_color2 <couleur> ou portal_color2 help");
-concommand.Add("portal_colors", ShowCurrentColors, nil, "Affiche les couleurs actuelles des portails");
-concommand.Add("portal_colors_set", function(ply, cmd, args)
-	if not IsValid(ply) then
-		return;
-	end;
-	if #args < 6 then
-		ply:PrintMessage(HUD_PRINTTALK, "Usage: portal_colors_set <r1> <g1> <b1> <r2> <g2> <b2>");
-		return;
-	end;
-	local r1, g1, b1 = tonumber(args[1]), tonumber(args[2]), tonumber(args[3]);
-	local r2, g2, b2 = tonumber(args[4]), tonumber(args[5]), tonumber(args[6]);
-	if not (r1 and g1 and b1 and r2 and g2 and b2) then
-		ply:PrintMessage(HUD_PRINTTALK, "Toutes les valeurs doivent être des nombres!");
-		return;
-	end;
-	if SERVER then
-		GP2.SetPlayerPortalColors(ply, r1, g1, b1, r2, g2, b2);
-		ply:PrintMessage(HUD_PRINTTALK, string.format("Couleurs définies: Portail 1 (%d,%d,%d) - Portail 2 (%d,%d,%d)", r1, g1, b1, r2, g2, b2));
-	end;
-end, nil, "Définit les couleurs des portails par RGB. Usage: portal_colors_set <r1> <g1> <b1> <r2> <g2> <b2>");
-if SERVER then
-	print("[GP2] Système de couleurs des portails chargé avec succès!");
-else
-	print("[GP2] Interface couleurs des portails chargée côté client!");
-end;
-local function ShowPC_Help(ply, cmd, args)
-	if not IsValid(ply) then
-		return;
-	end;
-	ply:PrintMessage(HUD_PRINTTALK, "=== COMMANDES COULEURS PORTAILS ===");
-	ply:PrintMessage(HUD_PRINTTALK, "COMMANDES LOCALES:");
-	ply:PrintMessage(HUD_PRINTTALK, "  pc1 <couleur> - Change votre couleur de portail 1");
-	ply:PrintMessage(HUD_PRINTTALK, "  pc2 <couleur> - Change votre couleur de portail 2");
-	ply:PrintMessage(HUD_PRINTTALK, "");
-	ply:PrintMessage(HUD_PRINTTALK, "COMMANDES GLOBALES:");
-	ply:PrintMessage(HUD_PRINTTALK, "  global_pc1 <joueur> <couleur> - Change la couleur de portail 1 d'un joueur");
-	ply:PrintMessage(HUD_PRINTTALK, "  global_pc2 <joueur> <couleur> - Change la couleur de portail 2 d'un joueur");
-	ply:PrintMessage(HUD_PRINTTALK, "");
-	ply:PrintMessage(HUD_PRINTTALK, "COULEURS DISPONIBLES:");
-	ply:PrintMessage(HUD_PRINTTALK, "  red, orange, yellow, lime, green, cyan, lightblue,");
-	ply:PrintMessage(HUD_PRINTTALK, "  blue, darkblue, magenta, pink, black, white, gray, darkgray");
-end;
-concommand.Add("pc_help", ShowPC_Help, nil, "Affiche l'aide des commandes de couleurs de portails");
-concommand.Add("help_portals", ShowPC_Help, nil, "Affiche l'aide des commandes de couleurs de portails");

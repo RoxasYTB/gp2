@@ -120,8 +120,10 @@ function PANEL:Paint(w, h)
 	end;
 	local placed1, placed2 = findPlayerPortals(weapon);
 	local colors = GP2.GetClientPlayerPortalColors(LocalPlayer());
-	local r1, g1, b1 = colors.r1, colors.g1, colors.b1;
-	local r2, g2, b2 = colors.r2, colors.g2, colors.b2;
+	local col1 = GP2_GetPortalDisplayColorByName(colors.color1 or "blue");
+	local col2 = GP2_GetPortalDisplayColorByName(colors.color2 or "orange");
+	local r1, g1, b1 = col1.r, col1.g, col1.b;
+	local r2, g2, b2 = col2.r, col2.g, col2.b;
 	if not can2 then
 		r2, g2, b2 = r1, g1, b1;
 	end;
