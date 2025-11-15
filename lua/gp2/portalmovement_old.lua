@@ -189,7 +189,7 @@ hook.Add("Move", "seamless_portal_teleport", function(ply, mv)
 					local dy = portalPos.y - plyPos.y
 					local dz = portalPos.z - plyPos.z
 					local threshold = 200
-					if math.abs(dx) < threshold and math.abs(dy) < threshold and math.abs(dz) < threshold * 3 then
+					if math.abs(dx) < threshold and math.abs(dy) < threshold and math.abs(dz) < threshold * 2 then
 						print("Attracting player to portal with deltas " .. tostring(dx) .. ", " .. tostring(dy) .. ", " .. tostring(dz))
 						local dist2D = math.sqrt(dx * dx + dy * dy)
 						if dist2D < closestDist2D then
