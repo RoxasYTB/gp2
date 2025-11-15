@@ -410,7 +410,6 @@ function ENT:GetPortalEdgePresetName()
 
     if not color then return nil end
     local key = math.Round(color.x + 30)..","..math.Round(color.y +30)..","..math.Round(color.z+30)
-    print("Portal color key: "..key)
     return GP2_PORTAL_COLOR_PRESETS[key]
 end
 
