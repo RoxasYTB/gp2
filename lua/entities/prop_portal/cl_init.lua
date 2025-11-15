@@ -362,13 +362,13 @@ end
 -- Table de correspondance RGB -> nom de couleur (pour preset)
 local GP2_PORTAL_COLOR_PRESETS = {
     ["180,40,40"] = "red",
-    ["210,114,2"] = "orange",
+    ["210,114,30"] = "orange",
     ["200,200,60"] = "yellow",
     ["90,180,30"] = "lime",
     ["40,180,40"] = "green",
     ["40,180,180"] = "cyan",
     ["70,120,180"] = "lightblue",
-    ["2,114,210"] = "blue",
+    ["30,114,210"] = "blue",
     ["20,50,120"] = "darkblue",
     ["180,40,180"] = "magenta",
     ["180,80,120"] = "pink",
@@ -392,18 +392,16 @@ function ENT:GetPlayerPortalColors()
         end
     end
 
-	if IsValid(owner) and GP2 and GP2.GetClientPlayerPortalColors and GP2_GetPortalDisplayColorByName then
-		local colors = GP2.GetClientPlayerPortalColors(owner)
-		local col1 = GP2_GetPortalDisplayColorByName(colors.color1 or "blue")
-		local col2 = GP2_GetPortalDisplayColorByName(colors.color2 or "orange")
-		return {
-			color1 = Vector(col1.r, col1.g, col1.b),
-			color2 = Vector(col2.r, col2.g, col2.b)
-		}
-	end
+    if IsValid(owner) and GP2 and GP2.GetClientPlayerPortalColors then
+        local colors = GP2.GetClientPlayerPortalColors(owner)
+        return {
+            color1 = Vector(colors.r1, colors.g1, colors.b1),
+            color2 = Vector(colors.r2, colors.g2, colors.b2)
+        }
+    end
 
-	-- Si aucun propriétaire trouvé, retourner blanc
-	return {color1 = Vector(255,255,255), color2 = Vector(255,255,255)}
+    -- Si aucun propriétaire trouvé, retourner blanc
+    return {color1 = Vector(255,255,255), color2 = Vector(255,255,255)}
 end
 
 function ENT:GetPortalEdgePresetName()
@@ -411,8 +409,8 @@ function ENT:GetPortalEdgePresetName()
     local color = self:GetType() == PORTAL_TYPE_SECOND and playerColors.color2 or playerColors.color1
 
     if not color then return nil end
-    local key = math.Round(color.x)..","..math.Round(color.y )..","..math.Round(color.z)
-    print("Looking for preset key: "..key)
+    local key = math.Round(color.x + 30)..","..math.Round(color.y +30)..","..math.Round(color.z+30)
+    print("Portal color key: "..key)
     return GP2_PORTAL_COLOR_PRESETS[key]
 end
 
