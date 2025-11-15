@@ -246,3 +246,9 @@ if SERVER then
 		end;
 	end);
 end;
+hook.Add("PlayerBindPress", "GP2_BlockReload", function(ply, bind, pressed)
+	if bind == "+reload" then
+		print("Blocking reload while holding an object.");
+		return false;
+	end;
+end);

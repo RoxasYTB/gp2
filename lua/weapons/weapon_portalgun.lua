@@ -1424,7 +1424,7 @@ function SWEP:DrawWorldModel(studio)
     self:DrawModel(studio)
 end
 
-function SWEP:Reload()
+function SWEP:ServerOnlyReload()
 	if CLIENT then return end
 
 	local portal1 = PortalManager.GetLinkageGroup(self:GetLinkageGroup())[PORTAL_TYPE_FIRST]
