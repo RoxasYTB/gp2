@@ -37,9 +37,9 @@ function ENT:Initialize()
         if IsValid(parent) then
             local angles = parent:GetAngles()
             local fwd, right, up = angles:Forward(), angles:Right(), angles:Up()
-    
+
             extents = (right + up) * 20 + (fwd * 15)
-    
+
             extents.x = math.abs(extents.x)
             extents.y = math.abs(extents.y)
             extents.z = math.abs(extents.z)
@@ -75,15 +75,24 @@ end
 
 function ENT:Think()
     if SERVER then
+        -- Hysteresis: wait before powering off to prevent oscillation
         if self:GetPowered() then
-            self:PowerOff()
-            self:NextThink(CurTime() + 0.1)
-            return
+            local curTime = CurTime()
+            self.LastHitTime = self.LastHitTime or curTime
+
+            -- Only power off if we haven't been hit for 0.3 seconds
+            if curTime - self.LastHitTime > 0.3 then
+                print(string.format("[LaserTarget] PowerOff due to timeout. Time: %.2f, LastHit: %.2f, Diff: %.2f", curTime, self.LastHitTime, curTime - self.LastHitTime))
+                self:PowerOff()
+            end
+
+            self:NextThink(curTime + 0.05)
+            return true
         end
     end
 
     self:NextThink(CurTime())
-    return
+    return true
 end
 
 function ENT:OnTakeDamage(info)
@@ -97,14 +106,18 @@ function ENT:OnTakeDamage(info)
         return
     end
 
+    -- Record hit time for hysteresis
+    self.LastHitTime = CurTime()
     self:PowerOn()
-    self:NextThink(CurTime() + 0.1)
+    self:NextThink(CurTime() + 0.05)
 end
 
 if SERVER then
-    function ENT:PowerOn()    
+    function ENT:PowerOn()
         if self:GetPowered() then return end
-    
+
+        print(string.format("[LaserTarget] PowerOn! Time: %.2f", CurTime()))
+
         if IsValid(self:GetLaserCatcher()) then
             self:GetLaserCatcher():PowerOn()
         end
@@ -112,15 +125,17 @@ if SERVER then
         self:SetPowered(true)
         self:TriggerOutput("OnPowered")
     end
-    
+
     function ENT:PowerOff()
         if not self:GetPowered() then return end
-    
+
+        print(string.format("[LaserTarget] PowerOff! Time: %.2f", CurTime()))
+
         if IsValid(self:GetLaserCatcher()) then
             self:GetLaserCatcher():PowerOff()
         end
 
         self:SetPowered(false)
         self:TriggerOutput("OnUnpowered")
-    end    
+    end
 end

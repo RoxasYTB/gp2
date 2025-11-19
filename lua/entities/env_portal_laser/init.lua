@@ -115,15 +115,16 @@ ENT.LaserUpdateInterval = 0.1;
 ENT.CachedLaserData = nil;
 function ENT:Think()
 	local curTime = CurTime();
-	if curTime - self.LastLaserUpdate < self.LaserUpdateInterval then
-		self:NextThink(curTime + self.LaserUpdateInterval);
+	local updateInterval = portal_laser_normal_update:GetFloat();
+
+	if curTime - self.LastLaserUpdate < updateInterval then
+		self:NextThink(curTime + updateInterval);
 		return true;
 	end;
 	local time = os.clock();
-	if not self.CachedLaserData or curTime - self.LastLaserUpdate > 0.5 then
-		self:FireLaser();
-		self.LastLaserUpdate = curTime;
-	end;
+
+	self:FireLaser();
+	self.LastLaserUpdate = curTime;
 	if portal_laser_perf_debug:GetBool() then
 		GP2.Print("EnvPortalLaser :: Think - execution time: %.6f seconds", os.clock() - time);
 	end;
@@ -527,6 +528,31 @@ function ENT:ReflectLaserForEntity(reflector, segment)
 					hitEntity = segment.hitEntity,
 					hitProp = segment.hitProp
 				};
+
+				-- Stabilization for cubes
+				if IsValid(reflector) then
+					local reflectorPos = reflector:GetPos();
+					local reflectorAng = reflector:GetAngles();
+
+					if reflector.LastStablePos and reflector.LastStableAng and reflector.LastStableForced then
+						local dist = reflectorPos:DistToSqr(reflector.LastStablePos);
+						local angDist = 0; -- Simplified angle check
+
+						-- If cube hasn't moved much, reuse last forced segments to prevent jitter
+						if dist < 0.01 then
+							forced = reflector.LastStableForced;
+						else
+							reflector.LastStablePos = reflectorPos;
+							reflector.LastStableAng = reflectorAng;
+							reflector.LastStableForced = forced;
+						end
+					else
+						reflector.LastStablePos = reflectorPos;
+						reflector.LastStableAng = reflectorAng;
+						reflector.LastStableForced = forced;
+					end
+				end
+
 				laser.ForceSegments = {
 					forced
 				};
