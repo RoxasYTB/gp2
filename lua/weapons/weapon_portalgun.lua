@@ -1631,7 +1631,6 @@ GP2_HoldProps = GP2_HoldProps or {}
 
 function SWEP:play_hold_animation()
 	 self:EmitSound("PortalPlayer.ObjectUse", 0)
-	 	print("Playing hold animation")
 
 	if not SERVER then return end
 
