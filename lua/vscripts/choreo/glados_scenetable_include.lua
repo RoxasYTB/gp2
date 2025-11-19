@@ -2,7 +2,7 @@
 -- Scene table converted manually using Regex and post-cleanup work
 -- ********************************************************************************************
 SceneTable = SceneTable or {}
--- PreHub01                                
+-- PreHub01
 -- AirSupplySuccess
 -- Well done. In the event that oxygen is no longer available in the Enrichment Center, an auxiliary air supply will be provided to you by an Aperture Science Test Associate, if one exists.
 SceneTable["PreHub01AirSupplySuccess01"] = {vcd=CreateSceneEntity("scenes/npc/glados/PreHub56.vcd"),postdelay=0.000,next=nil,char="glados"}
@@ -99,7 +99,7 @@ end
 SceneTable["PreHub01SafetyDevicesDisabled01"] = {vcd=CreateSceneEntity("scenes/npc/glados/PreHub47.vcd"),postdelay=0.5,next="PreHub01SafetyDevicesDisabled02",char="glados"}
 -- The Enrichment Center respects your right to have questions or concerns about this policy.
 SceneTable["PreHub01SafetyDevicesDisabled02"] = {vcd=CreateSceneEntity("scenes/npc/glados/PreHub48.vcd"),postdelay=0.000,next=nil,char="glados"}
--- sp_a2_intro                                       
+-- sp_a2_intro
 if (curMapName=="sp_a2_intro") then
 -- ClearArms
 -- I'll just move that out of the way for you. This place really is a wreck.
@@ -164,7 +164,7 @@ SceneTable["sp_incinerator_01SecondSpeech03"] = {vcd=CreateSceneEntity("scenes/n
 -- There it is.
 SceneTable["sp_incinerator_01SeeGun01"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_incinerator_01_03.vcd"),postdelay=0.000,next=nil,char="glados",noDingOff=true,noDingOn=true,queue=1,queueforcesecs=2}
 end
--- sp_a2_laser_intro                                 
+-- sp_a2_laser_intro
 if (curMapName=="sp_a2_laser_intro") then
 -- End
 -- Not bad. I forgot how good you are at this. You should pace yourself, though. We have A LOT of tests to do.
@@ -179,7 +179,7 @@ SceneTable["sp_laser_redirect_introStart03"] = {vcd=CreateSceneEntity("scenes/np
 -- Which involves deadly lasers and how test subjects react when locked in a room with deadly lasers.
 SceneTable["sp_laser_redirect_introStart04"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_laser_redirect_intro_entry03.vcd"),postdelay=0.000,next=nil,char="glados"}
 end
--- sp_a2_laser_stairs                                
+-- sp_a2_laser_stairs
 if (curMapName=="sp_a2_laser_stairs") then
 -- End
 -- Well done. Here come the test results: You are a horrible person. I'm serious, that's what it says: A horrible person. We weren't even testing for that.
@@ -190,7 +190,7 @@ SceneTable["sp_laser_stairsStart01"] = {vcd=CreateSceneEntity("scenes/npc/glados
 -- There should be one in the corner.
 SceneTable["sp_laser_stairsStart02"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_a2_laser_stairs_intro03.vcd"),postdelay=0.1,next=nil,char="glados",noDingOff=true,noDingOn=true}
 end
--- sp_a2_dual_lasers                                 
+-- sp_a2_dual_lasers
 if (curMapName=="sp_a2_dual_lasers") then
 -- End
 -- Congratulations. Not on the test.
@@ -201,7 +201,7 @@ SceneTable["sp_laser_dual_lasersEnd03"] = {vcd=CreateSceneEntity("scenes/npc/gla
 -- Don't let that "horrible person" thing discourage you. It's just a data point. If it makes you feel any better, science has now validated your birth mother's decision to abandon you on a doorstep.
 SceneTable["sp_laser_dual_lasersStart01"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_a2_dual_lasers_intro01.vcd"),postdelay=0.1,next=nil,char="glados",predelay=1.0}
 end
--- sp_laser_powered_lift                   
+-- sp_laser_powered_lift
 if (curMapName=="sp_laser_powered_lift") then
 -- End
 -- I have the results of the last chamber: You are a horrible person. I'm serious, that's what it says: A horrible person. We weren't even testing for that.
@@ -210,7 +210,7 @@ SceneTable["sp_laser_powered_liftEnd01"] = {vcd=CreateSceneEntity("scenes/npc/gl
 -- This next test may result in your death. If you want to know what that's like, think back to that time you killed me, and substitute yourself for me.
 SceneTable["sp_laser_powered_liftStart01"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_laser_powered_lift_entry01.vcd"),postdelay=0.000,next=nil,char="glados"}
 end
--- sp_a2_laser_over_goo                              
+-- sp_a2_laser_over_goo
 if (curMapName=="sp_a2_laser_over_goo") then
 -- End
 -- I'll give you credit: I guess you ARE listening to me. But for the record: You don't have to go THAT slowly.
@@ -224,7 +224,7 @@ SceneTable["sp_laser_over_gooStart02"] = {vcd=CreateSceneEntity("scenes/npc/glad
 -- Waddle over to the elevator and we'll continue the testing.
 SceneTable["sp_laser_over_gooWaddle01"] = {vcd=CreateSceneEntity("scenes/npc/glados/testchambermisc12.vcd"),postdelay=0.000,next=nil,char="glados",noDingOn=true,predelay=0.2,queue=1,queuetimeout=3}
 end
--- sp_a2_catapult_intro                              
+-- sp_a2_catapult_intro
 if (curMapName=="sp_a2_catapult_intro") then
 -- End
 -- Here's an interesting fact: you're not breathing real air. It's too expensive to pump this far down. We just take carbon dioxide out of a room, freshen it up a little, and pump it back in. So you'll be breathing the same room full of air for the rest of
@@ -233,7 +233,7 @@ SceneTable["sp_catapult_introEnd01"] = {vcd=CreateSceneEntity("scenes/npc/glados
 -- This next test involves the Aperture Science Aerial Faith Plate. It was part of an initiative to investigate how well test subjects could solve problems when they were catapulted into space. Results were highly informative: They could not. Good luck!
 SceneTable["sp_catapult_introStart01"] = {vcd=CreateSceneEntity("scenes/npc/glados/faith_plate_intro01.vcd"),postdelay=0.000,next=nil,char="glados"}
 end
--- sp_a2_trust_fling                                 
+-- sp_a2_trust_fling
 if (curMapName=="sp_a2_trust_fling") then
 -- ElevatorStop
 -- So. Was there anything you wanted to apologize to ME for?
@@ -256,13 +256,13 @@ SceneTable["sp_trust_flingStart02"] = {vcd=CreateSceneEntity("scenes/npc/glados/
 -- *I* have to go to the wing that was made entirely of glass and pick up fifteen acres of broken glass. By myself.
 SceneTable["sp_trust_flingStart03"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_trust_fling_entry02.vcd"),postdelay=0.000,next=nil,char="glados"}
 end
--- sp_unassisted_angle_fling               
+-- sp_unassisted_angle_fling
 if (curMapName=="sp_unassisted_angle_fling") then
 -- Start
 -- This next test... {boom!} ..is... {BOOM!} dangerous I'llberightback.
 SceneTable["sp_unassisted_angle_flingStart01"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_unassisted_angle_fling_entry01.vcd"),postdelay=0.000,next=nil,char="glados"}
 end
--- sp_hole_in_the_sky                      
+-- sp_hole_in_the_sky
 if (curMapName=="sp_hole_in_the_sky") then
 -- End
 -- Well done. You know, when I woke up and saw the state of the labs, I started to wonder if there was any point to going on. I came THAT close to just giving up and letting you go.
@@ -275,7 +275,7 @@ SceneTable["sp_hole_in_the_skyStart01"] = {vcd=CreateSceneEntity("scenes/npc/gla
 -- That's right. Drink it in. You could eat off those wall panels.
 SceneTable["sp_hole_in_the_skyStart02"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_hole_in_the_sky_entry02.vcd"),postdelay=0.000,next=nil,char="glados"}
 end
--- sp_a2_bridge_intro                                
+-- sp_a2_bridge_intro
 if (curMapName=="sp_a2_bridge_intro") then
 -- Elevator
 -- Say. Remember when we cleared the air back there? Is there... anything you want to say to me? {beat} Anything?
@@ -293,7 +293,7 @@ SceneTable["sp_bridge_introEnd02"] = {vcd=CreateSceneEntity("scenes/npc/glados/s
 -- These bridges are made from natural light that I pump in from the surface. If you rubbed your cheek on one, it would be like standing outside wit  h the sun shining on your face. It would also set your hair on fire, so don't actually do it.
 SceneTable["sp_bridge_introStart01"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_a2_bridge_intro01.vcd"),postdelay=2,next=nil,char="glados"}
 end
--- sp_shoot_through_wall                   
+-- sp_shoot_through_wall
 if (curMapName=="sp_shoot_through_wall") then
 -- End
 -- Did my hint help? It did, didn't it? You know, if any of our supervisors had been immune to neurotoxin, they'd be FURIOUS with us right now.
@@ -302,7 +302,7 @@ SceneTable["sp_shoot_through_wallEnd01"] = {vcd=CreateSceneEntity("scenes/npc/gl
 -- You know, I'm not supposed to do this, but... you can shoot SOMETHING... through the blue bridges.
 SceneTable["sp_shoot_through_wallStart01"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_shoot_through_wall_entry01.vcd"),postdelay=0.000,next=nil,char="glados"}
 end
--- sp_a2_bridge_the_gap                              
+-- sp_a2_bridge_the_gap
 if (curMapName=="sp_a2_bridge_the_gap") then
 -- DoorBroken
 -- Perfect, the door's malfunctioning. I guess somebody's going to have to repair it. {beat} No, it's okay, I'll do that too. I'll be right back. Don't touch anything.
@@ -330,7 +330,7 @@ SceneTable["sp_bridge_the_gapLeave01"] = {vcd=CreateSceneEntity("scenes/npc/glad
 -- Good news. I figured out what to do with all the money I save recycling your one roomful of air. When you die, I'm going to laminate your skeleton and pose you in the lobby. That way future generations can learn from you how not to have your unfortunate
 SceneTable["sp_bridge_the_gapStart01"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_a2_bridge_the_gap01.vcd"),postdelay=0.000,next=nil,char="glados",predelay=1.0}
 end
--- sp_sphere_2nd_encounter                 
+-- sp_sphere_2nd_encounter
 if (curMapName=="sp_sphere_2nd_encounter") then
 -- DoorBreak
 -- Ohhhh. Another door malfunction? I'm going to take care of this once and for all. Stay here, I'll be back in a while.
@@ -347,19 +347,19 @@ SceneTable["sp_sphere_2nd_encounterMeetup01"] = {vcd=CreateSceneEntity("scenes/n
 -- I shouldn't spoil this, but... remember how I'm going to live forever, but you're going to be dead in sixty years? You know how excruciating it is when someone removes all of your bone marrow? Well, what if after I did that, I put something back IN
 SceneTable["sp_sphere_2nd_encounterStart01"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_sphere_2nd_encounter_entry01.vcd"),postdelay=0.000,next=nil,char="glados"}
 end
--- sp_turret_intro                         
+-- sp_turret_intro
 if (curMapName=="sp_turret_intro") then
 -- Start
 -- I wouldn't have warned you about this before, back when we hated each other. But those turrets are firing real bullets. So look out. I'd hate for something tragic to happen to you before I extract all your bone marrow.
 SceneTable["sp_turret_introStart01"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_turret_intro_entry01.vcd"),postdelay=0.000,next=nil,char="glados"}
 end
--- sp_a2_turret_intro                                
+-- sp_a2_turret_intro
 if (curMapName=="sp_a2_turret_intro") then
 -- Start
 -- This next test involves turrets. You remember them, right? They're the pale spherical things that are full of bullets. Oh wait. That's you in five seconds. Good luck.
 SceneTable["sp_turret_training_advancedStart01"] = {vcd=CreateSceneEntity("scenes/npc/glados/turret_intro01.vcd"),postdelay=0.000,next=nil,char="glados",predelay=1.5}
 end
--- sp_a2_turret_blocker                              
+-- sp_a2_turret_blocker
 if (curMapName=="sp_a2_turret_blocker") then
 -- End
 -- I've been going through the list of test subjects in cryogenic storage. I managed to find two with your last name. A man and a woman. So that's interesting. It's a small world.
@@ -370,7 +370,7 @@ SceneTable["sp_turret_blocker_introStart01"] = {vcd=CreateSceneEntity("scenes/np
 -- Well, what does a neck-bearded old engineer know about fashion? He probably - Oh, wait. It's a she. Still, - oh wait, it says she has a medical degree. In fashion! From France!
 SceneTable["sp_turret_blocker_introStart02"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_a2_turret_intro03.vcd"),postdelay=0.000,next=nil,char="glados",fires={{entity="entry_dialog_completed_rl",input="trigger",parameter="",delay=0.0}}}
 end
--- sp_a2_column_blocker                              
+-- sp_a2_column_blocker
 if (curMapName=="sp_a2_column_blocker") then
 -- ElevatorOw
 -- OW!
@@ -393,7 +393,7 @@ SceneTable["sp_column_blockerEnd02"] = {vcd=CreateSceneEntity("scenes/npc/glados
 -- It's healthy for you to have other friends. To look for qualities in other people that I obviously lack.
 SceneTable["sp_column_blockerStart01"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_column_blocker_entry01.vcd"),postdelay=0.000,next=nil,char="glados"}
 end
--- sp_a2_laser_vs_turret                             
+-- sp_a2_laser_vs_turret
 if (curMapName=="sp_a2_laser_vs_turret") then
 -- End
 -- {hums "For He's A Jolly Good Fellow"}
@@ -402,7 +402,7 @@ SceneTable["sp_laser_vs_turret_introEnd01"] = {vcd=CreateSceneEntity("scenes/npc
 -- I have a surprise waiting for you after this next test. Telling you would spoil the surprise, so I'll just give you a hint: it involves meeting two people you haven't seen in a long time.
 SceneTable["sp_laser_vs_turret_introStart01"] = {vcd=CreateSceneEntity("scenes/npc/glados/testchambermisc31.vcd"),postdelay=0.3,next=nil,char="glados",predelay=1.8}
 end
--- sp_a2_laser_relays                                
+-- sp_a2_laser_relays
 if (curMapName=="sp_a2_laser_relays") then
 -- End
 -- You know how I'm going to live forever, but you're going to be dead in sixty years?  Well, I've been working on a belated birthday present for you. Well. More of a belated birthday medical procedure. Well. Technically, it's a medical EXPERIMENT.
@@ -411,7 +411,7 @@ SceneTable["sp_laser_relaysEnd01"] = {vcd=CreateSceneEntity("scenes/npc/glados/t
 -- To maintain a constant testing cycle, I simulate daylight at all hours and add adrenal vapor to your oxygen supply. So you may be confused about the passage of time. The point is, yesterday was your birthday. I thought you'd want to know.
 SceneTable["sp_laser_relaysStart01"] = {vcd=CreateSceneEntity("scenes/npc/glados/testchambermisc21.vcd"),postdelay=0.000,next=nil,char="glados",predelay=2.0}
 end
--- sp_a2_ring_around_turrets                         
+-- sp_a2_ring_around_turrets
 if (curMapName=="sp_a2_ring_around_turrets") then
 -- End
 -- I'll bet you think I forgot about your surprise. I didn't. In fact, we're headed to your surprise right now. After all these years. I'm getting choked up just thinking about it.
@@ -420,7 +420,7 @@ SceneTable["sp_ring_around_the_turretsEnd01"] = {vcd=CreateSceneEntity("scenes/n
 -- I'll bet you think I forgot about your surprise. I didn't. In fact, we're headed to your surprise right now. After all these years. I'm getting choked up just thinking about it.
 SceneTable["sp_ring_around_the_turretsStart01"] = {vcd=CreateSceneEntity("scenes/npc/glados/testchambermisc33.vcd"),postdelay=0.000,next=nil,char="glados"}
 end
--- sp_a2_sphere_peek                                 
+-- sp_a2_sphere_peek
 if (curMapName=="sp_a2_sphere_peek") then
 -- BounceOne
 -- Hey! Hey! It's me! I'm okay!
@@ -452,13 +452,13 @@ SceneTable["sp_catapult_fling_sphere_peekFailureTwo02"] = {vcd=CreateSceneEntity
 -- Try now.
 SceneTable["sp_catapult_fling_sphere_peekFailureTwo03"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_catapult_fling_sphere_peek_failuretwo03.vcd"),postdelay=0.000,next=nil,char="glados",fires={{entity="@trigger_this_to_fix_catapult",input="Trigger",parameter="",delay=0.2}}}
 end
--- sp_a2_turret_tower                                
+-- sp_a2_turret_tower
 if (curMapName=="sp_a2_turret_tower") then
 -- End
 -- I think these test chambers look even better than they did before. It was easy, really. You just have to look at things objectively, see what you don't need anymore, and trim out the fat.
 SceneTable["sp_turret_towerEnd01"] = {vcd=CreateSceneEntity("scenes/npc/glados/a2_triple_laser03.vcd"),postdelay=0.1,next=nil,char="glados",fires={{entity="@transition_script",input="runscriptcode",parameter="TransitionReady()",delay=0.00}}}
 end
--- sp_paint_jump_trampoline                
+-- sp_paint_jump_trampoline
 if (curMapName=="sp_paint_jump_trampoline") then
 -- End
 -- Just so you know, I have to go give a deposition. For an upcoming trial. In case that interests you.
@@ -467,7 +467,7 @@ SceneTable["sp_paint_jump_trampolineEnd01"] = {vcd=CreateSceneEntity("scenes/npc
 -- While I was out investigating, I found a fascinating new test element. It's never been used for human testing because, apparently, contact with it causes heart failure. The literature doesn't mention anything about lump-of-coal failure, though, so you
 SceneTable["sp_paint_jump_trampolineStart01"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_paint_jump_trampoline_entry01.vcd"),postdelay=0.000,next=nil,char="glados"}
 end
--- sp_paint_jump_redirect_bomb             
+-- sp_paint_jump_redirect_bomb
 if (curMapName=="sp_paint_jump_redirect_bomb") then
 -- End
 -- I thought we could test like we used to. But I'm discovering things about you that I never saw before. We... we can't ever go back to the way it was, can we?
@@ -476,7 +476,7 @@ SceneTable["sp_paint_jump_redirect_bombEnd01"] = {vcd=CreateSceneEntity("scenes/
 -- You can't keep going like this forever, you know. I'm GOING to find out what you're doing. Out there. Where I can't see you. I'll know. All I need is proof.
 SceneTable["sp_paint_jump_redirect_bombStart01"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_paint_jump_redirect_bomb_entry01.vcd"),postdelay=0.000,next=nil,char="glados"}
 end
--- sp_paint_jump_wall_jumps                
+-- sp_paint_jump_wall_jumps
 if (curMapName=="sp_paint_jump_wall_jumps") then
 -- Start
 -- Did you know that people with guilty consciences are more easily startled by loud noi-{foghorn}
@@ -484,7 +484,7 @@ SceneTable["sp_paint_jump_wall_jumpsStart01"] = {vcd=CreateSceneEntity("scenes/n
 -- I'm sorry, I don't know why that went off. Anyway, just an interesting science fact.
 SceneTable["sp_paint_jump_wall_jumpsStart02"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_paint_jump_wall_jumps02.vcd"),postdelay=0.000,next=nil,char="glados"}
 end
--- sp_paint_jump_wall_jumps_gap            
+-- sp_paint_jump_wall_jumps_gap
 if (curMapName=="sp_paint_jump_wall_jumps_gap") then
 -- Start
 -- I'm going to be honest with you now. Not fake honest like before, but real honest, like you're incapable of. I know you're up to something.
@@ -492,7 +492,7 @@ SceneTable["sp_paint_jump_wall_jumps_gapStart01"] = {vcd=CreateSceneEntity("scen
 -- And as soon as I can PROVE it, the laws of robotics allow me to terminate you for being a liar.
 SceneTable["sp_paint_jump_wall_jumps_gapStart02"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_turret_islands02.vcd"),postdelay=0.000,next=nil,char="glados"}
 end
--- sp_climb_for_los                        
+-- sp_climb_for_los
 if (curMapName=="sp_climb_for_los") then
 -- End
 -- Oh. You survived. That's interesting. I guess I should have factored in your weight. By the way, I'm not sure if I've mentioned it, but you've really gained a lot of weight.
@@ -500,20 +500,20 @@ SceneTable["sp_climb_for_losEnd01"] = {vcd=CreateSceneEntity("scenes/npc/glados/
 -- One of these times you'll be so fat that you'll jump, and you'll just drop like a stone. Into acid, probably. Like a potato into a deep fryer.
 SceneTable["sp_climb_for_losEnd02"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_box_over_goo04.vcd"),postdelay=0.000,next=nil,char="glados"}
 end
--- sp_angled_bridge                        
+-- sp_angled_bridge
 if (curMapName=="sp_angled_bridge") then
 -- Start
 -- Per our last conversation: You're also ugly. I'm looking at your file right now, and it mentions that more than once.
 SceneTable["sp_angled_bridgeStart01"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_laserfield_intro01.vcd"),postdelay=0.000,next=nil,char="glados"}
 end
--- sp_a4_stop_the_box                                
--- sp_turret_islands                       
+-- sp_a4_stop_the_box
+-- sp_turret_islands
 if (curMapName=="sp_turret_islands") then
 -- Start
 -- Why do I hate you so much? You ever wonder that? I'm brilliant. I’m not bragging. It's an objective fact. I'm the most massive collection of wisdom and raw computational power that’s ever existed.
 SceneTable["sp_turret_islandsStart01"] = {vcd=CreateSceneEntity("scenes/npc/glados/EvilAgainSamples03.vcd"),postdelay=0.000,next=nil,char="glados"}
 end
--- sp_catapult_course                      
+-- sp_catapult_course
 if (curMapName=="sp_catapult_course") then
 -- End
 -- You never considered that maybe I tested you to give the endless hours of your pointless existence some structure and meaning. Maybe to help you concentrate, so just maybe you’d think of something more worthwhile to do with your sorry life.
@@ -522,14 +522,14 @@ SceneTable["sp_catapult_courseEnd01"] = {vcd=CreateSceneEntity("scenes/npc/glado
 -- You're angry. I know it. "She tested me too hard. She’s unfair.” Boo hoo. I don't suppose you ever stopped whining long enough to reflect on your own shortcomings, though, did you?
 SceneTable["sp_catapult_courseStart01"] = {vcd=CreateSceneEntity("scenes/npc/glados/EvilAgainSamples04.vcd"),postdelay=0.000,next=nil,char="glados"}
 end
--- sp_box_over_goo                         
--- sp_laserfield_intro                     
+-- sp_box_over_goo
+-- sp_laserfield_intro
 if (curMapName=="sp_laserfield_intro") then
 -- Start
 -- Did you ever stop to think that eventually there’s a point where your name gets mentioned for the very last time. Well, here it is: I’m going to kill you, Chell.
 SceneTable["sp_laserfield_introStart01"] = {vcd=CreateSceneEntity("scenes/npc/glados/EvilAgainSamples01.vcd"),postdelay=0.000,next=nil,char="glados"}
 end
--- sp_a2_bts1                                        
+-- sp_a2_bts1
 if (curMapName=="sp_a2_bts1") then
 -- JailbreakAhh
 -- ahhh!
@@ -714,7 +714,7 @@ SceneTable["sp_sabotage_jailbreakJailbreakWhoahAlt18"] = {vcd=CreateSceneEntity(
 -- I've got a surprise for you after this next test. Not a fake, tragic surprise like last time. A real surprise, with tragic consequences. And real confetti this time. The good stuff. Our last bag. Part of me's going to miss it, I guess-but at the end of
 SceneTable["sp_sabotage_jailbreakStart01"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_a2_bts1_intro01.vcd"),postdelay=0.1,next=nil,char="glados",predelay=1.1}
 end
--- sp_a2_bts3                                        
+-- sp_a2_bts3
 if (curMapName=="sp_a2_bts3") then
 -- DarknessIntro
 -- Brilliant you made it! Follow me we've still got work to do. At least she can't touch us back here.
@@ -843,7 +843,7 @@ SceneTable["sp_sabotage_darknessUhOh04"] = {vcd=CreateSceneEntity("scenes/npc/sp
 -- GAAAA!
 SceneTable["sp_sabotage_darknessUhOh05"] = {vcd=CreateSceneEntity("scenes/npc/sphere03/sphere_flashlight_tour70.vcd"),postdelay=0.1,next=nil,char="wheatley",fires={{entity="sphere_flashlight_turnon_relay",input="trigger",parameter="",delay=0.2,fireatstart=true},{entity="sphere_begin_flashlight_tour_relay",input="trigger",parameter="",delay=5,fireatstart=true}},noDingOff=true,noDingOn=true}
 end
--- sp_a2_bts4                                        
+-- sp_a2_bts4
 if (curMapName=="sp_a2_bts4") then
 -- BigPotato
 -- It's growing right up into the ceiling. The whole place is probably overrun with potatoes at this point. At least you won't starve...
@@ -1137,8 +1137,8 @@ SceneTable["sp_sabotage_factoryVolcano01"] = {vcd=CreateSceneEntity("scenes/npc/
 -- I'm guessing this wasn't one of the scientist's children. I don't want to be snobby, but let's be honest: It's got manual laborer written all over it. I'm not saying they're not as good as the professionals. They're just a lot dumber.
 SceneTable["sp_sabotage_factoryVolcanoB02"] = {vcd=CreateSceneEntity("scenes/npc/sphere03/sp_a2_bts5_science_fair03.vcd"),postdelay=0.1,next=nil,char="wheatley",fires={{entity="@glados",input="runscriptcode",parameter="ScienceFairBusy()",delay=0.0,fireatstart=true},{entity="@glados",input="runscriptcode",parameter="ScienceFairNotBusy()",delay=0.0}},noDingOff=true,noDingOn=true,predelay=0.2}
 end
--- sp_intro_01                             
--- sp_a2_bts5                              
+-- sp_intro_01
+-- sp_a2_bts5
 if (curMapName=="sp_a2_bts5") then
 -- ToxinCutAll
 -- That did it! Neurotoxin at zero percent! Yes!
@@ -1245,7 +1245,7 @@ SceneTable["sp_a2_bts5WheatleyGreetsYou02"] = {vcd=CreateSceneEntity("scenes/npc
 -- There's some sort of control room up top. Let's go investigate.
 SceneTable["sp_a2_bts5WheatleyGreetsYou03"] = {vcd=CreateSceneEntity("scenes/npc/sphere03/sp_a2_bts5_intro03.vcd"),postdelay=0.3,next=nil,char="wheatley",fires={{entity="wheatley_intro_finished_rl",input="trigger",parameter="",delay=2.8,fireatstart=true}},noDingOff=true,noDingOn=true}
 end
--- sp_sabotage_panel_sneak                 
+-- sp_sabotage_panel_sneak
 if (curMapName=="sp_sabotage_panel_sneak") then
 -- sp_sabotage_panel_sneak_1000
 -- Alright, now. She can't use her turrets. So let's go and take care of that neurotoxin generator as well. If we can find a feeder tube, it should lead us right to it.
@@ -1260,7 +1260,7 @@ SceneTable["sp_sabotage_panel_sneaksp_sabotage_panel_sneak_100201"] = {vcd=Creat
 -- Follow the feeder tube to the generator room! I'll meet you there.
 SceneTable["sp_sabotage_panel_sneaksp_sabotage_panel_sneak_100301"] = {vcd=CreateSceneEntity("scenes/npc/sphere03/sp_sabotage_panel_sneak04.vcd"),postdelay=0.1,next=nil,char="wheatley",noDingOff=true,noDingOn=true}
 end
--- sp_a2_bts6                                        
+-- sp_a2_bts6
 if (curMapName=="sp_a2_bts6") then
 -- StartTubeRide
 -- This should take us right to her. I can't believe I'm finally doing this!
@@ -1283,7 +1283,7 @@ SceneTable["sp_sabotage_tube_rideTubeRideUhOh03"] = {vcd=CreateSceneEntity("scen
 -- Get to HER! I'll find you!
 SceneTable["sp_sabotage_tube_rideTubeRideUhOh04"] = {vcd=CreateSceneEntity("scenes/npc/sphere03/sp_a2_tube_ride07.vcd"),postdelay=0.1,next=nil,char="wheatley",noDingOff=true,noDingOn=true}
 end
--- sp_a2_pit_flings                        
+-- sp_a2_pit_flings
 if (curMapName=="sp_a2_pit_flings") then
 -- End
 -- Hmm. This emancipation grill is broken.
@@ -1296,7 +1296,7 @@ SceneTable["sp_a2_pit_flingsStart01"] = {vcd=CreateSceneEntity("scenes/npc/glado
 -- I'm sorry, I don't know why that went off. Anyway, just an interesting science fact.
 SceneTable["sp_a2_pit_flingsStart02"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_paint_jump_wall_jumps02.vcd"),postdelay=0.0,next=nil,char="glados"}
 end
--- sp_a2_ricochet                          
+-- sp_a2_ricochet
 if (curMapName=="sp_a2_ricochet") then
 -- End
 -- Well, you passed the test. I didn't see the deer today. I did see some humans. But with you here I've got more test subjects than I'll ever need.
@@ -1308,7 +1308,7 @@ SceneTable["sp_a2_ricochetFutureStarter01"] = {vcd=CreateSceneEntity("scenes/npc
 -- Enjoy this next test. I'm going to go to the surface. It's a beautiful day out. Yesterday I saw a deer. If you solve this next test, maybe I'll let you ride an elevator all the way up to the break room, and I'll tell you about the time I saw a deer
 SceneTable["sp_a2_ricochetStart01"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_a2_ricochet01.vcd"),postdelay=0.0,next=nil,char="glados",predelay=1.0}
 end
--- sp_a2_pull_the_rug                      
+-- sp_a2_pull_the_rug
 if (curMapName=="sp_a2_pull_the_rug") then
 -- End
 -- I'll bet you think I forgot about your surprise. I didn't. In fact, we're headed to your surprise right now. After all these years. I'm getting choked up just thinking about it.
@@ -1317,7 +1317,7 @@ SceneTable["sp_a2_pull_the_rugEnd01"] = {vcd=CreateSceneEntity("scenes/npc/glado
 -- It says this next test was designed by one of Aperture's Nobel prize winners! It doesn't say what the prize was for. Well, I know it wasn't for Being Immune To Neurotoxin.
 SceneTable["sp_a2_pull_the_rugStart01"] = {vcd=CreateSceneEntity("scenes/npc/glados/testchambermisc39.vcd"),postdelay=0.1,next=nil,char="glados",predelay=1.8}
 end
--- sp_a1_intro7                            
+-- sp_a1_intro7
 if (curMapName=="sp_a1_intro7") then
 -- BamSecretPanel
 -- BAM! Secret panel! That I opened. While your back was turned.
@@ -1483,7 +1483,7 @@ SceneTable["sp_a1_intro7TurnAroundNow01"] = {vcd=CreateSceneEntity("scenes/npc/s
 -- Oh, brilliant. You DID find a portal gun! You know what? It just goes to show: people with brain damage are the real heroes in the end aren't they? At the end of the day. Brave.
 SceneTable["sp_a1_intro7YouFoundIt01"] = {vcd=CreateSceneEntity("scenes/npc/sphere03/DEMOSPHEREINTRO04.vcd"),postdelay=0.4,next=nil,char="wheatley",fires={{entity="@glados",input="runscriptcode",parameter="sp_a1_intro7_PopPortal()",delay=0.0}},noDingOff=true,noDingOn=true,queue=1}
 end
--- sp_a1_wakeup                            
+-- sp_a1_wakeup
 if (curMapName=="sp_a1_wakeup") then
 -- ChamberDoorOpen
 -- Okay, I'm gonna lay my cards on the table: I don't wanna do it. I don't want to go in there. Don't... Don't go in there - She's off. She's off! Panic over! She's off. On we go.
@@ -1541,6 +1541,7 @@ SceneTable["sp_a1_wakeupSecondThoughtsB01"] = {vcd=CreateSceneEntity("scenes/npc
 -- SecondThoughtsC
 -- Riggght now.
 SceneTable["sp_a1_wakeupSecondThoughtsC01"] = {vcd=CreateSceneEntity("scenes/npc/sphere03/gladosgantry06.vcd"),postdelay=0.1,next=nil,char="wheatley",fires={{entity="@glados",input="runscriptcode",parameter="sp_a1_wakeup_gantry_exposition_end()",delay=2.0}},noDingOff=true,noDingOn=true}
+
 -- SecondThoughtsD
 -- In case you thought to yourself, "I've missed the window of time to voice my reservations." Still open.
 SceneTable["sp_a1_wakeupSecondThoughtsD01"] = {vcd=CreateSceneEntity("scenes/npc/sphere03/gladosgantry08.vcd"),postdelay=0.1,next=nil,char="wheatley",fires={{entity="@glados",input="runscriptcode",parameter="sp_a1_wakeup_gantry_exposition_end()",delay=0.2}},noDingOff=true,noDingOn=true}
@@ -1633,7 +1634,7 @@ SceneTable["sp_a1_wakeupWakeupTransport02"] = {vcd=CreateSceneEntity("scenes/npc
 -- I just now realized that I used to rely on my management rail to not fall into bottomless pits. And you're my rail now. And you can fall into bottomless pits. I'm rambling out of fear, but here's the point:
 SceneTable["sp_a1_wakeupYourMyRail01"] = {vcd=CreateSceneEntity("scenes/npc/sphere03/sp_a1_wakeup_catwalk03.vcd"),postdelay=0.1,next=nil,char="wheatley",noDingOff=true,noDingOn=true}
 end
--- sp_a2_bts2                                        
+-- sp_a2_bts2
 if (curMapName=="sp_a2_bts2") then
 -- JailbreakAlmostOut
 -- There's the exit! We're almost out of here!
@@ -1684,7 +1685,7 @@ SceneTable["sp_sabotage_jailbreak2JailbreakWeMadeIt01"] = {vcd=CreateSceneEntity
 -- I'll meet you on the other side!
 SceneTable["sp_sabotage_jailbreak2JailbreakWeMadeIt02"] = {vcd=CreateSceneEntity("scenes/npc/sphere03/sp_a2_bts2_near_exit03.vcd"),postdelay=0.1,next=nil,char="wheatley",fires={{entity="wheatley_leave_the_map_relay",input="Trigger",parameter="",delay=0.0,fireatstart=true}},noDingOff=true,noDingOn=true}
 end
--- sp_a2_fizzler_intro                     
+-- sp_a2_fizzler_intro
 if (curMapName=="sp_a2_fizzler_intro") then
 -- Explosion
 -- Ohhh, no. The turbines again. Every inch of this facility needs my attention. I have to go.  Wait. This next test DOES require some explanation. Let me give you the fast version.
@@ -1697,7 +1698,7 @@ SceneTable["sp_a2_fizzler_introExplosion03"] = {vcd=CreateSceneEntity("scenes/np
 -- This next test involves emancipation grills. Remember? I told you about them in the last test area, that didn't have one.
 SceneTable["sp_a2_fizzler_introStart01"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_a2_fizzler_intro01.vcd"),postdelay=0.1,next=nil,char="glados",predelay=3.0}
 end
--- sp_a2_laser_chaining                    
+-- sp_a2_laser_chaining
 if (curMapName=="sp_a2_laser_chaining") then
 -- End
 -- So. I thought about our dilemma, and I came up with a solution that I honestly think works out best for one of both of us.
@@ -1706,7 +1707,7 @@ SceneTable["sp_a2_laser_chainingEnd01"] = {vcd=CreateSceneEntity("scenes/npc/gla
 -- Well, you know the old formula: Comedy equals tragedy plus time. And you have been asleep for a while. So I guess it's actually pretty funny when you do the math.
 SceneTable["sp_a2_laser_chainingStart01"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_a2_column_blocker05.vcd"),postdelay=0.1,next=nil,char="glados",predelay=1.0}
 end
--- sp_a2_triple_laser                      
+-- sp_a2_triple_laser
 if (curMapName=="sp_a2_triple_laser") then
 -- End
 -- I think these test chambers look even better than they did before. It was easy, really. You just have to look at things objectively, see what you don't need anymore, and trim out the fat.
@@ -1717,7 +1718,7 @@ SceneTable["sp_a2_triple_laserStart01"] = {vcd=CreateSceneEntity("scenes/npc/gla
 -- That's right. The facility is completely operational again.
 SceneTable["sp_a2_triple_laserStart02"] = {vcd=CreateSceneEntity("scenes/npc/glados/a2_triple_laser02.vcd"),postdelay=0.000,next=nil,char="glados"}
 end
--- sp_a4_finale2                           
+-- sp_a4_finale2
 if (curMapName=="sp_a4_finale2") then
 -- TbeamBackInOne
 -- FOOL! You were a fool to come back, because I've trapped you again! Helpless. At my mercy. And I don't have any. You're at my nothing.
@@ -1739,7 +1740,7 @@ SceneTable["sp_a4_finale2TbeamEscapeTwo02"] = {vcd=CreateSceneEntity("scenes/npc
 -- So twisty you might even call it spinning. MOO HOO HA HA HA ignore that. Ignore the laughter.
 SceneTable["sp_a4_finale2TbeamEscapeTwo03"] = {vcd=CreateSceneEntity("scenes/npc/sphere03/bw_a4_finale02_beamtrap_earlyexitb03.vcd"),postdelay=0.1,next=nil,char="wheatley",noDingOff=true,noDingOn=true}
 end
--- ScreenSmashes                           
+-- ScreenSmashes
 -- Smash01
 -- Aw. Bless your little primate brain. I'm not actually in the room with you. Technology. It's complicated. Can't hurt the big god face.
 SceneTable["ScreenSmashesSmash0101"] = {vcd=CreateSceneEntity("scenes/npc/sphere03/bw_screen_smash06.vcd"),postdelay=0.1,next=nil,char="wheatley",noDingOff=true,noDingOn=true}
@@ -1773,7 +1774,7 @@ SceneTable["ScreenSmashesSmash1009"] = {vcd=CreateSceneEntity("scenes/npc/sphere
 -- Smash11
 -- These are not your screens to break. Pure vandalism. You wouldn't do this if this was your house. If I came around to your house and smashed your television, you'd be furious. And rightly so. Unbelievable.
 SceneTable["ScreenSmashesSmash1110"] = {vcd=CreateSceneEntity("scenes/npc/sphere03/bw_screen_smash32.vcd"),postdelay=0.1,next=nil,char="wheatley",noDingOff=true,noDingOn=true}
--- sp_a4_finale4                           
+-- sp_a4_finale4
 if (curMapName=="sp_a4_finale4") then
 -- BBBombHitA
 -- AH!
@@ -1984,7 +1985,7 @@ SceneTable["sp_a4_finale4BBWakeupTwo10"] = {vcd=CreateSceneEntity("scenes/npc/sp
 -- But the real point is - oh, oh! You know what I've just remembered? Football! Kicking a ball around for fun. Cruel, obviously. Humans love it. Metaphor. Should have seen this coming.
 SceneTable["sp_a4_finale4BBWakeupTwo11"] = {vcd=CreateSceneEntity("scenes/npc/sphere03/bw_a4_finale04_wakeupb11.vcd"),postdelay=0.1,next=nil,char="wheatley",noDingOff=true,noDingOn=true}
 end
--- sp_a1_intro4                            
+-- sp_a1_intro4
 if (curMapName=="sp_a1_intro4") then
 -- End
 -- Great work! Because this message is prerecorded, any observations related to  your performance are speculation on our part. Please disregard any undeserved compliments.
@@ -1993,7 +1994,7 @@ SceneTable["sp_a1_intro4End01"] = {vcd=CreateSceneEntity("scenes/npc/announcer/t
 -- Congratulations. You have trapped yourself. Opening the door.
 SceneTable["sp_a1_intro4FutureStarter01"] = {vcd=CreateSceneEntity("scenes/npc/announcer/testchamber11.vcd"),postdelay=0.1,next=nil,char="announcer"}
 end
--- sp_a1_intro1                            
+-- sp_a1_intro1
 if (curMapName=="sp_a1_intro1") then
 -- Fizzler_Intro
 -- Please note the incandescent particle field across the exit. This Aperture Science Material Emancipation Grill will vaporize any unauthorized equipment that passes through it.
@@ -2027,7 +2028,7 @@ SceneTable["sp_a1_intro1WheatleyJumpDown01"] = {vcd=CreateSceneEntity("scenes/np
 -- That's the spirit!
 SceneTable["sp_a1_intro1WheatleyJumpOver01"] = {vcd=CreateSceneEntity("scenes/npc/sphere03/openinggoodbye01.vcd"),postdelay=0.00,next=nil,char="wheatley",noDingOff=true,noDingOn=true}
 end
--- sp_a1_intro6                            
+-- sp_a1_intro6
 if (curMapName=="sp_a1_intro6") then
 -- End
 -- Good work, future-starter! That said, if you are old, simpleminded or cripplingly irradiated in such a way that the future should not start with you, please return to your primitive post-apocalyptic t
@@ -2039,13 +2040,13 @@ SceneTable["sp_a1_intro6MidPoint01"] = {vcd=CreateSceneEntity("scenes/npc/announ
 -- This next test applies the principles of momentum to movement through portals. If the laws of physics no longer apply in the future, God help you.
 SceneTable["sp_a1_intro6Start01"] = {vcd=CreateSceneEntity("scenes/npc/announcer/testchamber10.vcd"),postdelay=0.1,next=nil,char="announcer"}
 end
--- sp_a1_intro5                            
+-- sp_a1_intro5
 if (curMapName=="sp_a1_intro5") then
 -- Start
 -- If the Enrichment Center is currently being bombarded with fireballs, meteorites, or other objects from space, please avoid unsheltered testing areas wherever a lack of shelter from space-debris DOES NOT appear to be a deliberate part of the test.
 SceneTable["sp_a1_intro5Start01"] = {vcd=CreateSceneEntity("scenes/npc/announcer/testchamber02.vcd"),postdelay=0.1,next=nil,char="announcer"}
 end
--- sp_a1_intro3                                      
+-- sp_a1_intro3
 if (curMapName=="sp_a1_intro3") then
 -- AfterFall
 -- Hello?
