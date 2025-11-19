@@ -881,6 +881,10 @@ function SWEP:Holster(arguments)
 		end
 		self.HoldProxy = nil
 		self.HeldRealObject = nil
+		if self.HoldSound then
+			self.HoldSound:Stop()
+			self.HoldSound = nil
+		end
 
 		if IsValid(vm1) then
 			vm1:SetWeaponModel(self:GetWeaponViewModel(), self)
@@ -1234,6 +1238,11 @@ function SWEP:OnRemove()
 		GP2_HoldProps[self] = nil
 	end
 	self.HoldProp = nil
+
+	if self.HoldSound then
+		self.HoldSound:Stop()
+		self.HoldSound = nil
+	end
 
 	self:ClearPortals()
 end
