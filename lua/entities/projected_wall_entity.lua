@@ -54,6 +54,20 @@ function ENT:Initialize()
 	end;
 	self:AddEffects(EF_NODRAW);
 end;
+function ENT:ShouldCollide(ent)
+	if not IsValid(ent) then return false end;
+	local entClass = ent:GetClass();
+	-- Enable collision with props and cubes
+	if entClass == "prop_physics" or entClass == "prop_weighted_cube" then
+		return true;
+	end;
+	-- Enable collision with players
+	if ent:IsPlayer() then
+		return true;
+	end;
+	-- Default to true for other entities
+	return true;
+end;
 function ENT:Think()
 	if SERVER then
 		local parent = self:GetParent();
@@ -478,7 +492,7 @@ function ENT:Think()
 									local phys = cloneProjector.ProjectedWall:GetPhysicsObject();
 									if IsValid(phys) then
 										phys:EnableMotion(false);
-										phys:SetMaterial("gmod_silent");
+										-- phys:SetMaterial("gmod_silent");
 									end;
 								end;
 							end);
@@ -646,9 +660,9 @@ function ENT:CreateWall()
 	local phys = self:GetPhysicsObject();
 	if IsValid(phys) then
 		phys:EnableMotion(false);
-		phys:SetContents(CONTENTS_SOLID + CONTENTS_MOVEABLE + CONTENTS_BLOCKLOS);
+		phys:SetContents(CONTENTS_SOLID + CONTENTS_BLOCKLOS);
 		if self:GetIsProjectorCloned() then
-			phys:SetMaterial("gmod_silent");
+			-- phys:SetMaterial("gmod_silent");
 			phys:Wake();
 			timer.Simple(0.1, function()
 				if IsValid(self) and IsValid(phys) then
