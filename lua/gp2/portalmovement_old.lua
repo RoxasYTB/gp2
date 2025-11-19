@@ -183,6 +183,21 @@ hook.Add("Move", "seamless_portal_teleport", function(ply, mv)
 		for _, portal in ipairs(ents.FindByClass("prop_portal")) do
 			if IsValid(portal) and portal:GetActivated() and portal.GetLinkedPartner and IsValid(portal:GetLinkedPartner()) then
 				local portalAng = portal:GetAngles()
+				if math.abs(portalAng.p) < 15 then
+					local portalPos = portal:GetPos()
+					local dx = portalPos.x - plyPos.x
+					local dy = portalPos.y - plyPos.y
+					local dz = portalPos.z - plyPos.z
+					local threshold = 200
+					if math.abs(dx) < threshold and math.abs(dy) < threshold and math.abs(dz) < threshold * 2 then
+						print("Attracting player to portal with deltas " .. tostring(dx) .. ", " .. tostring(dy) .. ", " .. tostring(dz))
+						local dist2D = math.sqrt(dx * dx + dy * dy)
+						if dist2D < closestDist2D then
+							closestDist2D = dist2D
+							closestPortal = portal
+						end
+					end
+				end
 			end
 		end
 		if closestPortal then

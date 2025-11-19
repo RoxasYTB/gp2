@@ -1489,7 +1489,7 @@ if (curMapName=="sp_a1_wakeup") then
 -- Okay, I'm gonna lay my cards on the table: I don't wanna do it. I don't want to go in there. Don't... Don't go in there - She's off. She's off! Panic over! She's off. On we go.
 SceneTable["sp_a1_wakeupChamberDoorOpen01"] = {vcd=CreateSceneEntity("scenes/npc/sphere03/sp_a1_wakeup_gantry01.vcd"),postdelay=0.1,next=nil,char="wheatley",noDingOff=true,noDingOn=true,predelay=1.1,queue=1}
 -- ComeThroughHere
--- Ohh. You're gonna laugh at this. You know how I said there was absolutely no way to get here without going through her lair and her potentially killing us?
+-- SECRET : Ohh. You're gonna laugh at this. You know how I said there was absolutely no way to get here without going through her lair and her potentially killing us?
 SceneTable["sp_a1_wakeupComeThroughHere01"] = {vcd=CreateSceneEntity("scenes/npc/sphere03/gladosunderchamber01.vcd"),postdelay=0.1,next=nil,char="wheatley",noDingOff=true,noDingOn=true}
 -- DoNotLookDown
 -- AH! I just looked down. I do not recommend it.
@@ -1631,7 +1631,7 @@ SceneTable["sp_a1_wakeupWakeupTransport01"] = {vcd=CreateSceneEntity("scenes/npc
 -- I love it, too. So let's get you a dual portal device and go do some science.
 SceneTable["sp_a1_wakeupWakeupTransport02"] = {vcd=CreateSceneEntity("scenes/npc/glados/sp_a1_wakeup_incinerator02.vcd"),postdelay=0.1,next=nil,char="glados",noDingOff=true,noDingOn=true}
 -- YourMyRail
--- I just now realized that I used to rely on my management rail to not fall into bottomless pits. And you're my rail now. And you can fall into bottomless pits. I'm rambling out of fear, but here's the point:
+-- SECRET I just now realized that I used to rely on my management rail to not fall into bottomless pits. And you're my rail now. And you can fall into bottomless pits. I'm rambling out of fear, but here's the point:
 SceneTable["sp_a1_wakeupYourMyRail01"] = {vcd=CreateSceneEntity("scenes/npc/sphere03/sp_a1_wakeup_catwalk03.vcd"),postdelay=0.1,next=nil,char="wheatley",noDingOff=true,noDingOn=true}
 end
 -- sp_a2_bts2

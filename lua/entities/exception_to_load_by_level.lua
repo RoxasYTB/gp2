@@ -212,6 +212,18 @@ if SERVER then
 		end);
 	end;
 end;
+if SERVER then
+	if game.GetMap() == "sp_a2_laser_over_goo" then
+		timer.Create("GP2_MoveCube_sp_a2_laser_over_goo", 3, 0, function()
+			for _, ent in ipairs(ents.FindByClass("prop_weighted_cube")) do
+				local pos = ent:GetPos();
+				if pos.x == 2784 and pos.y == -1696 and pos.z == 768 then
+					ent:SetPos(Vector(pos.x, pos.y, pos.z - 400));
+				end;
+			end;
+		end);
+	end;
+end;
 if notification then
 	notification.AddLegacy = function(msg, type, len)
 		return;
